@@ -111,6 +111,7 @@ VITE_API_BASE_URL=http://localhost:8000/api
    - `APP_URL=https://<railway-app>.railway.app`
    - `FRONTEND_URL=https://<your-netlify-site>.netlify.app`
    - `APP_KEY` from `php artisan key:generate --show`
+   - `BROADCAST_DRIVER=log`
    - `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
 5. Deploy command: `composer install --no-dev && php artisan migrate --force && php artisan db:seed --force`
 6. Start command: `php artisan serve --host=0.0.0.0 --port=${PORT}`

@@ -77,11 +77,7 @@ const routes = [
   {
     path: '/dealer',
     name: 'dealer-dashboard',
-    component: () => import('../views/dealer/DealerDashboard.vue'),
-    meta: {
-      breadcrumb: 'Dealer workspace',
-      requiresRole: 'dealer'
-    }
+    redirect: '/'
   },
   {
     path: '/messages',

@@ -52,7 +52,7 @@ const primaryAction = computed(() => {
 
 const secondaryAction = computed(() => {
   if (auth.role === 'driver') return { to: '/driver', label: 'Driver dashboard' };
-  if (auth.role === 'dealer') return { to: '/dealer', label: 'Dealer dashboard' };
+  if (auth.role === 'dealer') return { to: '/jobs', label: 'View jobs' };
   if (auth.role === 'admin') return { to: '/jobs', label: 'Review jobs' };
   return { to: '/signup', label: 'Create account' };
 });
@@ -61,6 +61,21 @@ const statCards = computed(() => {
   const assigned = Array.isArray(auth.assignedJobs) ? auth.assignedJobs.length : 0;
   const posted = Array.isArray(auth.postedJobs) ? auth.postedJobs.length : 0;
   const completed = Array.isArray(auth.completedJobs) ? auth.completedJobs.length : 0;
+  const openMarketplaceJobs = postedJobs.value.filter((job) => {
+    const status = String(job?.status ?? '').toLowerCase();
+    return (status === 'open' || status === 'pending') && !job?.assigned_to_id;
+  }).length;
+  const paymentDueJobs = postedJobs.value.filter((job) => {
+    return job?.assigned_to_id && !['paid', 'payout_released'].includes(String(job?.payment_status || 'unpaid'));
+  }).length;
+  const proofReviewJobs = postedJobs.value.filter((job) => {
+    return String(job?.completion_status || '').toLowerCase() === 'submitted';
+  }).length;
+  const payoutReadyJobs = postedJobs.value.filter((job) => {
+    return String(job?.payment_status || '').toLowerCase() === 'paid'
+      && String(job?.completion_status || '').toLowerCase() === 'approved'
+      && !job?.stripe_transfer_id;
+  }).length;
 
   if (auth.role === 'driver') {
     return [
@@ -72,9 +87,10 @@ const statCards = computed(() => {
 
   if (auth.role === 'dealer') {
     return [
-      { label: 'Posted jobs', value: posted },
-      { label: 'Completed', value: completed },
-      { label: 'Plan', value: auth.planDisplayLabel || 'Dealer' }
+      { label: 'Open jobs', value: openMarketplaceJobs },
+      { label: 'Need payment', value: paymentDueJobs },
+      { label: 'Proof review', value: proofReviewJobs },
+      { label: 'Payout ready', value: payoutReadyJobs }
     ];
   }
 
@@ -112,6 +128,8 @@ const quickLinks = computed(() => {
     { to: '/login', title: 'Operations', text: 'Track messages, expenses, and paperwork.' }
   ];
 });
+
+const statGridClass = computed(() => (auth.role === 'dealer' ? 'grid grid-cols-2 gap-2 sm:gap-3' : 'grid grid-cols-3 gap-2 sm:gap-3'));
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
@@ -155,7 +173,7 @@ const openJobsEmptyText = computed(() => {
             </RouterLink>
           </div>
 
-          <dl class="grid grid-cols-3 gap-2 sm:gap-3">
+          <dl :class="statGridClass">
             <div
               v-for="stat in statCards"
               :key="stat.label"

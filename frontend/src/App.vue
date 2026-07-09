@@ -201,7 +201,6 @@ const baseMainClasses = 'mx-auto w-full flex-1 max-w-7xl px-3 pb-28 pt-5 sm:px-6
 const navLinks = [
   { to: '/', label: 'Home', exact: true, icon: 'home', showInBottomNav: true },
   { to: '/driver', label: 'Driver', roles: ['driver'], icon: 'jobs', showInBottomNav: true },
-  { to: '/dealer', label: 'Dealer', roles: ['dealer'], icon: 'jobs', showInBottomNav: true },
   { to: '/invoices', label: 'Invoices', roles: ['driver', 'dealer', 'admin'] },
   { to: '/jobs', label: 'Jobs', icon: 'jobs', showInBottomNav: true },
   { to: '/membership', label: 'Membership' },
@@ -214,7 +213,7 @@ const navLinks = [
 
 const roleNavMap = {
   driver: new Set(['/', '/driver', '/jobs', '/messages', '/notifications', '/profile', '/invoices', '/planner']),
-  dealer: new Set(['/', '/dealer', '/jobs', '/messages', '/notifications', '/profile', '/invoices', '/planner']),
+  dealer: new Set(['/', '/jobs', '/messages', '/notifications', '/profile', '/invoices', '/planner']),
   admin: new Set(['/', '/admin', '/jobs', '/messages', '/notifications', '/profile', '/invoices', '/planner'])
 };
 

@@ -9,6 +9,7 @@ const auth = useAuthStore();
 const threads = ref([]);
 const threadsLoading = ref(false);
 const threadsError = ref('');
+const threadSearch = ref('');
 
 const selectedThreadId = ref(null);
 const messages = ref([]);
@@ -27,6 +28,25 @@ const selectedThread = computed(() => threads.value.find((thread) => thread.id =
 const otherParticipants = computed(() =>
   (selectedThread.value?.participants ?? []).filter((participant) => participant.id !== auth.user?.id)
 );
+const filteredThreads = computed(() => {
+  const query = threadSearch.value.trim().toLowerCase();
+  if (!query) return threads.value;
+
+  return threads.value.filter((thread) => {
+    const haystack = [
+      thread?.subject,
+      thread?.last_message,
+      thread?.job_reference,
+      thread?.job?.title,
+      ...(Array.isArray(thread?.participants) ? thread.participants.map((participant) => participant?.name) : [])
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
+});
 
 const preview = reactive({
   open: false,
@@ -256,63 +276,109 @@ function scrollMessagesToBottom() {
 </script>
 
 <template>
-  <div class="grid gap-4 lg:grid-cols-[320px,1fr]">
-    <section class="space-y-3 rounded-2xl border bg-white p-4">
-      <header>
-        <h1 class="text-lg font-semibold text-slate-900">Conversations</h1>
-        <p class="text-xs text-slate-500">Dealers and drivers can chat once a job is in progress.</p>
-      </header>
-
-      <div v-if="threadsLoading" class="rounded-xl border bg-slate-50 p-3 text-sm text-slate-600">
-        Loading conversations...
+  <div class="space-y-5">
+    <section class="section-card overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/60">
+      <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Messages</p>
+          <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Keep every job conversation in one place</h1>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Track updates, images, proof, and location messages without leaving the job.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Threads</p>
+          <p class="mt-1 text-2xl font-black text-slate-950">{{ threads.length }}</p>
+        </div>
       </div>
-
-      <p v-else-if="threadsError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-        {{ threadsError }}
-      </p>
-
-      <ol v-else class="space-y-2">
-        <li v-for="thread in threads" :key="thread.id">
-          <button
-            type="button"
-            class="flex w-full flex-col gap-1 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:shadow"
-            :class="selectedThreadId === thread.id ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'"
-            @click="selectThread(thread.id)"
-          >
-            <div class="flex items-center justify-between gap-2">
-              <h2 class="text-sm font-semibold text-slate-900">
-                {{ thread.subject || 'Conversation' }}
-              </h2>
-              <span v-if="thread.unread_count" class="badge bg-emerald-500 text-white">
-                {{ thread.unread_count }}
-              </span>
-            </div>
-            <p class="text-xs text-slate-500">
-              {{ thread.updated_at ? new Date(thread.updated_at).toLocaleString() : '--' }}
-            </p>
-            <p class="line-clamp-2 text-xs text-slate-500">
-              {{ thread.last_message || 'No messages yet.' }}
-            </p>
-          </button>
-        </li>
-      </ol>
     </section>
 
-    <section class="space-y-4 rounded-2xl border bg-white p-4">
-      <div v-if="!selectedThread">
-        <h2 class="text-lg font-semibold text-slate-900">Select a conversation</h2>
-        <p class="text-sm text-slate-600">Choose a thread to review messages and send updates.</p>
-      </div>
+    <div class="grid gap-4 lg:grid-cols-[360px,1fr]">
+      <aside class="space-y-4">
+        <section class="section-card space-y-4">
+          <header class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Conversation list</p>
+                <h2 class="mt-1 text-xl font-black text-slate-950">Threads</h2>
+              </div>
+              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                {{ filteredThreads.length }}
+              </span>
+            </div>
+            <input
+              v-model="threadSearch"
+              type="search"
+              placeholder="Search jobs, people, messages..."
+              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            >
+          </header>
 
-      <template v-else>
-        <header class="space-y-1 border-b pb-3">
-          <div class="flex items-center justify-between gap-2">
-            <div>
-              <h2 class="text-lg font-semibold text-slate-900">
-                {{ selectedThread.subject || 'Conversation' }}
+          <div v-if="threadsLoading" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600">
+            Loading conversations...
+          </div>
+
+          <p v-else-if="threadsError" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+            {{ threadsError }}
+          </p>
+
+          <div v-else class="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
+            <button
+              v-for="thread in filteredThreads"
+              :key="thread.id"
+              type="button"
+              class="w-full rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+              :class="selectedThreadId === thread.id ? 'border-emerald-200 bg-emerald-50 shadow-sm' : 'border-slate-200 bg-white'"
+              @click="selectThread(thread.id)"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h3 class="truncate text-sm font-black text-slate-950">
+                    {{ thread.subject || thread.job?.title || 'Conversation' }}
+                  </h3>
+                  <p class="mt-1 truncate text-xs text-slate-500">
+                    {{ thread.last_message || 'No messages yet.' }}
+                  </p>
+                </div>
+                <span v-if="thread.unread_count" class="rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white">
+                  {{ thread.unread_count }}
+                </span>
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                  {{ thread.job_id ? `Job #${thread.job_id}` : 'No job' }}
+                </span>
+                <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
+                  {{ thread.updated_at ? new Date(thread.updated_at).toLocaleDateString() : '--' }}
+                </span>
+              </div>
+            </button>
+
+            <div v-if="!filteredThreads.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              No conversations match your search.
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="section-card flex min-h-[70vh] flex-col gap-4">
+        <div v-if="!selectedThread" class="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+          <div class="max-w-md">
+            <h2 class="text-xl font-black text-slate-950">Select a conversation</h2>
+            <p class="mt-2 text-sm text-slate-600">
+              Choose a thread on the left to review updates, proof, and job messages.
+            </p>
+          </div>
+        </div>
+
+        <template v-else>
+          <header class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
+            <div class="min-w-0">
+              <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Active thread</p>
+              <h2 class="mt-1 truncate text-2xl font-black text-slate-950">
+                {{ selectedThread.subject || selectedThread.job?.title || 'Conversation' }}
               </h2>
-              <p class="text-xs text-slate-500">
-                Participants:
+              <p class="mt-1 text-sm text-slate-600">
                 <span v-for="(participant, index) in selectedThread.participants" :key="participant.id">
                   {{ participant.name }}<span v-if="index < selectedThread.participants.length - 1">, </span>
                 </span>
@@ -321,135 +387,135 @@ function scrollMessagesToBottom() {
             <span v-if="selectedThread.job_id" class="badge bg-slate-100 text-slate-700">
               Job #{{ selectedThread.job_id }}
             </span>
+          </header>
+
+          <div v-if="messagesLoading" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600">
+            Loading messages...
           </div>
-        </header>
 
-        <div v-if="messagesLoading" class="rounded-xl border bg-slate-50 p-4 text-sm text-slate-600">
-          Loading messages...
-        </div>
-
-        <div
-          v-else-if="messagesError"
-          class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"
-        >
-          {{ messagesError }}
-        </div>
-
-        <div
-          v-else
-          ref="messageContainer"
-          class="flex h-[420px] flex-col gap-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4"
-        >
-          <p v-if="!messages.length" class="text-sm text-slate-600">
-            No messages yet. Start the conversation below.
-          </p>
-
-          <article
-            v-for="message in messages"
-            :key="message.id"
-            class="flex w-full flex-col gap-2"
-            :class="isLocationMessage(message) ? 'items-stretch' : message.user.id === auth.user?.id ? 'items-end' : 'items-start'"
+          <div
+            v-else-if="messagesError"
+            class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"
           >
-            <TrackingCard
-              v-if="isLocationMessage(message)"
-              :location="message.meta.location"
-              :destination="message.meta.destination"
-              :driver="message.meta.driver"
-              :eta-minutes="message.meta.eta_minutes ?? null"
-              :recorded-at="message.meta.location?.recorded_at ?? message.created_at"
-            />
-            <div
-              v-else
-              class="max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm"
-              :class="message.user.id === auth.user?.id ? 'bg-emerald-600 text-white' : 'bg-white text-slate-800'"
-            >
-              <p v-if="message.body">{{ message.body }}</p>
+            {{ messagesError }}
+          </div>
 
-              <div v-if="message.attachments?.length" class="mt-2 flex flex-wrap gap-2">
-                <template v-for="attachment in message.attachments" :key="attachment.id">
-                  <button
-                    v-if="isImageAttachment(attachment)"
-                    type="button"
-                    class="overflow-hidden rounded-xl border border-white/40 bg-white/10"
-                    @click="openImagePreview(message.attachments, attachment)"
-                  >
-                    <img
-                      :src="attachment.url"
-                      :alt="attachment.original_name"
-                      class="h-24 w-24 object-cover"
-                      loading="lazy"
-                    />
-                  </button>
-                  <a
-                    v-else
-                    :href="attachment.url"
-                    target="_blank"
-                    class="inline-flex items-center gap-2 rounded-xl border border-white/40 bg-white/10 px-3 py-2 text-xs font-semibold text-white underline-offset-2 hover:underline"
-                  >
-                    {{ attachment.original_name }}
-                  </a>
+          <div
+            v-else
+            ref="messageContainer"
+            class="flex min-h-[26rem] flex-1 flex-col gap-3 overflow-y-auto rounded-3xl border border-slate-200 bg-slate-50 p-4"
+          >
+            <p v-if="!messages.length" class="text-sm text-slate-600">
+              No messages yet. Start the conversation below.
+            </p>
+
+            <article
+              v-for="message in messages"
+              :key="message.id"
+              class="flex w-full flex-col gap-2"
+              :class="isLocationMessage(message) ? 'items-stretch' : message.user.id === auth.user?.id ? 'items-end' : 'items-start'"
+            >
+              <TrackingCard
+                v-if="isLocationMessage(message)"
+                :location="message.meta.location"
+                :destination="message.meta.destination"
+                :driver="message.meta.driver"
+                :eta-minutes="message.meta.eta_minutes ?? null"
+                :recorded-at="message.meta.location?.recorded_at ?? message.created_at"
+              />
+              <div
+                v-else
+                class="max-w-[82%] rounded-3xl px-4 py-3 text-sm shadow-sm"
+                :class="message.user.id === auth.user?.id ? 'bg-slate-950 text-white' : 'bg-white text-slate-800 ring-1 ring-slate-200'"
+              >
+                <p v-if="message.body" class="leading-6">{{ message.body }}</p>
+
+                <div v-if="message.attachments?.length" class="mt-3 flex flex-wrap gap-2">
+                  <template v-for="attachment in message.attachments" :key="attachment.id">
+                    <button
+                      v-if="isImageAttachment(attachment)"
+                      type="button"
+                      class="overflow-hidden rounded-2xl border border-white/40 bg-white/10"
+                      @click="openImagePreview(message.attachments, attachment)"
+                    >
+                      <img
+                        :src="attachment.url"
+                        :alt="attachment.original_name"
+                        class="h-24 w-24 object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                    <a
+                      v-else
+                      :href="attachment.url"
+                      target="_blank"
+                      class="inline-flex items-center gap-2 rounded-2xl border border-white/40 bg-white/10 px-3 py-2 text-xs font-semibold text-white underline-offset-2 hover:underline"
+                    >
+                      {{ attachment.original_name }}
+                    </a>
+                  </template>
+                </div>
+              </div>
+              <div
+                class="flex items-center gap-2 text-[11px] text-slate-500"
+                :class="isLocationMessage(message) ? 'self-start' : ''"
+              >
+                <span>{{ message.user.name }}</span>
+                <span>•</span>
+                <time>{{ new Date(message.created_at).toLocaleString() }}</time>
+                <template v-if="message.user.id === auth.user?.id">
+                  <span v-if="otherParticipants.some((p) => {
+                    const receipt = receiptFor(message, p.id);
+                    return receipt?.viewed_at;
+                  })">
+                    Viewed
+                  </span>
+                  <span v-else>Delivered</span>
                 </template>
               </div>
-            </div>
-            <div
-              class="flex items-center gap-2 text-[11px] text-slate-500"
-              :class="isLocationMessage(message) ? 'self-start' : ''"
-            >
-              <span>{{ message.user.name }}</span>
-              <span>-</span>
-              <time>{{ new Date(message.created_at).toLocaleString() }}</time>
-              <template v-if="message.user.id === auth.user?.id">
-                <span v-if="otherParticipants.some((p) => {
-                  const receipt = receiptFor(message, p.id);
-                  return receipt?.viewed_at;
-                })">
-                  Viewed
-                </span>
-                <span v-else>Delivered</span>
-              </template>
-            </div>
-          </article>
-        </div>
+            </article>
+          </div>
 
-        <form class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4" @submit.prevent="sendCurrentMessage">
-          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500" for="message-body">
-            Message
-          </label>
-          <textarea
-            id="message-body"
-            v-model="composer.body"
-            rows="3"
-            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            placeholder="Write your update..."
-          />
-
-          <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-            <label class="flex items-center gap-2">
-              <input type="file" multiple accept=".png,.jpg,.jpeg,.pdf" class="hidden" @change="handleAttachmentChange" />
-              <span class="rounded-xl border border-slate-200 px-3 py-1 font-semibold text-slate-700 hover:bg-slate-100">
-                Attach files
-              </span>
+          <form class="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" @submit.prevent="sendCurrentMessage">
+            <label class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500" for="message-body">
+              Message
             </label>
-            <span v-if="composer.attachments.length">{{ composer.attachments.length }} file(s) ready</span>
-          </div>
+            <textarea
+              id="message-body"
+              v-model="composer.body"
+              rows="3"
+              class="w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              placeholder="Write your update..."
+            />
 
-          <p v-if="composer.error" class="text-sm text-amber-600">
-            {{ composer.error }}
-          </p>
+            <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+              <label class="flex items-center gap-2">
+                <input type="file" multiple accept=".png,.jpg,.jpeg,.pdf" class="hidden" @change="handleAttachmentChange" />
+                <span class="rounded-2xl border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100">
+                  Attach files
+                </span>
+              </label>
+              <span v-if="composer.attachments.length">{{ composer.attachments.length }} file(s) ready</span>
+            </div>
 
-          <div class="flex justify-end">
-            <button
-              type="submit"
-              class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="composer.sending"
-            >
-              <span v-if="composer.sending">Sending...</span>
-              <span v-else>Send</span>
-            </button>
-          </div>
-        </form>
-      </template>
-    </section>
+            <p v-if="composer.error" class="text-sm text-amber-600">
+              {{ composer.error }}
+            </p>
+
+            <div class="flex justify-end">
+              <button
+                type="submit"
+                class="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="composer.sending"
+              >
+                <span v-if="composer.sending">Sending...</span>
+                <span v-else>Send</span>
+              </button>
+            </div>
+          </form>
+        </template>
+      </section>
+    </div>
 
     <div
       v-if="preview.open && preview.items.length"

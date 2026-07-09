@@ -460,6 +460,18 @@ function formatShortDate(value) {
   }
 }
 
+function resolveInvoiceLink(job) {
+  if (!job) return null;
+  return (
+    job.invoice_download_url ||
+    job.invoice_url ||
+    job.invoice ||
+    job.invoice_pdf ||
+    job.invoice_link ||
+    null
+  );
+}
+
 onMounted(async () => {
   if (!auth.user && auth.token) {
     await auth.fetchMe().catch(() => null);
@@ -501,10 +513,53 @@ onMounted(async () => {
         No live jobs match your search.
       </div>
 
-      <div v-else class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div class="overflow-x-auto">
+      <div v-else class="space-y-4">
+        <div class="space-y-3 md:hidden">
+          <article
+            v-for="job in filteredDealerJobs"
+            :key="`mobile-job-${job.id}`"
+            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-base font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ job.pickup_label || job.pickup_postcode || '--' }} ? {{ job.dropoff_label || job.dropoff_postcode || '--' }}
+                </p>
+              </div>
+              <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
+            </div>
+
+            <div class="mt-3 flex items-center justify-between gap-3">
+              <span class="text-xs font-semibold text-slate-500">
+                {{ formatShortDate(job.updated_at || job.created_at) }}
+              </span>
+              <a
+                v-if="resolveInvoiceLink(job)"
+                :href="resolveInvoiceLink(job)"
+                target="_blank"
+                rel="noreferrer"
+                class="inline-flex rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700"
+                @click.stop
+              >
+                Invoice
+              </a>
+              <RouterLink
+                v-else
+                :to="`/invoices`"
+                class="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700"
+                @click.stop
+              >
+                Invoice
+              </RouterLink>
+            </div>
+          </article>
+        </div>
+
+        <div class="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm md:block">
+        <div class="max-h-[34rem] overflow-auto">
           <table class="min-w-full divide-y divide-slate-200 text-left">
-            <thead class="bg-slate-50">
+            <thead class="sticky top-0 z-10 bg-slate-50">
               <tr class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
                 <th class="px-4 py-3">Job</th>
                 <th class="px-4 py-3">Route</th>
@@ -526,7 +581,7 @@ onMounted(async () => {
                   <p class="mt-1 text-xs text-slate-500">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
                 </td>
                 <td class="px-4 py-4 align-top text-sm text-slate-600">
-                  {{ job.pickup_label || job.pickup_postcode || '--' }} → {{ job.dropoff_label || job.dropoff_postcode || '--' }}
+                  {{ job.pickup_label || job.pickup_postcode || '--' }} ? {{ job.dropoff_label || job.dropoff_postcode || '--' }}
                 </td>
                 <td class="px-4 py-4 align-top">
                   <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
@@ -550,6 +605,7 @@ onMounted(async () => {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </section>
     <div class="flex flex-col gap-4">
@@ -961,6 +1017,8 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+
 
 
 

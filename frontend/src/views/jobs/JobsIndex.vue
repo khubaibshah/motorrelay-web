@@ -687,25 +687,6 @@ onMounted(async () => {
     <p v-if="errorMessage" class="text-sm text-amber-600">{{ errorMessage }}</p>
 
 
-    <section v-if="isDealer" class="section-card">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 class="text-lg font-black text-slate-950">Dealer workflow</h2>
-          <p class="mt-1 text-sm text-slate-600">Every job should move through these steps.</p>
-        </div>
-        <ol class="grid gap-2 sm:grid-cols-5 lg:min-w-[720px]">
-          <li
-            v-for="(step, index) in processSteps"
-            :key="step"
-            class="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-700"
-          >
-            <span class="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-white">{{ index + 1 }}</span>
-            {{ step }}
-          </li>
-        </ol>
-      </div>
-    </section>
-
     <section v-if="isAdmin" class="section-card">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>

@@ -229,17 +229,6 @@ const mainJobs = computed(() => {
   if (isDealer.value) return [...availableJobs.value, ...activeJobs.value];
   return activeJobs.value;
 });
-const dealerStats = computed(() => ({
-  total: dealerPipelineJobs.value.length,
-  awaitingDriver: dealerPipelineJobs.value.filter((job) => !job?.assigned_to_id).length,
-  needsPayment: dealerPipelineJobs.value.filter((job) => !['paid', 'payout_released'].includes(String(job?.payment_status || 'unpaid').toLowerCase())).length,
-  proofReview: dealerPipelineJobs.value.filter((job) => String(job?.completion_status || 'not_submitted').toLowerCase() === 'submitted').length,
-  payoutReady: dealerPipelineJobs.value.filter((job) => {
-    const paymentStatus = String(job?.payment_status || 'unpaid').toLowerCase();
-    const completionStatus = String(job?.completion_status || 'not_submitted').toLowerCase();
-    return paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id;
-  }).length
-}));
 const pageIntro = computed(() => {
   if (isDriver.value) {
     return {
@@ -495,6 +484,37 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-5">
+    <div
+      class="section-card overflow-hidden"
+      :class="isDealer ? 'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/60 to-sky-50' : ''"
+    >
+      <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{{ pageIntro.eyebrow }}</p>
+          <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{{ pageIntro.title }}</h1>
+          <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{{ pageIntro.text }}</p>
+        </div>
+
+        <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+          <RouterLink
+            v-if="auth.isDealer || auth.role === 'admin'"
+            to="/jobs/new"
+            class="btn-primary w-full sm:w-auto"
+          >
+            Create job
+          </RouterLink>
+
+          <RouterLink
+            v-if="auth.hasPlannerAccess"
+            to="/planner"
+            class="btn-secondary w-full sm:w-auto"
+          >
+            Planner
+          </RouterLink>
+        </div>
+      </div>
+    </div>
+
     <section v-if="isDealer" class="section-card space-y-4">
       <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -664,60 +684,6 @@ onMounted(async () => {
       </div>
     </section>
     <div class="flex flex-col gap-4">
-    <div
-      class="section-card overflow-hidden"
-      :class="isDealer ? 'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/60 to-sky-50' : ''"
-    >
-      <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{{ pageIntro.eyebrow }}</p>
-          <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{{ pageIntro.title }}</h1>
-          <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{{ pageIntro.text }}</p>
-        </div>
-
-        <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-          <RouterLink
-            v-if="auth.isDealer || auth.role === 'admin'"
-            to="/jobs/new"
-            class="btn-primary w-full sm:w-auto"
-          >
-            Create job
-          </RouterLink>
-
-          <RouterLink
-            v-if="auth.hasPlannerAccess"
-            to="/planner"
-            class="btn-secondary w-full sm:w-auto"
-          >
-            Planner
-          </RouterLink>
-        </div>
-      </div>
-
-      <div v-if="isDealer" class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <div class="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm">
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Active jobs</p>
-          <p class="mt-2 text-3xl font-black text-slate-950">{{ dealerStats.total }}</p>
-        </div>
-        <div class="rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
-          <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Need drivers</p>
-          <p class="mt-2 text-3xl font-black text-emerald-950">{{ dealerStats.awaitingDriver }}</p>
-        </div>
-        <div class="rounded-2xl border border-sky-100 bg-white/80 p-4 shadow-sm">
-          <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Need payment</p>
-          <p class="mt-2 text-3xl font-black text-sky-950">{{ dealerStats.needsPayment }}</p>
-        </div>
-        <div class="rounded-2xl border border-amber-100 bg-white/80 p-4 shadow-sm">
-          <p class="text-xs font-bold uppercase tracking-wide text-amber-700">Proof review</p>
-          <p class="mt-2 text-3xl font-black text-amber-950">{{ dealerStats.proofReview }}</p>
-        </div>
-        <div class="rounded-2xl border border-violet-100 bg-white/80 p-4 shadow-sm">
-          <p class="text-xs font-bold uppercase tracking-wide text-violet-700">Payout ready</p>
-          <p class="mt-2 text-3xl font-black text-violet-950">{{ dealerStats.payoutReady }}</p>
-        </div>
-      </div>
-    </div>
-
     <p v-if="errorMessage" class="text-sm text-amber-600">{{ errorMessage }}</p>
 
 

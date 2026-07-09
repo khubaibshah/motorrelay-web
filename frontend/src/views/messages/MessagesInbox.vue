@@ -277,7 +277,7 @@ function scrollMessagesToBottom() {
 
 <template>
   <div class="space-y-5">
-    <section class="section-card overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/60">
+    <section class="section-card hidden overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/60 md:block">
       <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Messages</p>

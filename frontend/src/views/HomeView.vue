@@ -113,53 +113,6 @@ const quickLinks = computed(() => {
   ];
 });
 
-const onboardingSteps = computed(() => {
-  if (auth.role === 'driver') {
-    return [
-      { title: '1. Find a job', text: 'Open the Jobs page and request a vehicle movement you can do.', to: '/jobs', action: 'Browse jobs' },
-      { title: '2. Wait for assignment', text: 'The dealer reviews requests and chooses the driver.', to: '/driver', action: 'Check dashboard' },
-      { title: '3. Complete the run', text: 'Deliver the vehicle, upload delivery proof, then track invoice status.', to: '/profile', action: 'View profile' }
-    ];
-  }
-
-  if (auth.role === 'dealer') {
-    return [
-      { title: '1. Create a job', text: 'Add pickup, drop-off, vehicle details, and the price.', to: '/jobs/new', action: 'Create job' },
-      { title: '2. Pick a driver', text: 'Review driver requests and assign the best person for the run.', to: '/jobs', action: 'Manage jobs' },
-      { title: '3. Approve completion', text: 'Check delivery proof, approve the completed run, and download paperwork.', to: '/invoices', action: 'View invoices' }
-    ];
-  }
-
-  if (auth.role === 'admin') {
-    return [
-      { title: '1. Review activity', text: 'Check platform jobs, users, and application status.', to: '/admin', action: 'Open admin' },
-      { title: '2. Monitor jobs', text: 'Use the jobs board to spot stuck or stale runs.', to: '/jobs', action: 'Review jobs' },
-      { title: '3. Check health', text: 'Use system health for operational issues.', to: '/admin/system-health', action: 'System health' }
-    ];
-  }
-
-  return [
-    { title: '1. Choose your role', text: 'Create a driver account to find work or a dealer account to post jobs.', to: '/signup', action: 'Create account' },
-    { title: '2. Sign in', text: 'Use your account to access the correct dashboard.', to: '/login', action: 'Sign in' },
-    { title: '3. Start moving vehicles', text: 'Drivers request jobs. Dealers assign drivers and approve completion.', to: '/jobs', action: 'View jobs' }
-  ];
-});
-
-const standoutFeatures = [
-  {
-    title: 'Vetted driver network',
-    text: 'Drivers submit identity and licence documents so dealers know who is moving their vehicles.'
-  },
-  {
-    title: 'Proof-first completion',
-    text: 'Every completed job needs delivery proof before approval and invoice download.'
-  },
-  {
-    title: 'Operational control',
-    text: 'Admin tools track users, jobs, conversations, billing signals, and account change requests.'
-  }
-];
-
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
 const openJobsEmptyText = computed(() => {
@@ -257,47 +210,6 @@ const openJobsEmptyText = computed(() => {
         </div>
       </div>
     </aside>
-
-    <section class="section-card space-y-4">
-      <div>
-        <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">How to use this app</p>
-        <h2 class="mt-1 text-xl font-black text-slate-950">Your next steps</h2>
-      </div>
-
-      <div class="grid gap-3 md:grid-cols-3">
-        <RouterLink
-          v-for="step in onboardingSteps"
-          :key="step.title"
-          :to="step.to"
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
-        >
-          <h3 class="font-black text-slate-950">{{ step.title }}</h3>
-          <p class="mt-2 text-sm leading-6 text-slate-600">{{ step.text }}</p>
-          <span class="mt-4 inline-flex text-sm font-bold text-emerald-700">{{ step.action }}</span>
-        </RouterLink>
-      </div>
-    </section>
-
-    <section class="section-card space-y-4">
-      <div>
-        <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">What makes this stand out</p>
-        <h2 class="mt-1 text-xl font-black text-slate-950">Trust, proof, and payments in one workflow</h2>
-        <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          The strongest version of MotorRelay is not just a job board. It should be the safe workflow dealers use to post work, choose vetted drivers, approve evidence, and release payment.
-        </p>
-      </div>
-
-      <div class="grid gap-3 md:grid-cols-4">
-        <article
-          v-for="feature in standoutFeatures"
-          :key="feature.title"
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4"
-        >
-          <h3 class="font-black text-slate-950">{{ feature.title }}</h3>
-          <p class="mt-2 text-sm leading-6 text-slate-600">{{ feature.text }}</p>
-        </article>
-      </div>
-    </section>
 
     <section v-if="quickLinks.length" class="grid gap-4 md:grid-cols-3">
       <RouterLink

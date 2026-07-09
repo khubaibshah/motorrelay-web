@@ -45,23 +45,6 @@ onMounted(() => {
   }
 });
 
-const dealerJobs = computed(() => {
-  const jobs = Array.isArray(auth.postedJobs) ? auth.postedJobs : [];
-  return [...jobs].sort((a, b) => {
-    const aTime = new Date(a?.created_at ?? 0).getTime();
-    const bTime = new Date(b?.created_at ?? 0).getTime();
-    return bTime - aTime;
-  });
-});
-const dealerStats = computed(() => {
-  const jobs = dealerJobs.value;
-  return {
-    posted: jobs.length,
-    awaitingDriver: jobs.filter((job) => !job?.assigned_to_id && ['open', 'pending'].includes(String(job?.status || '').toLowerCase())).length,
-    needsPayment: jobs.filter((job) => job?.assigned_to_id && !['paid', 'payout_released'].includes(String(job?.payment_status || 'unpaid').toLowerCase())).length,
-    proofReview: jobs.filter((job) => String(job?.completion_status || '').toLowerCase() === 'submitted').length
-  };
-});
 const dealerQuickLinks = [
   {
     to: '/jobs/new',

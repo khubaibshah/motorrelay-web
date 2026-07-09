@@ -548,30 +548,6 @@ watch(
 
     <form v-else class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" @submit.prevent="submit">
       <div class="space-y-5">
-        <section v-if="starterUsageInfo" class="section-card border-emerald-200 bg-emerald-50/70 text-sm text-emerald-800">
-          <p class="font-black text-emerald-900">Starter plan usage</p>
-          <div class="mt-3 grid gap-3 sm:grid-cols-3">
-            <div class="rounded-2xl bg-white/80 p-3">
-              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Job posts</p>
-              <p class="mt-1 font-black text-slate-950">
-                {{ starterUsageInfo.jobUsed }}<span v-if="starterUsageInfo.jobLimit"> / {{ starterUsageInfo.jobLimit }}</span>
-              </p>
-            </div>
-            <div class="rounded-2xl bg-white/80 p-3">
-              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Urgent boosts</p>
-              <p class="mt-1 font-black text-slate-950">
-                {{ starterUsageInfo.urgentUsed }}<span v-if="starterUsageInfo.urgentLimit"> / {{ starterUsageInfo.urgentLimit }}</span>
-              </p>
-            </div>
-            <div class="rounded-2xl bg-white/80 p-3">
-              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Remaining</p>
-              <p class="mt-1 font-black text-slate-950">
-                {{ starterUsageInfo.jobRemaining ?? 'Unlimited' }}
-              </p>
-            </div>
-          </div>
-        </section>
-
         <section class="section-card space-y-5">
           <header>
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Vehicle</p>

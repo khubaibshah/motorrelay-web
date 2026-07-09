@@ -12,6 +12,7 @@ const threadsError = ref('');
 const threadSearch = ref('');
 
 const selectedThreadId = ref(null);
+const mobileView = ref('list');
 const messages = ref([]);
 const messageContainer = ref(null);
 const messagesLoading = ref(false);
@@ -100,9 +101,15 @@ async function loadThreads() {
 }
 
 async function selectThread(threadId) {
-  if (selectedThreadId.value === threadId) return;
+  const isSameThread = selectedThreadId.value === threadId;
   selectedThreadId.value = threadId;
+  mobileView.value = 'thread';
+  if (isSameThread) return;
   await loadMessages(threadId);
+}
+
+function backToThreadList() {
+  mobileView.value = 'list';
 }
 
 async function loadMessages(threadId = selectedThreadId.value) {
@@ -294,7 +301,7 @@ function scrollMessagesToBottom() {
     </section>
 
     <div class="grid gap-4 lg:grid-cols-[360px,1fr]">
-      <aside class="space-y-4">
+      <aside class="space-y-4" :class="mobileView === 'thread' ? 'hidden lg:block' : ''">
         <section class="section-card space-y-4">
           <header class="space-y-2">
             <div class="flex items-center justify-between gap-3">
@@ -361,7 +368,20 @@ function scrollMessagesToBottom() {
         </section>
       </aside>
 
-      <section class="section-card flex min-h-[70vh] flex-col gap-4">
+      <section
+        class="section-card min-h-[70vh] flex-col gap-4"
+        :class="mobileView === 'list' ? 'hidden lg:flex' : 'flex lg:flex'"
+      >
+        <button
+          v-if="mobileView === 'thread'"
+          type="button"
+          class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm lg:hidden"
+          @click="backToThreadList"
+        >
+          <span aria-hidden="true">←</span>
+          Threads
+        </button>
+
         <div v-if="!selectedThread" class="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
           <div class="max-w-md">
             <h2 class="text-xl font-black text-slate-950">Select a conversation</h2>

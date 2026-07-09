@@ -131,7 +131,40 @@ const quickLinks = computed(() => {
 
 const statGridClass = computed(() => (auth.role === 'dealer' ? 'grid grid-cols-2 gap-2 sm:gap-3' : 'grid grid-cols-3 gap-2 sm:gap-3'));
 
+const dealerJobsProgress = computed(() => {
+  if (auth.role !== 'dealer') return [];
+
+  const byId = new Map();
+  [...postedJobs.value, ...Array.isArray(auth.completedJobs) ? auth.completedJobs : []].forEach((job) => {
+    if (job?.id) byId.set(job.id, job);
+  });
+
+  return [...byId.values()].sort((a, b) => {
+    const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
+    const bTime = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime();
+    return bTime - aTime;
+  });
+});
+
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
+
+function formatDate(value) {
+  if (!value) return '--';
+
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short'
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function paymentLabel(job) {
+  const status = String(job?.payment_status || 'unpaid').replace(/_/g, ' ');
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 const openJobsEmptyText = computed(() => {
   if (auth.role === 'driver') {
@@ -228,6 +261,53 @@ const openJobsEmptyText = computed(() => {
         </div>
       </div>
     </aside>
+
+    <section v-if="auth.role === 'dealer'" class="section-card space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Job progress</p>
+          <h2 class="mt-1 text-xl font-black text-slate-950">All jobs in progress</h2>
+          <p class="mt-1 text-sm text-slate-600">Scroll through your jobs, open any job, or jump to the full searchable table.</p>
+        </div>
+        <RouterLink to="/jobs" class="btn-secondary">
+          View full list
+        </RouterLink>
+      </div>
+
+      <div v-if="dealerJobsProgress.length" class="flex gap-3 overflow-x-auto pb-2">
+        <RouterLink
+          v-for="job in dealerJobsProgress"
+          :key="`home-progress-${job.id}`"
+          :to="`/jobs/${job.id}`"
+          class="min-w-[18rem] max-w-[18rem] flex-shrink-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+        >
+          <div class="space-y-3">
+            <div class="min-w-0">
+              <p class="truncate text-base font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
+              <p class="mt-1 truncate text-sm text-slate-600">
+                {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
+              </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                Now: {{ job.status || 'Open' }}
+              </span>
+              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                Payment: {{ paymentLabel(job) }}
+              </span>
+              <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                {{ formatDate(job.updated_at || job.created_at) }}
+              </span>
+            </div>
+          </div>
+        </RouterLink>
+      </div>
+
+      <div v-else class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        No jobs yet. Create your first job to start tracking progress.
+      </div>
+    </section>
 
     <section v-if="quickLinks.length" class="grid gap-4 md:grid-cols-3">
       <RouterLink

@@ -171,28 +171,46 @@ const dealerPipelineJobs = computed(() => {
     return bTime - aTime;
   });
 });
-const dealerJobsNeedingAttention = computed(() => {
+const dealerJobsProgress = computed(() => {
   if (!isDealer.value) return [];
 
-  const activeStatuses = new Set([
-    'open',
-    'pending',
-    'in_progress',
-    'accepted',
-    'collected',
-    'in_transit',
-    'completion_pending',
-    'delivered'
-  ]);
+  const byId = new Map();
+  [...(Array.isArray(auth.postedJobs) ? auth.postedJobs : []), ...(Array.isArray(auth.completedJobs) ? auth.completedJobs : [])].forEach((job) => {
+    if (job?.id) byId.set(job.id, job);
+  });
 
-  return dealerPipelineJobs.value
-    .filter((job) => activeStatuses.has(String(job?.status ?? '').toLowerCase()))
-    .sort((a, b) => {
-      const aTime = new Date(a?.pickup_at ?? a?.goes_live_at ?? a?.created_at ?? 0).getTime();
-      const bTime = new Date(b?.pickup_at ?? b?.goes_live_at ?? b?.created_at ?? 0).getTime();
-      return aTime - bTime;
-    })
-    .slice(0, 5);
+  return [...byId.values()].sort((a, b) => {
+    const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
+    const bTime = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime();
+    return bTime - aTime;
+  });
+});
+const dealerJobsSearch = ref('');
+const filteredDealerJobs = computed(() => {
+  const query = dealerJobsSearch.value.trim().toLowerCase();
+  if (!query) return dealerJobsProgress.value;
+
+  return dealerJobsProgress.value.filter((job) => {
+    const haystack = [
+      job?.title,
+      job?.pickup_postcode,
+      job?.dropoff_postcode,
+      job?.pickup_label,
+      job?.dropoff_label,
+      job?.status,
+      job?.payment_status,
+      dealerCurrentStage(job),
+      dealerMovingTo(job),
+      paymentLabel(job),
+      job?.assigned_to?.name,
+      job?.driver_name
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
 });
 const mainJobs = computed(() => {
   if (isDealer.value) return [...availableJobs.value, ...activeJobs.value];
@@ -430,6 +448,18 @@ function formatDate(value) {
   }
 }
 
+function formatShortDate(value) {
+  if (!value) return '--';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short'
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
 onMounted(async () => {
   if (!auth.user && auth.token) {
     await auth.fetchMe().catch(() => null);
@@ -440,6 +470,88 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-5">
+    <section v-if="isDealer" class="section-card space-y-4">
+      <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer operations</p>
+          <h2 class="mt-1 text-xl font-black text-slate-950">Live jobs table</h2>
+          <p class="mt-2 text-sm text-slate-600">
+            Same jobs as the home page, shown in a searchable table. Click a row to open the job.
+          </p>
+        </div>
+        <div class="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[20rem]">
+          <label for="dealer-jobs-search" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Search jobs
+          </label>
+          <input
+            id="dealer-jobs-search"
+            v-model="dealerJobsSearch"
+            type="search"
+            placeholder="Search title, route, status..."
+            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+          >
+        </div>
+      </header>
+
+      <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
+        Loading live jobs...
+      </div>
+
+      <div v-else-if="!filteredDealerJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+        No live jobs match your search.
+      </div>
+
+      <div v-else class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-left">
+            <thead class="bg-slate-50">
+              <tr class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                <th class="px-4 py-3">Job</th>
+                <th class="px-4 py-3">Route</th>
+                <th class="px-4 py-3">Now</th>
+                <th class="px-4 py-3">Payment</th>
+                <th class="px-4 py-3">Updated</th>
+                <th class="px-4 py-3 text-right">Open</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr
+                v-for="job in filteredDealerJobs"
+                :key="job.id"
+                class="cursor-pointer transition hover:bg-slate-50"
+                @click="openJob(job)"
+              >
+                <td class="px-4 py-4 align-top">
+                  <p class="font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
+                  <p class="mt-1 text-xs text-slate-500">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
+                </td>
+                <td class="px-4 py-4 align-top text-sm text-slate-600">
+                  {{ job.pickup_label || job.pickup_postcode || '--' }} → {{ job.dropoff_label || job.dropoff_postcode || '--' }}
+                </td>
+                <td class="px-4 py-4 align-top">
+                  <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
+                </td>
+                <td class="px-4 py-4 align-top">
+                  <span class="badge bg-slate-100 text-slate-700">{{ paymentLabel(job) }}</span>
+                </td>
+                <td class="px-4 py-4 align-top text-sm text-slate-600">
+                  {{ formatShortDate(job.updated_at || job.created_at) }}
+                </td>
+                <td class="px-4 py-4 align-top text-right">
+                  <RouterLink
+                    :to="`/jobs/${job.id}`"
+                    class="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-200 hover:text-emerald-700"
+                    @click.stop
+                  >
+                    Open
+                  </RouterLink>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
     <div class="flex flex-col gap-4">
     <div
       class="section-card overflow-hidden"
@@ -497,6 +609,7 @@ onMounted(async () => {
 
     <p v-if="errorMessage" class="text-sm text-amber-600">{{ errorMessage }}</p>
 
+
     <section v-if="isDealer" class="section-card">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -513,62 +626,6 @@ onMounted(async () => {
             {{ step }}
           </li>
         </ol>
-      </div>
-    </section>
-
-    <section v-if="isDealer" class="section-card">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer operations</p>
-          <h2 class="mt-1 text-xl font-black text-slate-950">Jobs needing attention</h2>
-          <p class="mt-2 text-sm text-slate-600">
-            Active dealer jobs with only the essential details shown.
-          </p>
-        </div>
-        <RouterLink to="/jobs" class="text-sm font-bold text-emerald-700 hover:text-emerald-800">
-          Manage jobs
-        </RouterLink>
-      </div>
-
-      <div
-        v-if="!dealerJobsNeedingAttention.length"
-        class="mt-5 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600"
-      >
-        You have no active jobs right now.
-      </div>
-
-      <div v-else class="mt-5 space-y-3">
-        <article
-          v-for="job in dealerJobsNeedingAttention"
-          :key="job.id"
-          class="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 class="text-base font-black text-slate-950">
-                {{ job.title || `Job #${job.id}` }}
-              </h3>
-              <p class="text-sm text-slate-500">{{ job.pickup_postcode || 'Pickup' }} to {{ job.dropoff_postcode || 'Drop-off' }}</p>
-            </div>
-            <span class="badge bg-slate-100 text-slate-700">
-              {{ dealerNextAction(job) }}
-            </span>
-          </div>
-          <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            <span>Driver: {{ job.assigned_to?.name || job.driver_name || 'Not assigned' }}</span>
-            <span v-if="job.goes_live_at">Goes live {{ formatDate(job.goes_live_at) }}</span>
-            <span v-else-if="job.pickup_at">Pickup {{ formatDate(job.pickup_at) }}</span>
-            <span>Updated {{ formatDate(job.updated_at || job.created_at) }}</span>
-          </div>
-          <div class="mt-4 flex flex-wrap gap-2">
-            <RouterLink :to="`/jobs/${job.id}`" class="btn-secondary px-3 py-2 text-xs">
-              View job
-            </RouterLink>
-            <RouterLink :to="`/jobs/${job.id}/edit`" class="btn-secondary px-3 py-2 text-xs">
-              Edit run
-            </RouterLink>
-          </div>
-        </article>
       </div>
     </section>
 
@@ -606,7 +663,7 @@ onMounted(async () => {
           class="btn-secondary w-full sm:w-auto"
         >
           Open planner
-          <span aria-hidden="true">→</span>
+          <span aria-hidden="true">?</span>
         </RouterLink>
       </div>
     </section>
@@ -621,54 +678,6 @@ onMounted(async () => {
     <div v-if="availableLoading && !activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
       Loading jobs&hellip;
     </div>
-
-    <section v-if="isDealer" class="section-card space-y-4">
-      <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 class="text-xl font-black tracking-tight text-slate-950">Job progress</h2>
-          <p class="text-sm text-slate-600">Minimal status view for every posted job.</p>
-        </div>
-        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-          {{ dealerPipelineJobs.length }} jobs
-        </span>
-      </header>
-
-      <div v-if="activeLoading || completedLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading job progress...
-      </div>
-
-      <div v-else-if="!dealerPipelineJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        No dealer jobs yet. Create a job to start tracking progress.
-      </div>
-
-      <div v-else class="space-y-2">
-        <RouterLink
-          v-for="job in dealerPipelineJobs"
-          :key="`progress-${job.id}`"
-          :to="`/jobs/${job.id}`"
-          class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md xl:flex-row xl:items-center xl:justify-between"
-        >
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-base font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
-            <p class="mt-1 text-sm text-slate-600">
-              {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
-            </p>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:justify-end">
-            <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-              Now: {{ dealerCurrentStage(job) }}
-            </span>
-            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-              Next: {{ dealerMovingTo(job) }}
-            </span>
-            <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-              Updated {{ formatDate(job.updated_at || job.created_at) }}
-            </span>
-          </div>
-        </RouterLink>
-      </div>
-    </section>
 
     <section v-if="showActiveSection" class="section-card order-1 space-y-4">
       <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -820,7 +829,7 @@ onMounted(async () => {
                 Completed {{ formatDate(job.completed_at || job.updated_at || job.created_at) }}
               </p>
               <p class="mt-2 text-sm text-slate-600">
-                {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
+                {{ job.pickup_postcode || '--' }} ? {{ job.dropoff_postcode || '--' }}
               </p>
             </div>
             <div class="flex items-center gap-2 sm:flex-col sm:items-end">
@@ -952,6 +961,8 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+
 
 
 

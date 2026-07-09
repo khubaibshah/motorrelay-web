@@ -27,12 +27,13 @@
     </div>
 
     <header class="sticky top-0 z-50 border-b border-white/70 bg-white/75 backdrop-blur-xl">
-      <nav class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8">
-        <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+      <nav class="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-3 sm:px-6 lg:px-8 md:flex md:justify-between">
+        <div class="flex min-w-0 items-center justify-start gap-2 sm:gap-3 md:flex">
           <div v-if="showBackButton" class="md:hidden">
             <BackButton />
           </div>
-          <RouterLink to="/" class="group flex min-w-0 items-center gap-2 sm:gap-3">
+          <div v-else class="h-10 w-10 md:hidden" aria-hidden="true"></div>
+          <RouterLink to="/" class="group hidden min-w-0 items-center gap-2 sm:gap-3 md:flex">
             <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 shadow-lg shadow-slate-950/15 ring-1 ring-white/40 transition group-hover:-translate-y-0.5 sm:h-11 sm:w-11">
               <img
                 src="@/assets/logo-icon.svg"
@@ -46,6 +47,16 @@
             </div>
           </RouterLink>
         </div>
+
+        <RouterLink to="/" class="group col-start-2 flex min-w-0 items-center justify-center gap-2 md:hidden">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 shadow-lg shadow-slate-950/15 ring-1 ring-white/40 transition group-hover:-translate-y-0.5 sm:h-11 sm:w-11">
+            <img
+              src="@/assets/logo-icon.svg"
+              alt="MotorRelay logo"
+              class="h-7 w-7 sm:h-8 sm:w-8"
+            />
+          </span>
+        </RouterLink>
 
         <div class="hidden items-center gap-2 md:flex">
           <div class="flex items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/70 p-1 text-sm font-semibold text-slate-600 shadow-sm">
@@ -141,17 +152,21 @@
           </div>
         </div>
 
-        <RouterLink
-          v-if="showLogin"
-          to="/login"
-          class="btn-primary shrink-0 px-3 py-2 text-xs sm:px-4 sm:text-sm"
-        >
-          Login
-        </RouterLink>
+        <div class="col-start-3 flex justify-end md:hidden">
+          <RouterLink
+            v-if="showLogin"
+            to="/login"
+            class="btn-primary shrink-0 px-3 py-2 text-xs sm:px-4 sm:text-sm"
+          >
+            Login
+          </RouterLink>
+          <div v-else class="h-10 w-10" aria-hidden="true"></div>
+        </div>
+
         <button
-          v-else
+          v-if="!showLogin"
           type="button"
-          class="btn-secondary shrink-0 px-3 py-2 text-xs sm:px-4 sm:text-sm"
+          class="btn-secondary hidden shrink-0 px-3 py-2 text-xs sm:px-4 sm:text-sm md:inline-flex"
           @click="handleLogout"
         >
           Logout

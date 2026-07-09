@@ -23,6 +23,13 @@ export const useAuthStore = defineStore('auth', {
     assignedJobs: (state) => state.jobs?.assigned ?? [],
     postedJobs: (state) => state.jobs?.posted ?? [],
     completedJobs: (state) => state.jobs?.completed ?? [],
+    planDisplayLabel() {
+      const rawPlan = this.plan?.name || this.plan?.title || this.planSlug || this.plan || this.user?.plan_slug || '';
+      return String(rawPlan)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase())
+        .trim() || 'MotorRelay plan';
+    },
     isStarter() {
       return (this.planSlug || '').toLowerCase() === 'starter';
     },

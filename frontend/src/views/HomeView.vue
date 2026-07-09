@@ -61,7 +61,7 @@ const statCards = computed(() => {
     return [
       { label: 'Assigned runs', value: assigned },
       { label: 'Completed', value: completed },
-      { label: 'Plan', value: auth.planSlug || auth.plan || 'Driver' }
+      { label: 'Plan', value: auth.planDisplayLabel || 'Driver' }
     ];
   }
 
@@ -69,7 +69,7 @@ const statCards = computed(() => {
     return [
       { label: 'Posted jobs', value: posted },
       { label: 'Completed', value: completed },
-      { label: 'Plan', value: auth.planSlug || auth.plan || 'Dealer' }
+      { label: 'Plan', value: auth.planDisplayLabel || 'Dealer' }
     ];
   }
 

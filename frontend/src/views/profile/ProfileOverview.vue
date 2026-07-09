@@ -246,7 +246,7 @@ const profileLinks = computed(() => {
           <div class="rounded-2xl border border-slate-200 p-4">
             <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</h2>
             <p class="mt-1 text-lg font-semibold text-slate-900">
-              {{ auth.plan || 'Free' }}
+              {{ auth.planDisplayLabel || 'Free' }}
             </p>
           </div>
         </div>

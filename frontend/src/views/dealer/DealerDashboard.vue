@@ -61,9 +61,7 @@ const unreadMessages = computed(
 );
 
 const planLabel = computed(() => {
-  if (!auth.plan) return auth.planSlug || 'MotorRelay plan';
-  if (typeof auth.plan === 'string') return auth.plan;
-  return auth.plan.name || auth.plan.title || auth.plan.slug || 'MotorRelay plan';
+  return auth.planDisplayLabel || 'MotorRelay plan';
 });
 
 const activeDealerJobs = computed(() => {

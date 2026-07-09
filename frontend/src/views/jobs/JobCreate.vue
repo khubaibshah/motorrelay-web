@@ -812,31 +812,31 @@ watch(
           </div>
 
           <div class="grid gap-4 md:grid-cols-2">
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
               <input
                 v-model="form.pickup_date"
                 type="date"
-                class="mt-3 w-full rounded-2xl border px-4 py-3 text-sm"
+                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
               />
               <input
                 v-model="form.pickup_time"
                 type="time"
-                class="mt-3 w-full rounded-2xl border px-4 py-3 text-sm"
+                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
               />
             </div>
 
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
               <input
                 v-model="form.delivery_date"
                 type="date"
-                class="mt-3 w-full rounded-2xl border px-4 py-3 text-sm"
+                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
               />
               <input
                 v-model="form.delivery_time"
                 type="time"
-                class="mt-3 w-full rounded-2xl border px-4 py-3 text-sm"
+                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
               />
             </div>
           </div>

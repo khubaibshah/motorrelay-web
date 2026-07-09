@@ -186,11 +186,24 @@ const dealerJobsProgress = computed(() => {
   });
 });
 const dealerJobsSearch = ref('');
+const dealerJobsStatusFilter = ref('all');
+const dealerJobsPaymentFilter = ref('all');
 const filteredDealerJobs = computed(() => {
   const query = dealerJobsSearch.value.trim().toLowerCase();
-  if (!query) return dealerJobsProgress.value;
-
   return dealerJobsProgress.value.filter((job) => {
+    const status = String(job?.status || '').toLowerCase();
+    const payment = String(job?.payment_status || 'unpaid').toLowerCase();
+
+    if (dealerJobsStatusFilter.value !== 'all' && status !== dealerJobsStatusFilter.value) {
+      return false;
+    }
+
+    if (dealerJobsPaymentFilter.value !== 'all' && payment !== dealerJobsPaymentFilter.value) {
+      return false;
+    }
+
+    if (!query) return true;
+
     const haystack = [
       job?.title,
       job?.pickup_postcode,
@@ -491,17 +504,59 @@ onMounted(async () => {
             Same jobs as the home page, shown in a searchable table. Click a row to open the job.
           </p>
         </div>
-        <div class="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[20rem]">
-          <label for="dealer-jobs-search" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-            Search jobs
-          </label>
-          <input
-            id="dealer-jobs-search"
-            v-model="dealerJobsSearch"
-            type="search"
-            placeholder="Search title, route, status..."
-            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-          >
+        <div class="grid w-full gap-3 sm:grid-cols-3">
+          <div class="flex flex-col gap-2">
+            <label for="dealer-jobs-search" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+              Search
+            </label>
+            <input
+              id="dealer-jobs-search"
+              v-model="dealerJobsSearch"
+              type="search"
+              placeholder="Title, route, driver..."
+              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            >
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label for="dealer-jobs-status" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+              Status
+            </label>
+            <select
+              id="dealer-jobs-status"
+              v-model="dealerJobsStatusFilter"
+              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            >
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In progress</option>
+              <option value="accepted">Accepted</option>
+              <option value="collected">Collected</option>
+              <option value="in_transit">In transit</option>
+              <option value="completion_pending">Completion pending</option>
+              <option value="delivered">Delivered</option>
+              <option value="completed">Completed</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label for="dealer-jobs-payment" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+              Payment
+            </label>
+            <select
+              id="dealer-jobs-payment"
+              v-model="dealerJobsPaymentFilter"
+              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            >
+              <option value="all">All payments</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="checkout_pending">Checkout pending</option>
+              <option value="paid">Paid</option>
+              <option value="payout_released">Payout released</option>
+            </select>
+          </div>
         </div>
       </header>
 

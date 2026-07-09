@@ -162,30 +162,6 @@ const standoutFeatures = [
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
-const dealerJobsNeedingAttention = computed(() => {
-  if (auth.role !== 'dealer') return [];
-
-  const activeStatuses = new Set([
-    'open',
-    'pending',
-    'in_progress',
-    'accepted',
-    'collected',
-    'in_transit',
-    'completion_pending',
-    'delivered'
-  ]);
-
-  return postedJobs.value
-    .filter((job) => activeStatuses.has(String(job?.status ?? '').toLowerCase()))
-    .sort((a, b) => {
-      const aDate = new Date(a?.pickup_at ?? a?.goes_live_at ?? a?.created_at ?? 0).getTime();
-      const bDate = new Date(b?.pickup_at ?? b?.goes_live_at ?? b?.created_at ?? 0).getTime();
-      return aDate - bDate;
-    })
-    .slice(0, 5);
-});
-
 const openJobsEmptyText = computed(() => {
   if (auth.role === 'driver') {
     return 'No open jobs right now. Check back later for new dealer jobs.';
@@ -197,39 +173,6 @@ const openJobsEmptyText = computed(() => {
 
   return 'No open jobs yet. Jobs will appear here when dealers post them.';
 });
-
-function nextAction(job) {
-  if (!job?.assigned_to_id) return 'Review requests';
-  const paymentStatus = String(job?.payment_status || 'unpaid').toLowerCase();
-  const completionStatus = String(job?.completion_status || 'not_submitted').toLowerCase();
-  if (paymentStatus === 'unpaid') return 'Take payment';
-  if (paymentStatus === 'checkout_pending') return 'Refresh payment';
-  if (completionStatus === 'submitted') return 'Approve proof';
-  if (paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id) return 'Release payout';
-  if (paymentStatus === 'payout_released') return 'Paid out';
-  return 'Track job';
-}
-
-function formatRun(job) {
-  const pickup = job?.pickup_label || job?.pickup_postcode || job?.pickup_city || 'Pickup';
-  const dropoff = job?.dropoff_label || job?.dropoff_postcode || job?.dropoff_city || 'Drop-off';
-  return `${pickup} to ${dropoff}`;
-}
-
-function formatDate(value) {
-  if (!value) return '--';
-  try {
-    return new Intl.DateTimeFormat('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
 </script>
 
 <template>
@@ -373,60 +316,5 @@ function formatDate(value) {
       </RouterLink>
     </section>
 
-    <section v-if="auth.role === 'dealer'" class="section-card">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer operations</p>
-          <h2 class="mt-1 text-xl font-black text-slate-950">Jobs needing attention</h2>
-          <p class="mt-2 text-sm text-slate-600">
-            Active dealer jobs with only the essential details shown.
-          </p>
-        </div>
-        <RouterLink to="/jobs" class="text-sm font-bold text-emerald-700 hover:text-emerald-800">
-          Manage jobs
-        </RouterLink>
-      </div>
-
-      <div
-        v-if="!dealerJobsNeedingAttention.length"
-        class="mt-5 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600"
-      >
-        You have no active jobs right now.
-      </div>
-
-      <div v-else class="mt-5 space-y-3">
-        <article
-          v-for="job in dealerJobsNeedingAttention"
-          :key="job.id"
-          class="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 class="text-base font-black text-slate-950">
-                {{ job.title || `Job #${job.id}` }}
-              </h3>
-              <p class="text-sm text-slate-500">{{ formatRun(job) }}</p>
-            </div>
-            <span class="badge bg-slate-100 text-slate-700">
-              {{ nextAction(job) }}
-            </span>
-          </div>
-          <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            <span>Driver: {{ job.assigned_to?.name || job.driver_name || 'Not assigned' }}</span>
-            <span v-if="job.goes_live_at">Goes live {{ formatDate(job.goes_live_at) }}</span>
-            <span v-else-if="job.pickup_at">Pickup {{ formatDate(job.pickup_at) }}</span>
-            <span>Updated {{ formatDate(job.updated_at || job.created_at) }}</span>
-          </div>
-          <div class="mt-4 flex flex-wrap gap-2">
-            <RouterLink :to="`/jobs/${job.id}`" class="btn-secondary px-3 py-2 text-xs">
-              View job
-            </RouterLink>
-            <RouterLink :to="`/jobs/${job.id}/edit`" class="btn-secondary px-3 py-2 text-xs">
-              Edit run
-            </RouterLink>
-          </div>
-        </article>
-      </div>
-    </section>
   </div>
 </template>

@@ -87,7 +87,7 @@ async function submit() {
           v-model="form.email"
           type="email"
           required
-          class="mt-2 w-full rounded-2xl px-4 py-3 text-sm"
+          class="mt-2 w-full rounded-2xl px-4 py-3 text-base"
           placeholder="driver@motorrelay.com"
         />
       </div>
@@ -98,7 +98,7 @@ async function submit() {
           v-model="form.password"
           type="password"
           required
-          class="mt-2 w-full rounded-2xl px-4 py-3 text-sm"
+          class="mt-2 w-full rounded-2xl px-4 py-3 text-base"
           placeholder="password"
         />
       </div>

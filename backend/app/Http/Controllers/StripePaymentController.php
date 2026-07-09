@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use App\Models\User;
+use App\Notifications\JobStatusNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\SignatureVerificationException;
@@ -300,6 +302,10 @@ class StripePaymentController extends Controller
             'payout_released_at' => now(),
         ])->save();
 
+        if ($driver) {
+            Notification::send($driver, new JobStatusNotification($job->fresh(), 'driver_payout_released'));
+        }
+
         return response()->json([
             'message' => 'Driver payout released.',
             'job' => $job->fresh(),
@@ -349,6 +355,10 @@ class StripePaymentController extends Controller
             'stripe_payment_intent_id' => $session->payment_intent ?? $job->stripe_payment_intent_id,
             'paid_at' => now(),
         ])->save();
+
+        if ($job->assignedTo) {
+            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'dealer_payment_received'));
+        }
     }
 
     protected function handleAccountUpdated(object $account): void

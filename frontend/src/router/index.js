@@ -92,6 +92,14 @@ const routes = [
     }
   },
   {
+    path: '/notifications',
+    name: 'notifications',
+    component: () => import('../views/notifications/NotificationsCenter.vue'),
+    meta: {
+      breadcrumb: 'Notifications'
+    }
+  },
+  {
     path: '/planner',
     name: 'planner',
     component: () => import('../views/planner/PlannerDashboard.vue'),

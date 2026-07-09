@@ -24,6 +24,10 @@ class ExpenseReviewedNotification extends Notification
     {
         return [
             'type' => 'expense.reviewed',
+            'title' => 'Expense reviewed',
+            'body' => sprintf('Your expense for job #%d was reviewed.', $this->expense->job_id),
+            'action_label' => 'Open job',
+            'url' => url('/jobs/' . $this->expense->job_id),
             'expense_id' => $this->expense->id,
             'job_id' => $this->expense->job_id,
             'status' => $this->expense->status,

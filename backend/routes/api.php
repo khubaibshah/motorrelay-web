@@ -12,6 +12,7 @@ use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobWorkflowController;
 use App\Http\Controllers\JobTrackingController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostcodeLookupController;
 use App\Http\Controllers\StripePaymentController;
 use App\Http\Controllers\UserProfileController;
@@ -29,6 +30,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     Route::get('/profile', [UserProfileController::class, 'show']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::get('/vehicles/registration/{registration}', [VehicleLookupController::class, 'show']);
     Route::get('/postcodes/{postcode}/addresses', [PostcodeLookupController::class, 'show']);
     Route::get('/postcodes/places/{placeId}', [PostcodeLookupController::class, 'resolve']);

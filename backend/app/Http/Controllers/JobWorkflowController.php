@@ -41,6 +41,17 @@ class JobWorkflowController extends Controller
             ]
         );
 
+        $job->loadMissing('postedBy:id,name');
+        if ($job->postedBy) {
+            Notification::send($job->postedBy, new JobStatusNotification($job->fresh(), 'driver_applied', [
+                'driver' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ],
+                'message' => $request->filled('message') ? $request->string('message')->toString() : null,
+            ]));
+        }
+
         return response()->json([
             'message' => 'Application submitted. Waiting for dealer approval.',
             'application' => $application,
@@ -59,6 +70,8 @@ class JobWorkflowController extends Controller
         $job->update([
             'status' => 'collected'
         ]);
+
+        $this->notifyDealer($job->fresh(), 'driver_marked_collected');
 
         return response()->json($job);
     }
@@ -213,6 +226,10 @@ class JobWorkflowController extends Controller
         $job->loadMissing(['expenses']);
         $invoice = $finalizer->finalize($job, $user);
 
+        if ($job->assignedTo) {
+            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'completion_approved'));
+        }
+
         return response()->json([
             'message' => 'Job completion approved and invoice generated.',
             'invoice' => $this->summariseInvoice($invoice),
@@ -240,6 +257,12 @@ class JobWorkflowController extends Controller
             'completion_rejected_at' => now(),
             'completion_notes' => $validated['reason'] ?? $job->completion_notes,
         ]);
+
+        if ($job->assignedTo) {
+            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'completion_rejected', [
+                'reason' => $validated['reason'] ?? null,
+            ]));
+        }
 
         return response()->json($job->fresh());
     }
@@ -272,6 +295,10 @@ class JobWorkflowController extends Controller
         }
 
         $invoice = $finalizer->finalize($job->fresh(), $user);
+
+        if ($job->assignedTo) {
+            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'completion_approved'));
+        }
 
         return response()->json([
             'job' => $job->fresh(),

@@ -112,6 +112,7 @@ class UserProfileController extends Controller
             'plan_slug' => $planSlug,
             'plan_limits' => $planLimits,
             'usage' => $usage,
+            'notifications_unread_count' => $user->unreadNotifications()->count(),
             'jobs' => [
                 'assigned' => $assignedJobs->values(),
                 'posted' => $postedJobs->values(),

@@ -5,6 +5,10 @@ const props = defineProps({
   items: {
     type: Array,
     default: () => []
+  },
+  badgeCount: {
+    type: Number,
+    default: 0
   }
 });
 
@@ -31,7 +35,7 @@ function isActive(item) {
         v-for="item in items"
         :key="item.to"
         :to="item.to"
-        class="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1.5 py-2 text-[10px] font-bold transition sm:px-2 sm:text-[11px]"
+        class="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1.5 py-2 text-[10px] font-bold transition sm:px-2 sm:text-[11px]"
         :class="isActive(item) ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/20' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950'"
       >
         <svg
@@ -77,6 +81,16 @@ function isActive(item) {
           <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 12h.008v.008H7.5V12Zm4.5 0h.008v.008H12V12Zm4.5 0h.008v.008H16.5V12Z" />
         </svg>
         <svg
+          v-else-if="item.icon === 'notifications'"
+          viewBox="0 0 24 24"
+          class="h-6 w-6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 18.75a2.25 2.25 0 0 1-4.5 0m7.5-4.5V10.5a5.25 5.25 0 1 0-10.5 0v3.75l-1.5 1.5v.75h13.5v-.75l-1.5-1.5Z" />
+        </svg>
+        <svg
           v-else-if="item.icon === 'profile'"
           viewBox="0 0 24 24"
           class="h-6 w-6"
@@ -110,6 +124,12 @@ function isActive(item) {
           <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21h7.5M4.5 9.75l3 6h9l3-6" />
         </svg>
         <span class="max-w-full truncate">{{ item.label }}</span>
+        <span
+          v-if="item.icon === 'notifications' && badgeCount"
+          class="absolute right-2 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 py-0.5 text-[9px] font-black text-white"
+        >
+          {{ badgeCount }}
+        </span>
       </RouterLink>
     </div>
   </nav>

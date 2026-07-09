@@ -8,6 +8,7 @@ export const useAuthStore = defineStore('auth', {
     planSlug: null,
     planLimits: {},
     usage: {},
+    notificationsUnreadCount: 0,
     token: null,
     jobs: {
       assigned: [],
@@ -64,6 +65,7 @@ export const useAuthStore = defineStore('auth', {
       this.planSlug = planSlug || user?.plan_slug || null;
       this.planLimits = planLimits || {};
       this.usage = usage || {};
+      this.notificationsUnreadCount = 0;
       this.jobs = {
         assigned: Array.isArray(jobs?.assigned) ? jobs.assigned : [],
         posted: Array.isArray(jobs?.posted) ? jobs.posted : [],
@@ -78,7 +80,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     clearSession() {
-      this.setSession({ token: null, user: null, plan: null, planSlug: null, planLimits: {}, usage: {} });
+      this.setSession({ token: null, user: null, plan: null, planSlug: null, planLimits: {}, usage: {}, notificationsUnreadCount: 0 });
     },
     async fetchMe() {
       if (!this.token) {
@@ -94,6 +96,7 @@ export const useAuthStore = defineStore('auth', {
         this.planSlug = data?.plan_slug ?? this.user?.plan_slug ?? null;
         this.planLimits = data?.plan_limits ?? {};
         this.usage = data?.usage ?? {};
+        this.notificationsUnreadCount = data?.notifications_unread_count ?? 0;
         this.jobs = {
           assigned: Array.isArray(data?.jobs?.assigned) ? data.jobs.assigned : [],
           posted: Array.isArray(data?.jobs?.posted) ? data.jobs.posted : [],

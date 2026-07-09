@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use App\Models\JobDailyMetric;
+use App\Notifications\JobStatusNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Notification;
 use App\Services\VehicleLookupService;
 
 class JobController extends Controller
@@ -407,6 +409,27 @@ class JobController extends Controller
         }
 
         $job->update($updates);
+
+        $recipients = collect();
+
+        if ($job->assignedTo) {
+            $recipients->push($job->assignedTo);
+        } else {
+            $recipients = $job->applications()
+                ->whereIn('status', ['pending', 'accepted'])
+                ->with('driver:id,name')
+                ->get()
+                ->pluck('driver')
+                ->filter();
+        }
+
+        $recipients = $recipients->unique('id')->values();
+
+        if ($recipients->isNotEmpty()) {
+            Notification::send($recipients, new JobStatusNotification($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), 'dealer_updated_job', [
+                'changed_fields' => array_keys($updates),
+            ]));
+        }
 
         return response()->json($job);
     }

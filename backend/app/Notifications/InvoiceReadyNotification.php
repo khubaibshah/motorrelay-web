@@ -38,6 +38,10 @@ class InvoiceReadyNotification extends Notification
     {
         return [
             'type' => 'invoice.ready',
+            'title' => 'Invoice ready',
+            'body' => 'An invoice has been generated for your recent MotorRelay job.',
+            'action_label' => 'View invoice',
+            'url' => url('/invoices/' . $this->invoice->id),
             'invoice_id' => $this->invoice->id,
             'invoice_number' => $this->invoice->number,
             'job_id' => $this->invoice->job_id,

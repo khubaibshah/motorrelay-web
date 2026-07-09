@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Job;
 use App\Models\JobApplication;
 use App\Models\MessageThread;
+use App\Notifications\JobStatusNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -82,6 +84,17 @@ class JobApplicationController extends Controller
             ]
         );
 
+        $job->loadMissing('postedBy:id,name');
+        if ($job->postedBy) {
+            Notification::send($job->postedBy, new JobStatusNotification($job->fresh(), 'driver_applied', [
+                'driver' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ],
+                'message' => $validated['message'] ?? null,
+            ]));
+        }
+
         return response()->json($application->fresh(), 201);
     }
 
@@ -133,7 +146,28 @@ class JobApplicationController extends Controller
             return $application->fresh(['driver:id,name,email']);
         });
 
-        return response()->json($application);
+        $freshJob = $job->fresh(['postedBy:id,name', 'assignedTo:id,name']);
+
+        if ($application->status === 'accepted') {
+            $driver = $application->driver;
+            if ($driver) {
+                Notification::send($driver, new JobStatusNotification($freshJob, 'application_accepted', [
+                    'dealer' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                    ],
+                ]));
+            }
+        } elseif ($application->status === 'declined' && $application->driver) {
+            Notification::send($application->driver, new JobStatusNotification($freshJob, 'application_declined', [
+                'dealer' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ],
+            ]));
+        }
+
+        return response()->json($application->fresh(['driver:id,name,email']));
     }
 
     protected function ensureConversationExists(Job $job, int $dealerId, int $driverId): void

@@ -146,6 +146,15 @@ const dealerJobsProgress = computed(() => {
   });
 });
 
+const liveBoardMode = ref('open');
+const liveBoardJobs = computed(() => (liveBoardMode.value === 'progress' ? dealerJobsProgress.value : jobsToDisplay.value));
+const liveBoardTitle = computed(() => (liveBoardMode.value === 'progress' ? 'Jobs in progress' : 'Open jobs'));
+const liveBoardEmptyText = computed(() => (liveBoardMode.value === 'progress' ? 'No jobs in progress yet.' : openJobsEmptyText.value));
+const liveBoardCountText = computed(() => {
+  if (loading.value) return 'Syncing';
+  return `${liveBoardJobs.value.length} shown`;
+});
+
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
 function formatDate(value) {
@@ -219,21 +228,42 @@ const openJobsEmptyText = computed(() => {
         </div>
       </div>
     </section>
-
     <aside class="rounded-3xl bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20 sm:p-5">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Live board</p>
-          <h2 class="mt-1 text-xl font-bold">Open jobs</h2>
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Live board</p>
+            <h2 class="mt-1 text-xl font-bold">{{ liveBoardTitle }}</h2>
+          </div>
+          <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
+            {{ liveBoardCountText }}
+          </span>
         </div>
-        <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
-          {{ loading ? 'Syncing' : `${jobsToDisplay.length} shown` }}
-        </span>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
+            :class="liveBoardMode === 'open' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            @click="liveBoardMode = 'open'"
+          >
+            Open jobs
+          </button>
+          <button
+            v-if="auth.role === 'dealer'"
+            type="button"
+            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
+            :class="liveBoardMode === 'progress' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            @click="liveBoardMode = 'progress'"
+          >
+            Jobs in progress
+          </button>
+        </div>
       </div>
 
       <div class="mt-5 space-y-3">
         <RouterLink
-          v-for="job in jobsToDisplay"
+          v-for="job in liveBoardJobs"
           :key="job.id"
           :to="`/jobs/${job.id}`"
           class="block rounded-2xl border border-white/10 bg-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
@@ -254,60 +284,13 @@ const openJobsEmptyText = computed(() => {
         </RouterLink>
 
         <div
-          v-if="!loading && !jobsToDisplay.length"
+          v-if="!loading && !liveBoardJobs.length"
           class="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-300"
         >
-          {{ openJobsEmptyText }}
+          {{ liveBoardEmptyText }}
         </div>
       </div>
     </aside>
-
-    <section v-if="auth.role === 'dealer'" class="section-card space-y-4">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Job progress</p>
-          <h2 class="mt-1 text-xl font-black text-slate-950">All jobs in progress</h2>
-          <p class="mt-1 text-sm text-slate-600">Scroll through your jobs, open any job, or jump to the full searchable table.</p>
-        </div>
-        <RouterLink to="/jobs" class="btn-secondary">
-          View full list
-        </RouterLink>
-      </div>
-
-      <div v-if="dealerJobsProgress.length" class="flex gap-3 overflow-x-auto pb-2">
-        <RouterLink
-          v-for="job in dealerJobsProgress"
-          :key="`home-progress-${job.id}`"
-          :to="`/jobs/${job.id}`"
-          class="min-w-[18rem] max-w-[18rem] flex-shrink-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
-        >
-          <div class="space-y-3">
-            <div class="min-w-0">
-              <p class="truncate text-base font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
-              <p class="mt-1 truncate text-sm text-slate-600">
-                {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
-              </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                Now: {{ job.status || 'Open' }}
-              </span>
-              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                Payment: {{ paymentLabel(job) }}
-              </span>
-              <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                {{ formatDate(job.updated_at || job.created_at) }}
-              </span>
-            </div>
-          </div>
-        </RouterLink>
-      </div>
-
-      <div v-else class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        No jobs yet. Create your first job to start tracking progress.
-      </div>
-    </section>
 
     <section v-if="quickLinks.length" class="grid gap-4 md:grid-cols-3">
       <RouterLink

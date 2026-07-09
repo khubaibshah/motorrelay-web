@@ -820,9 +820,54 @@ onMounted(async () => {
           class="rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-xl sm:p-5"
           :class="isDealer ? 'border-slate-200 bg-white shadow-sm' : 'border-slate-200 bg-slate-50/80 hover:bg-white'"
         >
-          <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div v-if="isDealer" class="space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge" :class="statusClass(job)">{{ job.status }}</span>
+              <span class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
+            </div>
+
+            <div>
+              <p class="text-lg font-black text-slate-950">
+                {{ job.title || `Job #${job.id}` }}
+              </p>
+              <p class="mt-1 text-sm text-slate-600">
+                {{ job.pickup_label || job.pickup_postcode || '--' }} → {{ job.dropoff_label || job.dropoff_postcode || '--' }}
+              </p>
+              <p class="mt-1 text-xs text-slate-500">
+                Updated {{ formatShortDate(job.updated_at || job.created_at) }}
+              </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+                @click="openJob(job)"
+              >
+                Manage job
+              </button>
+              <RouterLink
+                v-if="canEditDealerJob(job)"
+                :to="`/jobs/${job.id}/edit`"
+                class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+              >
+                Edit
+              </RouterLink>
+              <button
+                type="button"
+                class="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
+                :disabled="isActionPending(job.id, 'cancel')"
+                @click="handleCancelJob(job)"
+              >
+                <span v-if="isActionPending(job.id, 'cancel')">Cancelling...</span>
+                <span v-else>Cancel</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div class="min-w-0 flex-1">
-              <div v-if="isDealer" class="mb-3 flex flex-wrap gap-2">
+              <div class="mb-3 flex flex-wrap gap-2">
                 <span class="badge" :class="statusClass(job)">{{ job.status }}</span>
                 <span class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
                 <span class="badge bg-slate-100 text-slate-700">{{ formatTransportType(job.transport_type) }}</span>
@@ -850,27 +895,27 @@ onMounted(async () => {
                 </div>
                 <div class="rounded-2xl bg-slate-50 p-3">
                   <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Next action</p>
-                  <p class="mt-1 font-semibold text-emerald-700">{{ isDealer ? dealerNextAction(job) : job.status }}</p>
+                  <p class="mt-1 font-semibold text-emerald-700">{{ job.status }}</p>
                 </div>
               </div>
             </div>
 
             <div class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right">
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">{{ isDriver ? 'Driver payout' : 'Job value' }}</p>
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver payout</p>
               <div class="mt-1 text-3xl font-black">
                 {{ priceFormatter.format(visibleAmountForJob(job)) }}
               </div>
-              <span v-if="!isDealer" class="badge mt-3 bg-emerald-100 text-emerald-700">{{ job.status }}</span>
+              <span class="badge mt-3 bg-emerald-100 text-emerald-700">{{ job.status }}</span>
             </div>
           </div>
 
-          <div class="mt-4 grid gap-2 sm:flex sm:flex-wrap">
+          <div v-if="!isDealer" class="mt-4 grid gap-2 sm:flex sm:flex-wrap">
             <button
               type="button"
               class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
               @click="openJob(job)"
             >
-              {{ isDealer ? 'Manage job' : 'View details' }}
+              View details
             </button>
             <RouterLink
               v-if="canEditDealerJob(job)"

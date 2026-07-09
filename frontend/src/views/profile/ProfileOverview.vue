@@ -29,57 +29,6 @@ const payoutCardText = computed(() => {
   return 'Add your bank details securely with Stripe so MotorRelay can release payment after delivery proof is approved.';
 });
 
-const isStarterPlan = computed(() => auth.isStarter);
-const planUsage = computed(() => auth.usage || {});
-const planLimits = computed(() => auth.planLimits || {});
-const starterUsage = computed(() => ({
-  jobPosts: {
-    used: planUsage.value.job_posts_this_month ?? 0,
-    limit: planLimits.value.monthly_job_posts ?? null
-  },
-  urgentBoosts: {
-    used: planUsage.value.urgent_boosts_used ?? 0,
-    limit: planLimits.value.urgent_boost_per_month ?? null
-  },
-  applications: {
-    used: planUsage.value.applications_today ?? 0,
-    limit: planLimits.value.daily_applications ?? null
-  }
-}));
-const starterUsageCards = computed(() => {
-  if (!isStarterPlan.value) return [];
-
-  if (isDealer.value) {
-    return [
-      {
-        label: 'Job posts this month',
-        value: starterUsage.value.jobPosts.used,
-        limit: starterUsage.value.jobPosts.limit,
-        description: `Starter includes up to ${starterUsage.value.jobPosts.limit || 5} posts monthly.`
-      },
-      {
-        label: 'Urgent boosts used',
-        value: starterUsage.value.urgentBoosts.used,
-        limit: starterUsage.value.urgentBoosts.limit,
-        description: 'Upgrade for additional boosts per month.'
-      }
-    ];
-  }
-
-  if (isDriver.value) {
-    return [
-      {
-        label: 'Applications today',
-        value: starterUsage.value.applications.used,
-        limit: starterUsage.value.applications.limit,
-        description: 'Starter allows a limited number of daily applications.'
-      }
-    ];
-  }
-
-  return [];
-});
-
 const initials = computed(() => {
   if (!auth.user?.name) return 'MR';
   return auth.user.name
@@ -221,19 +170,6 @@ async function confirmPayoutDisconnect() {
             </p>
           </div>
         </div>
-        <div v-if="starterUsageCards.length" class="grid gap-4 md:grid-cols-2">
-          <div
-            v-for="card in starterUsageCards"
-            :key="card.label"
-            class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"
-          >
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-emerald-700">{{ card.label }}</h3>
-            <p class="mt-1 text-lg font-semibold text-emerald-900">
-              {{ card.value }}<span v-if="card.limit"> / {{ card.limit }}</span>
-            </p>
-            <p class="text-xs text-emerald-700">{{ card.description }}</p>
-          </div>
-        </div>
       </section>
 
       <section
@@ -299,25 +235,6 @@ async function confirmPayoutDisconnect() {
           <RouterLink to="/jobs/new" class="btn-primary w-full sm:w-auto">
             Create job
           </RouterLink>
-        </div>
-
-        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Posted jobs</p>
-            <p class="mt-2 text-2xl font-black text-slate-950">{{ dealerStats.posted }}</p>
-          </div>
-          <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-            <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Need drivers</p>
-            <p class="mt-2 text-2xl font-black text-emerald-950">{{ dealerStats.awaitingDriver }}</p>
-          </div>
-          <div class="rounded-2xl border border-sky-100 bg-sky-50 p-4">
-            <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Need payment</p>
-            <p class="mt-2 text-2xl font-black text-sky-950">{{ dealerStats.needsPayment }}</p>
-          </div>
-          <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <p class="text-xs font-bold uppercase tracking-wide text-amber-700">Proof review</p>
-            <p class="mt-2 text-2xl font-black text-amber-950">{{ dealerStats.proofReview }}</p>
-          </div>
         </div>
 
         <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

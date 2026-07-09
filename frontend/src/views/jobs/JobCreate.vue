@@ -518,26 +518,6 @@ watch(
 
 <template>
   <div class="mx-auto max-w-6xl space-y-5">
-    <header class="section-card overflow-hidden bg-gradient-to-br from-white via-emerald-50/70 to-sky-50">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">
-            {{ isEdit ? 'Update run' : 'Dealer job' }}
-          </p>
-          <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-950">
-            {{ isEdit ? 'Edit job' : 'Create a new job' }}
-          </h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Add the vehicle, route, driver payout, and timing. New jobs go to Stripe checkout before drivers can start.
-          </p>
-        </div>
-        <div class="rounded-3xl bg-slate-950 px-5 py-4 text-white shadow-xl">
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver payout</p>
-          <p class="mt-1 text-3xl font-black">{{ formatMoney(estimatedDriverPayout) }}</p>
-        </div>
-      </div>
-    </header>
-
     <div v-if="loading" class="section-card text-sm text-slate-600">
       Loading job details...
     </div>
@@ -554,8 +534,8 @@ watch(
             <h2 class="mt-1 text-xl font-black text-slate-950">What is being moved?</h2>
           </header>
 
-          <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-            <label class="block">
+          <div class="flex items-end gap-3">
+            <label class="block min-w-0 flex-1">
               <span class="text-sm font-bold text-slate-700">Licence plate</span>
               <input
                 v-model="form.title"
@@ -572,7 +552,7 @@ watch(
             <button
               v-if="!isEdit && !verifiedVehicle"
               type="button"
-              class="btn-secondary w-full md:w-auto"
+              class="btn-secondary shrink-0 px-5"
               :disabled="vehicleLookupLoading || !form.title"
               @click="lookupVehicle"
             >
@@ -582,7 +562,7 @@ watch(
             <button
               v-else-if="!isEdit"
               type="button"
-              class="btn-secondary w-full md:w-auto"
+              class="btn-secondary shrink-0 px-5"
               :disabled="vehicleLookupLoading"
               @click="changeVehicle"
             >

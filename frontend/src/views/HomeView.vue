@@ -178,7 +178,7 @@ const openJobsEmptyText = computed(() => {
 <template>
   <div class="space-y-6">
     <section class="section-card overflow-hidden">
-      <div class="grid gap-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center lg:gap-8">
+      <div class="space-y-6">
         <div class="space-y-5 sm:space-y-6">
           <div class="inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">
             {{ roleLabel }}
@@ -202,14 +202,14 @@ const openJobsEmptyText = computed(() => {
             </RouterLink>
           </div>
 
-          <dl class="grid gap-3 sm:grid-cols-3">
+          <dl class="grid grid-cols-3 gap-2 sm:gap-3">
             <div
               v-for="stat in statCards"
               :key="stat.label"
-              class="rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm"
+              class="min-w-0 rounded-2xl border border-slate-200/80 bg-white/70 p-3 shadow-sm sm:p-4"
             >
-              <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">{{ stat.label }}</dt>
-              <dd class="mt-2 break-words text-xl font-black text-slate-950 sm:text-2xl">{{ stat.value }}</dd>
+              <dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">{{ stat.label }}</dt>
+              <dd class="mt-2 break-words text-lg font-black text-slate-950 sm:text-2xl">{{ stat.value }}</dd>
             </div>
           </dl>
         </div>

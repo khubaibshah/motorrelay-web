@@ -30,6 +30,8 @@
   textarea,
   select {
     @apply border-slate-200 bg-white/90 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10;
+    font-size: 16px;
+    line-height: 1.5;
   }
 }
 

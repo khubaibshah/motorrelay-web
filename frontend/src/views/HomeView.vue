@@ -38,6 +38,11 @@ const roleLabel = computed(() => {
   return 'Vehicle logistics';
 });
 
+const postedJobs = computed(() => {
+  const list = Array.isArray(auth.postedJobs) ? auth.postedJobs : auth.jobs?.posted;
+  return Array.isArray(list) ? [...list] : [];
+});
+
 const primaryAction = computed(() => {
   if (auth.role === 'driver') return { to: '/jobs', label: 'Browse jobs' };
   if (auth.role === 'dealer') return { to: '/jobs/new', label: 'Create job' };
@@ -90,11 +95,7 @@ const quickLinks = computed(() => {
   }
 
   if (auth.role === 'dealer') {
-    return [
-      { to: '/jobs/new', title: 'Post a job', text: 'Add pickup, drop-off, vehicle, and price.' },
-      { to: '/jobs', title: 'Manage runs', text: 'Assign drivers and track live progress.' },
-      { to: '/invoices', title: 'Invoices', text: 'Download invoices and delivery proof.' }
-    ];
+    return [];
   }
 
   if (auth.role === 'admin') {
@@ -161,6 +162,30 @@ const standoutFeatures = [
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
+const dealerJobsNeedingAttention = computed(() => {
+  if (auth.role !== 'dealer') return [];
+
+  const activeStatuses = new Set([
+    'open',
+    'pending',
+    'in_progress',
+    'accepted',
+    'collected',
+    'in_transit',
+    'completion_pending',
+    'delivered'
+  ]);
+
+  return postedJobs.value
+    .filter((job) => activeStatuses.has(String(job?.status ?? '').toLowerCase()))
+    .sort((a, b) => {
+      const aDate = new Date(a?.pickup_at ?? a?.goes_live_at ?? a?.created_at ?? 0).getTime();
+      const bDate = new Date(b?.pickup_at ?? b?.goes_live_at ?? b?.created_at ?? 0).getTime();
+      return aDate - bDate;
+    })
+    .slice(0, 5);
+});
+
 const openJobsEmptyText = computed(() => {
   if (auth.role === 'driver') {
     return 'No open jobs right now. Check back later for new dealer jobs.';
@@ -172,6 +197,39 @@ const openJobsEmptyText = computed(() => {
 
   return 'No open jobs yet. Jobs will appear here when dealers post them.';
 });
+
+function nextAction(job) {
+  if (!job?.assigned_to_id) return 'Review requests';
+  const paymentStatus = String(job?.payment_status || 'unpaid').toLowerCase();
+  const completionStatus = String(job?.completion_status || 'not_submitted').toLowerCase();
+  if (paymentStatus === 'unpaid') return 'Take payment';
+  if (paymentStatus === 'checkout_pending') return 'Refresh payment';
+  if (completionStatus === 'submitted') return 'Approve proof';
+  if (paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id) return 'Release payout';
+  if (paymentStatus === 'payout_released') return 'Paid out';
+  return 'Track job';
+}
+
+function formatRun(job) {
+  const pickup = job?.pickup_label || job?.pickup_postcode || job?.pickup_city || 'Pickup';
+  const dropoff = job?.dropoff_label || job?.dropoff_postcode || job?.dropoff_city || 'Drop-off';
+  return `${pickup} to ${dropoff}`;
+}
+
+function formatDate(value) {
+  if (!value) return '--';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
 </script>
 
 <template>
@@ -212,50 +270,50 @@ const openJobsEmptyText = computed(() => {
             </div>
           </dl>
         </div>
-
-        <aside class="rounded-3xl bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20 sm:p-5">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Live board</p>
-              <h2 class="mt-1 text-xl font-bold">Open jobs</h2>
-            </div>
-            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
-              {{ loading ? 'Syncing' : `${jobsToDisplay.length} shown` }}
-            </span>
-          </div>
-
-          <div class="mt-5 space-y-3">
-            <RouterLink
-              v-for="job in jobsToDisplay"
-              :key="job.id"
-              :to="`/jobs/${job.id}`"
-              class="block rounded-2xl border border-white/10 bg-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
-            >
-              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div class="min-w-0">
-                  <p class="font-semibold text-white">
-                    {{ job.pickup_label || job.pickup_postcode || 'Pickup' }}
-                    <span class="text-slate-500">to</span>
-                    {{ job.dropoff_label || job.dropoff_postcode || 'Drop-off' }}
-                  </p>
-                  <p class="mt-1 text-xs text-slate-400">{{ job.status || 'open' }}</p>
-                </div>
-                <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950">
-                  {{ priceFormatter.format(Number(job.price || 0)) }}
-                </span>
-              </div>
-            </RouterLink>
-
-            <div
-              v-if="!loading && !jobsToDisplay.length"
-              class="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-300"
-            >
-              {{ openJobsEmptyText }}
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
+
+    <aside class="rounded-3xl bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20 sm:p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Live board</p>
+          <h2 class="mt-1 text-xl font-bold">Open jobs</h2>
+        </div>
+        <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
+          {{ loading ? 'Syncing' : `${jobsToDisplay.length} shown` }}
+        </span>
+      </div>
+
+      <div class="mt-5 space-y-3">
+        <RouterLink
+          v-for="job in jobsToDisplay"
+          :key="job.id"
+          :to="`/jobs/${job.id}`"
+          class="block rounded-2xl border border-white/10 bg-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
+        >
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <p class="font-semibold text-white">
+                {{ job.pickup_label || job.pickup_postcode || 'Pickup' }}
+                <span class="text-slate-500">to</span>
+                {{ job.dropoff_label || job.dropoff_postcode || 'Drop-off' }}
+              </p>
+              <p class="mt-1 text-xs text-slate-400">{{ job.status || 'open' }}</p>
+            </div>
+            <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950">
+              {{ priceFormatter.format(Number(job.price || 0)) }}
+            </span>
+          </div>
+        </RouterLink>
+
+        <div
+          v-if="!loading && !jobsToDisplay.length"
+          class="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-300"
+        >
+          {{ openJobsEmptyText }}
+        </div>
+      </div>
+    </aside>
 
     <section class="section-card space-y-4">
       <div>
@@ -298,7 +356,7 @@ const openJobsEmptyText = computed(() => {
       </div>
     </section>
 
-    <section class="grid gap-4 md:grid-cols-3">
+    <section v-if="quickLinks.length" class="grid gap-4 md:grid-cols-3">
       <RouterLink
         v-for="link in quickLinks"
         :key="link.title"
@@ -313,6 +371,62 @@ const openJobsEmptyText = computed(() => {
           Open workspace
         </span>
       </RouterLink>
+    </section>
+
+    <section v-if="auth.role === 'dealer'" class="section-card">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer operations</p>
+          <h2 class="mt-1 text-xl font-black text-slate-950">Jobs needing attention</h2>
+          <p class="mt-2 text-sm text-slate-600">
+            Active dealer jobs with only the essential details shown.
+          </p>
+        </div>
+        <RouterLink to="/jobs" class="text-sm font-bold text-emerald-700 hover:text-emerald-800">
+          Manage jobs
+        </RouterLink>
+      </div>
+
+      <div
+        v-if="!dealerJobsNeedingAttention.length"
+        class="mt-5 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600"
+      >
+        You have no active jobs right now.
+      </div>
+
+      <div v-else class="mt-5 space-y-3">
+        <article
+          v-for="job in dealerJobsNeedingAttention"
+          :key="job.id"
+          class="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-black text-slate-950">
+                {{ job.title || `Job #${job.id}` }}
+              </h3>
+              <p class="text-sm text-slate-500">{{ formatRun(job) }}</p>
+            </div>
+            <span class="badge bg-slate-100 text-slate-700">
+              {{ nextAction(job) }}
+            </span>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <span>Driver: {{ job.assigned_to?.name || job.driver_name || 'Not assigned' }}</span>
+            <span v-if="job.goes_live_at">Goes live {{ formatDate(job.goes_live_at) }}</span>
+            <span v-else-if="job.pickup_at">Pickup {{ formatDate(job.pickup_at) }}</span>
+            <span>Updated {{ formatDate(job.updated_at || job.created_at) }}</span>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <RouterLink :to="`/jobs/${job.id}`" class="btn-secondary px-3 py-2 text-xs">
+              View job
+            </RouterLink>
+            <RouterLink :to="`/jobs/${job.id}/edit`" class="btn-secondary px-3 py-2 text-xs">
+              Edit run
+            </RouterLink>
+          </div>
+        </article>
+      </div>
     </section>
   </div>
 </template>

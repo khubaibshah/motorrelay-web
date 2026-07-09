@@ -160,13 +160,33 @@ async function lookupAddresses(type) {
   }
 }
 
-function selectAddress(type, selectedId) {
+async function selectAddress(type, selectedId) {
   const state = addressState(type);
   const address = state.addresses.find((item) => item.id === selectedId);
   if (!address) return;
 
-  state.selected = address;
-  form[`${type}_label`] = address.label;
+  state.loading = true;
+  state.error = '';
+
+  try {
+    const { data } = await api.get(`/postcodes/places/${encodeURIComponent(selectedId)}`);
+    const result = data?.data ?? data ?? {};
+    const label = result.label || address.label;
+
+    state.selected = {
+      ...address,
+      ...result,
+      label
+    };
+    state.postcode = result.postcode || state.postcode || form[`${type}_postcode`];
+    form[`${type}_postcode`] = state.postcode || form[`${type}_postcode`];
+    form[`${type}_label`] = label;
+  } catch (error) {
+    console.error('Address resolution failed', error);
+    state.error = error.response?.data?.message || error.message || 'Could not resolve this address.';
+  } finally {
+    state.loading = false;
+  }
 }
 
 function changeAddress(type) {
@@ -689,7 +709,7 @@ watch(
                     :key="address.id"
                     :value="address.id"
                   >
-                    {{ address.label }}
+                    {{ address.label }}{{ address.secondary ? ` — ${address.secondary}` : '' }}
                   </option>
                 </select>
               </label>
@@ -770,7 +790,7 @@ watch(
                     :key="address.id"
                     :value="address.id"
                   >
-                    {{ address.label }}
+                    {{ address.label }}{{ address.secondary ? ` — ${address.secondary}` : '' }}
                   </option>
                 </select>
               </label>

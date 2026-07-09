@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted } from 'vue';
-import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
@@ -48,85 +47,14 @@ const completedJobs = computed(() => {
   return Array.isArray(list) ? list : [];
 });
 
-const usage = computed(() => auth.usage || {});
-const unreadMessages = computed(
-  () =>
-    Number(
-      usage.value.unread_threads ??
-        usage.value.unreadThreads ??
-        usage.value.unread_messages ??
-        usage.value.unreadMessages ??
-        0
-    ) || 0
-);
-
 const planLabel = computed(() => {
   return auth.planDisplayLabel || 'MotorRelay plan';
 });
-
-const activeDealerJobs = computed(() => {
-  const activeStatuses = new Set(['open', 'pending', 'in_progress', 'accepted', 'collected', 'in_transit', 'completion_pending', 'delivered']);
-  const sorted = postedJobs.value
-    .filter((job) => activeStatuses.has(String(job?.status ?? '').toLowerCase()))
-    .sort((a, b) => {
-    const aDate = new Date(a?.pickup_at ?? a?.goes_live_at ?? a?.created_at ?? 0).getTime();
-    const bDate = new Date(b?.pickup_at ?? b?.goes_live_at ?? b?.created_at ?? 0).getTime();
-    return aDate - bDate;
-  });
-  return sorted.slice(0, 5);
-});
-
-function nextAction(job) {
-  if (!job?.assigned_to_id) return 'Review requests';
-  const paymentStatus = String(job?.payment_status || 'unpaid').toLowerCase();
-  const completionStatus = String(job?.completion_status || 'not_submitted').toLowerCase();
-  if (paymentStatus === 'unpaid') return 'Take payment';
-  if (paymentStatus === 'checkout_pending') return 'Refresh payment';
-  if (completionStatus === 'submitted') return 'Approve proof';
-  if (paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id) return 'Release payout';
-  if (paymentStatus === 'payout_released') return 'Paid out';
-  return 'Track job';
-}
-
-const quickLinks = computed(() => [
-  {
-    to: '/jobs/new',
-    label: 'Create job',
-    description: 'Post a new run for marketplace drivers',
-    marker: '+'
-  },
-  {
-    to: '/jobs',
-    label: 'Manage jobs',
-    description: 'Track open, scheduled, and completed work',
-    marker: 'MR'
-  },
-  {
-    to: '/messages',
-    label: 'Messages',
-    description: unreadMessages.value
-      ? `${unreadMessages.value} conversations need a reply`
-      : 'Stay in sync with drivers',
-    marker: 'IN'
-  },
-  {
-    to: '/invoices',
-    label: 'Invoices',
-    description: 'Download invoices and delivery proof',
-    marker: 'PDF'
-  }
-]);
 
 function formatRun(job) {
   const pickup = job?.pickup_label || job?.pickup_postcode || job?.pickup_city || 'Pickup';
   const dropoff = job?.dropoff_label || job?.dropoff_postcode || job?.dropoff_city || 'Drop-off';
   return `${pickup} to ${dropoff}`;
-}
-
-function formatStatus(job) {
-  return String(job?.status ?? 'Scheduled')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function formatDate(value) {
@@ -146,8 +74,7 @@ function formatDate(value) {
 </script>
 
 <template>
-  <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-    <div class="space-y-6">
+  <div class="mx-auto w-full max-w-6xl space-y-6">
       <section class="section-card">
         <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -193,107 +120,5 @@ function formatDate(value) {
           </div>
         </div>
       </section>
-
-      <section class="section-card">
-        <h2 class="text-lg font-black text-slate-950">Quick workspace</h2>
-        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-          <RouterLink
-            v-for="link in quickLinks"
-            :key="link.to"
-            :to="link.to"
-            class="group flex min-h-[150px] flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50/80 p-4 text-left transition hover:-translate-y-1 hover:border-emerald-200 hover:bg-white hover:shadow-xl"
-          >
-            <div>
-              <div class="flex items-center gap-3 text-base font-black text-slate-950">
-                <span class="flex h-9 min-w-9 items-center justify-center rounded-2xl bg-slate-950 px-2 text-xs font-black text-white">
-                  {{ link.marker }}
-                </span>
-                {{ link.label }}
-              </div>
-              <p class="mt-3 text-sm leading-6 text-slate-600">
-                {{ link.description }}
-              </p>
-            </div>
-            <span class="text-sm font-bold text-emerald-700 transition group-hover:text-emerald-800">
-              Open {{ link.label }}
-            </span>
-          </RouterLink>
-        </div>
-      </section>
-
-      <section class="section-card">
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-black text-slate-950">Jobs needing attention</h2>
-            <p class="mt-1 text-sm text-slate-500">
-              Open and active jobs shown in the same order as the dealer workflow.
-            </p>
-          </div>
-          <RouterLink to="/jobs" class="text-sm font-bold text-emerald-700 hover:text-emerald-800">
-            Manage jobs
-          </RouterLink>
-        </div>
-
-        <div v-if="!activeDealerJobs.length" class="mt-5 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-          You have no scheduled runs right now. Create a job to reserve a driver.
-        </div>
-
-        <div v-else class="mt-5 space-y-3">
-          <article
-            v-for="job in activeDealerJobs"
-            :key="job.id"
-            class="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 class="text-base font-black text-slate-950">
-                  {{ job.title || `Job #${job.id}` }}
-                </h3>
-                <p class="text-sm text-slate-500">{{ formatRun(job) }}</p>
-              </div>
-              <span class="badge bg-slate-100 text-slate-700">
-                {{ nextAction(job) }}
-              </span>
-            </div>
-            <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-              <span>Driver: {{ job.assigned_to?.name || job.driver_name || 'Not assigned' }}</span>
-              <span v-if="job.goes_live_at">Goes live {{ formatDate(job.goes_live_at) }}</span>
-              <span v-else-if="job.pickup_at">Pickup {{ formatDate(job.pickup_at) }}</span>
-            </div>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <RouterLink :to="`/jobs/${job.id}`" class="btn-secondary px-3 py-2 text-xs">
-                View job
-              </RouterLink>
-              <RouterLink :to="`/jobs/${job.id}/edit`" class="btn-secondary px-3 py-2 text-xs">
-                Edit run
-              </RouterLink>
-            </div>
-          </article>
-        </div>
-      </section>
-    </div>
-
-    <aside class="space-y-4">
-      <div class="section-card space-y-4">
-        <h2 class="text-sm font-black text-slate-950">Dealer workflow</h2>
-        <p class="text-sm leading-6 text-slate-600">
-          Create a job, choose a driver, take payment, approve proof, then release payout.
-        </p>
-        <div class="space-y-3 text-sm text-slate-600">
-          <RouterLink to="/jobs/new" class="btn-primary w-full">
-            Create a new job
-          </RouterLink>
-          <RouterLink to="/profile/completed" class="btn-secondary w-full">
-            View completed jobs
-          </RouterLink>
-          <RouterLink to="/messages" class="btn-secondary w-full">
-            Check messages
-          </RouterLink>
-        </div>
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
-          Tip: reserve a lane in the planner first, then publish a job with the exact slot.
-        </div>
-      </div>
-    </aside>
   </div>
 </template>

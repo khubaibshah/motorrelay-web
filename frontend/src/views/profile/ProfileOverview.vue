@@ -113,7 +113,6 @@ const dealerStats = computed(() => {
     proofReview: jobs.filter((job) => String(job?.completion_status || '').toLowerCase() === 'submitted').length
   };
 });
-const recentDealerJobs = computed(() => dealerJobs.value.slice(0, 4));
 const dealerQuickLinks = [
   {
     to: '/jobs/new',
@@ -136,20 +135,6 @@ const dealerQuickLinks = [
     description: 'Talk to assigned drivers'
   }
 ];
-
-function dealerNextAction(job) {
-  if (!job?.assigned_to_id) return 'Review driver requests';
-
-  const paymentStatus = String(job?.payment_status || 'unpaid').toLowerCase();
-  const completionStatus = String(job?.completion_status || 'not_submitted').toLowerCase();
-
-  if (paymentStatus === 'unpaid') return 'Take payment';
-  if (paymentStatus === 'checkout_pending') return 'Refresh payment';
-  if (completionStatus === 'submitted') return 'Approve proof';
-  if (paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id) return 'Release payout';
-  if (paymentStatus === 'payout_released') return 'Paid out';
-  return 'Track job';
-}
 
 async function handlePayoutSetup() {
   payoutSetupLoading.value = true;
@@ -202,20 +187,6 @@ async function confirmPayoutDisconnect() {
   }
 }
 
-const profileLinks = computed(() => {
-  return [
-    {
-      to: '/account',
-      title: 'Account settings',
-      description: 'Manage your details'
-    },
-    {
-      to: '/legal',
-      title: 'Legal',
-      description: 'GDPR, Terms, Licensing'
-    }
-  ];
-});
 </script>
 
 <template>
@@ -361,62 +332,6 @@ const profileLinks = computed(() => {
           </RouterLink>
         </div>
 
-        <div v-if="!isDriver" class="mt-6">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="text-sm font-black text-slate-950">Recent posted jobs</h3>
-            <RouterLink to="/jobs" class="text-xs font-bold text-emerald-700 hover:text-emerald-800">
-              Manage all
-            </RouterLink>
-          </div>
-
-          <div
-            v-if="!recentDealerJobs.length"
-            class="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
-          >
-            No jobs posted yet.
-          </div>
-
-          <div v-else class="mt-3 space-y-3">
-            <RouterLink
-              v-for="job in recentDealerJobs"
-              :key="job.id"
-              :to="`/jobs/${job.id}`"
-              class="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow"
-            >
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p class="text-sm font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
-                  <p class="mt-1 text-xs text-slate-500">
-                    {{ job.pickup_postcode || 'Pickup' }} to {{ job.dropoff_postcode || 'Drop-off' }}
-                  </p>
-                </div>
-                <span class="badge bg-emerald-100 text-emerald-700">
-                  {{ dealerNextAction(job) }}
-                </span>
-              </div>
-            </RouterLink>
-          </div>
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 class="text-lg font-semibold text-slate-900">Profile</h2>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <RouterLink
-            v-for="link in profileLinks"
-            :key="link.to"
-            :to="link.to"
-            class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow"
-          >
-            <div class="text-base font-semibold text-slate-900">
-              {{ link.title }}
-            </div>
-            <p class="text-xs text-slate-600">
-              {{ link.description }}
-            </p>
-          </RouterLink>
-        </div>
-
       </section>
     </div>
 
@@ -429,6 +344,9 @@ const profileLinks = computed(() => {
       </div>
       <RouterLink to="/account" class="btn-secondary w-full">
         Account settings
+      </RouterLink>
+      <RouterLink to="/legal" class="btn-secondary w-full">
+        Legal
       </RouterLink>
       <button
         type="button"

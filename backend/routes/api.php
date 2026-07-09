@@ -31,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [UserProfileController::class, 'show']);
     Route::get('/vehicles/registration/{registration}', [VehicleLookupController::class, 'show']);
     Route::get('/postcodes/{postcode}/addresses', [PostcodeLookupController::class, 'show']);
+    Route::get('/postcodes/places/{placeId}', [PostcodeLookupController::class, 'resolve']);
     Route::get('/driver/overview', [DriverDashboardController::class, 'show']);
     Route::get('/account/change-requests', [AccountChangeRequestController::class, 'index']);
     Route::post('/account/change-requests', [AccountChangeRequestController::class, 'store']);

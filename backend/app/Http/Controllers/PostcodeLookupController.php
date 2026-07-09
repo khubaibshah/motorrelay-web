@@ -13,4 +13,11 @@ class PostcodeLookupController extends Controller
             'data' => $postcodes->find($postcode),
         ]);
     }
+
+    public function resolve(string $placeId, PostcodeLookupService $postcodes): JsonResponse
+    {
+        return response()->json([
+            'data' => $postcodes->resolve($placeId),
+        ]);
+    }
 }

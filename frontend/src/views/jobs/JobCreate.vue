@@ -768,13 +768,13 @@ watch(
 
           <div>
             <p class="text-sm font-bold text-slate-700">Transport type</p>
-            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <div class="mt-3 grid grid-cols-2 gap-3">
               <button
                 v-for="option in transportOptions"
                 :key="option.value"
                 type="button"
                 :class="[
-                  'rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg',
+                  'min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg',
                   form.transport_type === option.value
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'

@@ -526,9 +526,9 @@ watch(
       {{ loadError }}
     </p>
 
-    <form v-else class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" @submit.prevent="submit">
+    <form v-else class="section-card grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" @submit.prevent="submit">
       <div class="space-y-5">
-        <section class="section-card space-y-5">
+        <section class="space-y-5 border-b border-slate-200 pb-5">
           <header>
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Vehicle</p>
             <h2 class="mt-1 text-xl font-black text-slate-950">What is being moved?</h2>
@@ -592,12 +592,12 @@ watch(
             </div>
           </div>
 
-          <p v-else class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <p v-else class="hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:block">
             Enter the registration plate and MotorRelay will pull the vehicle details automatically. Dealers cannot type vehicle details manually.
           </p>
         </section>
 
-        <section class="section-card space-y-5">
+        <section class="space-y-5 border-b border-slate-200 pb-5">
           <header>
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Route</p>
             <h2 class="mt-1 text-xl font-black text-slate-950">Pickup and drop-off</h2>
@@ -608,8 +608,8 @@ watch(
 
           <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)] md:items-start">
             <div class="space-y-3">
-              <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                <label class="block">
+              <div class="flex items-end gap-3">
+                <label class="block min-w-0 flex-1">
                   <span class="text-sm font-bold text-slate-700">Pickup postcode</span>
                   <input
                     v-model="form.pickup_postcode"
@@ -624,7 +624,7 @@ watch(
                 <button
                   v-if="!form.pickup_label"
                   type="button"
-                  class="btn-secondary w-full sm:w-auto"
+                  class="btn-secondary shrink-0 px-5"
                   :disabled="addressLookup.pickup.loading || !form.pickup_postcode"
                   @click="lookupAddresses('pickup')"
                 >
@@ -634,7 +634,7 @@ watch(
                 <button
                   v-else
                   type="button"
-                  class="btn-secondary w-full sm:w-auto"
+                  class="btn-secondary shrink-0 px-5"
                   @click="changeAddress('pickup')"
                 >
                   Change
@@ -689,8 +689,8 @@ watch(
             </div>
 
             <div class="space-y-3">
-              <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                <label class="block">
+              <div class="flex items-end gap-3">
+                <label class="block min-w-0 flex-1">
                   <span class="text-sm font-bold text-slate-700">Drop-off postcode</span>
                   <input
                     v-model="form.dropoff_postcode"
@@ -705,7 +705,7 @@ watch(
                 <button
                   v-if="!form.dropoff_label"
                   type="button"
-                  class="btn-secondary w-full sm:w-auto"
+                  class="btn-secondary shrink-0 px-5"
                   :disabled="addressLookup.dropoff.loading || !form.dropoff_postcode"
                   @click="lookupAddresses('dropoff')"
                 >
@@ -715,7 +715,7 @@ watch(
                 <button
                   v-else
                   type="button"
-                  class="btn-secondary w-full sm:w-auto"
+                  class="btn-secondary shrink-0 px-5"
                   @click="changeAddress('dropoff')"
                 >
                   Change
@@ -760,7 +760,7 @@ watch(
           </div>
         </section>
 
-        <section class="section-card space-y-5">
+        <section class="space-y-5 border-b border-slate-200 pb-5">
           <header>
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Movement</p>
             <h2 class="mt-1 text-xl font-black text-slate-950">Transport and timing</h2>
@@ -820,7 +820,7 @@ watch(
       </div>
 
       <aside class="space-y-5 lg:sticky lg:top-24 lg:self-start">
-        <section class="section-card space-y-4">
+        <section class="space-y-4">
           <header>
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Payment</p>
             <h2 class="mt-1 text-xl font-black text-slate-950">Price breakdown</h2>
@@ -858,7 +858,7 @@ watch(
           </p>
         </section>
 
-        <section class="section-card border-emerald-200 bg-emerald-50/70">
+        <section class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5">
           <label class="flex items-start gap-3">
             <input
               v-model="form.is_urgent"
@@ -895,7 +895,7 @@ watch(
           {{ errorMessage }}
         </p>
 
-        <section class="section-card space-y-3">
+        <section class="space-y-3">
           <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Ready to post</p>
           <p class="text-sm text-slate-600">
             You can edit this job until a driver has been assigned.

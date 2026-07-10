@@ -843,19 +843,11 @@ watch(
               <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dealer charge</dt>
               <dd class="mt-1 text-xl font-black text-slate-950">{{ formatMoney(jobPrice) }}</dd>
             </div>
-            <div class="rounded-2xl bg-emerald-50 p-4">
-              <dt class="text-xs font-bold uppercase tracking-wide text-emerald-700">Platform fee</dt>
-              <dd class="mt-1 text-xl font-black text-emerald-700">{{ formatMoney(estimatedPlatformFee) }}</dd>
-            </div>
             <div class="rounded-2xl bg-slate-950 p-4 text-white">
               <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver receives</dt>
               <dd class="mt-1 text-2xl font-black">{{ formatMoney(estimatedDriverPayout) }}</dd>
             </div>
           </dl>
-
-          <p class="text-xs leading-5 text-slate-500">
-            The driver sees the payout after the platform fee, not the dealer charge.
-          </p>
         </section>
 
         <section class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5">

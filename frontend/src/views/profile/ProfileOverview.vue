@@ -251,7 +251,7 @@ async function confirmPayoutDisconnect() {
       </RouterLink>
       <button
         type="button"
-        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800"
         @click="auth.logout"
       >
         Logout

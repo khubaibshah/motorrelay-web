@@ -66,11 +66,20 @@
               :to="item.to"
               :class="[
                 baseLinkClass,
-                'flex items-center gap-2',
+                item.icon === 'profile' ? 'inline-flex items-center justify-center px-3' : 'flex items-center gap-2',
                 isNavActive(item) ? activeLinkClass : inactiveLinkClass
               ]"
+              :aria-label="item.icon === 'profile' ? 'Profile' : null"
+              :title="item.icon === 'profile' ? 'Profile' : null"
             >
-              <span>{{ item.label }}</span>
+              <template v-if="item.icon === 'profile'">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                  <circle cx="12" cy="8.75" r="3.25" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5.75 19a6.25 6.25 0 0 1 12.5 0" />
+                </svg>
+                <span class="sr-only">Profile</span>
+              </template>
+              <span v-else>{{ item.label }}</span>
             </RouterLink>
           </div>
 
@@ -255,7 +264,9 @@ const visibleNavLinks = computed(() => {
   const role = auth.role || null;
   return navLinks.filter((link) => canShowLink(link, role));
 });
-const desktopNavLinks = computed(() => visibleNavLinks.value.filter((link) => link.icon !== 'notifications'));
+const desktopNavLinks = computed(() =>
+  visibleNavLinks.value.filter((link) => link.icon !== 'notifications' && link.icon !== 'profile')
+);
 const showLogin = computed(() => !auth.isAuthenticated);
 
 const bottomNavItems = computed(() => {

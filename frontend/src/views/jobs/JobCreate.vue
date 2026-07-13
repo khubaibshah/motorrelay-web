@@ -818,8 +818,8 @@ watch(
       {{ loadError }}
     </p>
 
-    <form v-else class="section-card space-y-6" @submit.prevent="handleWizardSubmit">
-      <header class="space-y-4 border-b border-slate-200 pb-5">
+    <form v-else class="section-card space-y-5" @submit.prevent="handleWizardSubmit">
+      <header class="space-y-3 border-b border-slate-200 pb-4">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div class="space-y-2">
               <div>
@@ -837,13 +837,13 @@ watch(
               :style="{ width: `${wizardProgress}%` }"
             ></div>
           </div>
-          <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
-            <div class="flex flex-wrap gap-3 sm:gap-4">
+          <div class="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+            <div class="flex flex-wrap gap-2 sm:gap-2.5">
               <button
               v-for="(step, index) in wizardSteps"
               :key="step.key"
               type="button"
-              class="rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] transition"
+              class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] transition"
                 :disabled="!reviewUnlocked && index > currentStep"
                 @click="setStep(index)"
                 :class="
@@ -863,7 +863,7 @@ watch(
             <button
               v-if="!isEdit"
               type="button"
-              class="rounded-full border border-rose-200 bg-rose-50 px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-rose-700 transition hover:bg-rose-100 hover:text-rose-800"
+              class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-rose-700 transition hover:bg-rose-100 hover:text-rose-800"
               @click="openStartOverModal"
             >
               Start over

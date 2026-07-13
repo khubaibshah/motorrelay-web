@@ -109,14 +109,25 @@ export const useAuthStore = defineStore('auth', {
         this.loading = false;
       }
     },
-    async logout() {
-      try {
-        await api.post('/auth/logout');
-      } catch (error) {
-        console.error('Failed to logout', error);
-      } finally {
-        this.clearSession();
+    logout() {
+      const token = this.token || (typeof window !== 'undefined' ? window.localStorage.getItem('mr_auth_token') : null);
+      this.clearSession();
+
+      if (!token) {
+        return;
       }
+
+      void api.post(
+        '/auth/logout',
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      ).catch((error) => {
+        console.error('Failed to logout', error);
+      });
     }
   }
 });

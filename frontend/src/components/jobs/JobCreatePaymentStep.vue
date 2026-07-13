@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 
-defineProps({
+const props = defineProps({
   form: { type: Object, required: true },
   validationState: { type: Object, required: true },
   jobPrice: { type: Number, required: true },
@@ -30,8 +30,9 @@ function formatPrice(value) {
 
 function handlePriceInput(event) {
   const target = event.target;
-  target.value = sanitizePrice(target.value);
-  defineProps().form.price = target.value;
+  const clean = sanitizePrice(target.value);
+  target.value = clean;
+  props.form.price = clean;
 }
 
 function handlePriceFocus() {
@@ -43,12 +44,12 @@ function handlePriceBlur(event) {
   const target = event.target;
   const clean = sanitizePrice(target.value);
   target.value = clean ? formatPrice(clean) : '';
-  defineProps().form.price = clean;
+  props.form.price = clean;
 }
 </script>
 
 <template>
-  <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+  <section class="w-full min-w-0 space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
     <header>
       <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Payment</p>
       <h2 class="mt-1 text-xl font-black text-slate-950">Price breakdown</h2>
@@ -73,14 +74,24 @@ function handlePriceBlur(event) {
       />
     </label>
 
-    <dl class="grid gap-3 md:grid-cols-2">
-      <div class="rounded-2xl bg-slate-50 p-4">
+    <dl class="grid min-w-0 gap-3 md:grid-cols-2">
+      <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-50 p-4">
         <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dealer charge</dt>
-        <dd class="mt-1 text-xl font-black text-slate-950">{{ formatMoney(jobPrice) }}</dd>
+        <dd
+          class="mt-1 truncate text-lg font-black tabular-nums text-slate-950 sm:text-xl"
+          :title="formatMoney(jobPrice)"
+        >
+          {{ formatMoney(jobPrice) }}
+        </dd>
       </div>
-      <div class="rounded-2xl bg-slate-950 p-4 text-white">
+      <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-950 p-4 text-white">
         <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver receives</dt>
-        <dd class="mt-1 text-2xl font-black">{{ formatMoney(estimatedDriverPayout) }}</dd>
+        <dd
+          class="mt-1 truncate text-lg font-black tabular-nums sm:text-2xl"
+          :title="formatMoney(estimatedDriverPayout)"
+        >
+          {{ formatMoney(estimatedDriverPayout) }}
+        </dd>
       </div>
     </dl>
 

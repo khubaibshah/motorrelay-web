@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import { createJobCheckout } from '@/services/payments';
 import { useAuthStore } from '@/stores/auth';
+import { useJobCreateDraftStore } from '@/stores/jobCreateDraft';
 import JobCreateVehicleStep from '@/components/jobs/JobCreateVehicleStep.vue';
 import JobCreateRouteStep from '@/components/jobs/JobCreateRouteStep.vue';
 import JobCreateMovementStep from '@/components/jobs/JobCreateMovementStep.vue';
@@ -19,21 +20,8 @@ const props = defineProps({
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-
-const defaultFormState = {
-  title: '',
-  pickup_postcode: '',
-  pickup_label: '',
-  dropoff_postcode: '',
-  dropoff_label: '',
-  vehicle_make: '',
-  price: '',
-  transport_type: 'drive_away',
-  pickup_at: '',
-  delivery_at: '',
-};
-
-const form = reactive({ ...defaultFormState });
+const jobDraft = useJobCreateDraftStore();
+const form = jobDraft.form;
 
 const submitting = ref(false);
 const errorMessage = ref('');
@@ -42,8 +30,18 @@ const loading = ref(false);
 const loadError = ref('');
 const vehicleLookupLoading = ref(false);
 const vehicleLookupError = ref('');
-const verifiedVehicle = ref(null);
-const currentStep = ref(0);
+const verifiedVehicle = computed({
+  get: () => jobDraft.verifiedVehicle,
+  set: (value) => {
+    jobDraft.verifiedVehicle = value;
+  }
+});
+const currentStep = computed({
+  get: () => jobDraft.currentStep,
+  set: (value) => {
+    jobDraft.setStep(value);
+  }
+});
 const validationState = reactive({
   vehicle: false,
   pickup_postcode: false,
@@ -154,7 +152,7 @@ const jobId = computed(() => {
 
 const isEdit = computed(() => Boolean(jobId.value));
 
-const jobPrice = computed(() => Number(form.price || 0));
+const jobPrice = computed(() => Number(normalisePrice(form.price) || 0));
 const platformCommissionRate = 0.1;
 const estimatedPlatformFee = computed(() => Math.max(jobPrice.value * platformCommissionRate, 0));
 const estimatedDriverPayout = computed(() => Math.max(jobPrice.value - estimatedPlatformFee.value, 0));
@@ -173,6 +171,10 @@ function normaliseRegistration(value) {
 
 function normalisePostcode(value) {
   return (value || '').toString().replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+function normalisePrice(value) {
+  return (value || '').toString().replace(/,/g, '').trim();
 }
 
 function addressState(type) {
@@ -420,9 +422,9 @@ watch(
 watch(
   () => form.price,
   (next) => {
-    if (Number(next) > 0) {
-      validationState.price = false;
-    }
+      if (Number(normalisePrice(next) || 0) > 0) {
+        validationState.price = false;
+      }
   }
 );
 
@@ -488,7 +490,7 @@ async function validateCurrentStep() {
     }
 
   if (currentStep.value === 3) {
-    if (!form.price || Number(form.price) <= 0) {
+    if (!form.price || Number(normalisePrice(form.price)) <= 0) {
       setValidationError('price', 'Please enter a dealer charge.');
       throw new Error('Please complete the highlighted field before continuing.');
     }
@@ -611,7 +613,7 @@ async function submit() {
         pickup_label: form.pickup_label,
         dropoff_postcode: form.dropoff_postcode,
         dropoff_label: form.dropoff_label,
-        price: Number(form.price || 0),
+        price: Number(normalisePrice(form.price) || 0),
         transport_type: form.transport_type,
         pickup_ready_at: buildDateTime(form.pickup_at),
         delivery_due_at: buildDateTime(form.delivery_at),
@@ -620,6 +622,7 @@ async function submit() {
     if (isEdit.value) {
       await api.patch(`/jobs/${jobId.value}`, payload);
       await auth.fetchMe().catch(() => null);
+      jobDraft.clearDraft();
       router.push({ name: 'job-detail', params: { id: jobId.value } });
     } else {
       const { data: createdJob } = await api.post('/jobs', payload);
@@ -628,6 +631,7 @@ async function submit() {
       if (!checkout?.url) {
         throw new Error('Job was created, but Stripe did not return a checkout link.');
       }
+      jobDraft.clearDraft();
       window.location.href = checkout.url;
     }
   } catch (error) {
@@ -642,8 +646,7 @@ async function submit() {
 }
 
 function resetForm() {
-  Object.assign(form, { ...defaultFormState });
-  verifiedVehicle.value = null;
+  jobDraft.clearDraft();
   vehicleLookupError.value = '';
   currentStep.value = 0;
   clearValidationState();
@@ -738,7 +741,7 @@ watch(
 </script>
 
 <template>
-  <div class="mx-auto max-w-6xl space-y-5">
+  <div class="mx-auto max-w-6xl space-y-5 overflow-x-hidden">
     <div v-if="loading" class="section-card text-sm text-slate-600">
       Loading job details...
     </div>

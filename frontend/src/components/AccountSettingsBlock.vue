@@ -189,7 +189,12 @@ watch(
 <template>
   <section id="account-settings" class="tile space-y-6 p-6">
     <header class="space-y-2">
-      <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Account settings</p>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Account settings</p>
+        <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Plan: {{ auth.planDisplayLabel || 'Free' }}
+        </span>
+      </div>
       <div>
         <h2 class="text-2xl font-black text-slate-950">Update your details</h2>
         <p class="text-sm text-slate-600">

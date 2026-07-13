@@ -690,20 +690,23 @@ watch(
             ></div>
           </div>
           <div class="flex flex-wrap gap-3 pt-2 sm:gap-4">
-            <div
+            <button
               v-for="(step, index) in wizardSteps"
               :key="step.key"
+              type="button"
               class="rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] transition"
+              :disabled="index > currentStep"
+              @click="setStep(index)"
               :class="
                 index === currentStep
                   ? 'bg-emerald-100 text-emerald-900'
                   : index < currentStep
-                    ? 'bg-slate-200 text-slate-700'
+                    ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                     : 'bg-slate-100 text-slate-400'
               "
             >
               {{ step.label }}
-            </div>
+            </button>
           </div>
         </div>
       </header>

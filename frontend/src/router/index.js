@@ -114,10 +114,7 @@ const routes = [
   {
     path: '/account',
     name: 'account-settings',
-    component: () => import('../views/account/AccountSettings.vue'),
-    meta: {
-      breadcrumb: 'Account settings'
-    }
+    redirect: { name: 'profile', hash: '#account-settings' }
   },
   {
     path: '/profile',
@@ -255,7 +252,10 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to) {
+    if (to.hash) {
+      return { el: to.hash, top: 16 };
+    }
     return { top: 0 };
   }
 });

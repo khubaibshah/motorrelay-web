@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { RouterLink } from 'vue-router';
 import { disconnectDriverPayoutAccount, startDriverPayoutOnboarding } from '@/services/payments';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import AccountSettingsBlock from '@/components/AccountSettingsBlock.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -112,31 +113,31 @@ async function handleLogout() {
 <template>
   <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
     <div class="space-y-4">
-      <section class="tile space-y-4 p-6">
+      <section class="tile space-y-5 p-5 md:p-6">
         <header class="flex items-center gap-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-700">
+          <div class="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700">
             {{ initials }}
           </div>
-          <div>
-            <h1 class="text-2xl font-bold text-slate-900">
+          <div class="min-w-0">
+            <h1 class="truncate text-2xl font-black text-slate-950">
               {{ auth.user?.name || 'New MotorRelay user' }}
             </h1>
-            <p class="text-sm text-slate-600">
+            <p class="truncate text-sm text-slate-500">
               {{ auth.user?.email || 'email@motorrelay.com' }}
             </p>
           </div>
         </header>
 
-        <div class="grid gap-4 md:grid-cols-2">
-          <div class="rounded-2xl border border-slate-200 p-4">
-            <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</h2>
-            <p class="mt-1 text-lg font-semibold text-slate-900">
+        <div class="flex flex-wrap gap-3">
+          <div class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Role</span>
+            <p class="mt-0.5 text-sm font-semibold text-slate-900">
               {{ auth.role || 'Pending' }}
             </p>
           </div>
-          <div class="rounded-2xl border border-slate-200 p-4">
-            <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</h2>
-            <p class="mt-1 text-lg font-semibold text-slate-900">
+          <div class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Plan</span>
+            <p class="mt-0.5 text-sm font-semibold text-slate-900">
               {{ auth.planDisplayLabel || 'Free' }}
             </p>
           </div>
@@ -191,18 +192,11 @@ async function handleLogout() {
         </p>
       </section>
 
+      <AccountSettingsBlock />
+
     </div>
 
     <aside class="tile space-y-4 p-6">
-      <div>
-        <h2 class="text-sm font-semibold text-slate-900">Account</h2>
-        <p class="text-sm text-slate-600">
-          Manage your account details, legal pages, and sign out securely.
-        </p>
-      </div>
-      <RouterLink to="/account" class="btn-secondary w-full">
-        Account settings
-      </RouterLink>
       <RouterLink to="/legal" class="btn-secondary w-full">
         Legal
       </RouterLink>

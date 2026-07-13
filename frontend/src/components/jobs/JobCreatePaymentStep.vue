@@ -1,4 +1,6 @@
 <script setup>
+import { ref } from 'vue';
+
 defineProps({
   form: { type: Object, required: true },
   validationState: { type: Object, required: true },
@@ -10,6 +12,39 @@ defineProps({
 });
 
 defineEmits(['back', 'submit']);
+
+const editingPrice = ref(false);
+
+function sanitizePrice(value) {
+  return (value || '').toString().replace(/,/g, '').replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+}
+
+function formatPrice(value) {
+  const clean = sanitizePrice(value);
+  if (!clean) return '';
+
+  const [whole, fraction] = clean.split('.');
+  const formattedWhole = Number.isNaN(Number(whole)) ? whole : new Intl.NumberFormat('en-GB').format(Number(whole));
+  return fraction !== undefined ? `${formattedWhole}.${fraction}` : formattedWhole;
+}
+
+function handlePriceInput(event) {
+  const target = event.target;
+  target.value = sanitizePrice(target.value);
+  defineProps().form.price = target.value;
+}
+
+function handlePriceFocus() {
+  editingPrice.value = true;
+}
+
+function handlePriceBlur(event) {
+  editingPrice.value = false;
+  const target = event.target;
+  const clean = sanitizePrice(target.value);
+  target.value = clean ? formatPrice(clean) : '';
+  defineProps().form.price = clean;
+}
 </script>
 
 <template>
@@ -25,13 +60,16 @@ defineEmits(['back', 'submit']);
     <label class="block">
       <span class="text-sm font-bold text-slate-700">Dealer charge (GBP)</span>
       <input
-        v-model="form.price"
-        type="number"
-        min="0"
+        :value="editingPrice ? form.price : formatPrice(form.price)"
+        type="text"
+        inputmode="decimal"
         required
         placeholder="e.g. 120"
         class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
         :class="validationState.price ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+        @input="handlePriceInput"
+        @focus="handlePriceFocus"
+        @blur="handlePriceBlur"
       />
     </label>
 

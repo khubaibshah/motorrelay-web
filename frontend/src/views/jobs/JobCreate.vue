@@ -1,6 +1,6 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import { createJobCheckout } from '@/services/payments';
 import { useAuthStore } from '@/stores/auth';
@@ -12,6 +12,7 @@ const props = defineProps({
   }
 });
 
+const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 
@@ -41,6 +42,7 @@ const loadError = ref('');
 const vehicleLookupLoading = ref(false);
 const vehicleLookupError = ref('');
 const verifiedVehicle = ref(null);
+const currentStep = ref(0);
 const addressLookup = reactive({
   pickup: {
     loading: false,
@@ -71,9 +73,48 @@ const transportOptions = [
   }
 ];
 
+const wizardStepKeys = ['vehicle', 'route', 'movement', 'payment'];
+
+function normaliseStepKey(value) {
+  return (value || '').toString().trim().toLowerCase();
+}
+
+function stepIndexFromKey(value) {
+  const stepKey = normaliseStepKey(value);
+  const index = wizardStepKeys.indexOf(stepKey);
+  return index >= 0 ? index : 0;
+}
+
+function syncWizardStepQuery(stepIndex, mode = 'push') {
+  const stepKey = wizardStepKeys[stepIndex] ?? wizardStepKeys[0];
+  if (normaliseStepKey(route.query.step) === stepKey) {
+    return;
+  }
+
+  const navigation = mode === 'replace' ? router.replace : router.push;
+  navigation({
+    query: {
+      ...route.query,
+      step: stepKey
+    }
+  }).catch(() => null);
+}
+
 const selectedTransport = computed(() => {
   return transportOptions.find((option) => option.value === form.transport_type) ?? transportOptions[0];
 });
+
+const wizardSteps = [
+  { key: 'vehicle', label: 'Vehicle' },
+  { key: 'route', label: 'Route' },
+  { key: 'movement', label: 'Movement' },
+  { key: 'payment', label: 'Payment' }
+];
+
+const currentWizardStep = computed(() => wizardSteps[currentStep.value] ?? wizardSteps[0]);
+const wizardProgress = computed(() => ((currentStep.value + 1) / wizardSteps.length) * 100);
+const isFirstStep = computed(() => currentStep.value === 0);
+const isLastStep = computed(() => currentStep.value === wizardSteps.length - 1);
 
 const jobId = computed(() => {
   if (props.id === null || props.id === undefined || props.id === '') {
@@ -274,6 +315,25 @@ function changeVehicle() {
 }
 
 watch(
+  () => route.query.step,
+  (nextStep) => {
+    const nextIndex = stepIndexFromKey(nextStep);
+    if (nextIndex !== currentStep.value) {
+      currentStep.value = nextIndex;
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  currentStep,
+  (nextStep) => {
+    syncWizardStepQuery(nextStep, 'push');
+  },
+  { immediate: true }
+);
+
+watch(
   () => form.title,
   (next) => {
     const registration = normaliseRegistration(next);
@@ -326,6 +386,85 @@ watch(canUseUrgentBoost, (allowed) => {
   }
 });
 
+function setStep(stepIndex) {
+  if (stepIndex < 0 || stepIndex >= wizardSteps.length) {
+    return;
+  }
+
+  currentStep.value = stepIndex;
+}
+
+async function validateCurrentStep() {
+  errorMessage.value = '';
+
+  if (currentStep.value === 0) {
+    if (!verifiedVehicle.value && !isEdit.value) {
+      await lookupVehicle();
+    }
+
+    if (!verifiedVehicle.value && !isEdit.value) {
+      throw new Error('Verify the registration plate before continuing.');
+    }
+  }
+
+  if (currentStep.value === 1) {
+    if (!form.pickup_label) {
+      throw new Error('Select the exact pickup address before continuing.');
+    }
+
+    if (!form.dropoff_label) {
+      throw new Error('Select the exact drop-off address before continuing.');
+    }
+  }
+
+  if (currentStep.value === 2) {
+    const pickupComparable = buildComparison(form.pickup_date, form.pickup_time);
+    const deliveryComparable = buildComparison(form.delivery_date, form.delivery_time);
+
+    if (pickupComparable && deliveryComparable && deliveryComparable < pickupComparable) {
+      throw new Error('Delivery due time must be after the pickup ready time.');
+    }
+  }
+
+  if (currentStep.value === 3) {
+    if (!form.price || Number(form.price) <= 0) {
+      throw new Error('Enter a dealer charge before continuing.');
+    }
+
+    if (requiresUrgentAcknowledgement.value && !form.urgent_fee_ack) {
+      throw new Error('Please acknowledge the urgent boost fee before continuing.');
+    }
+  }
+}
+
+async function handleWizardSubmit() {
+  if (isLastStep.value) {
+    await submit();
+    return;
+  }
+
+  await goNext();
+}
+
+async function goNext() {
+  try {
+    await validateCurrentStep();
+    if (!isLastStep.value) {
+      currentStep.value += 1;
+      errorMessage.value = '';
+    }
+  } catch (error) {
+    errorMessage.value = error.message || 'Please complete this step.';
+  }
+}
+
+function goBack() {
+  errorMessage.value = '';
+  if (!isFirstStep.value) {
+    currentStep.value -= 1;
+  }
+}
+
 
 function buildDateTime(dateValue, timeValue) {
   if (!dateValue) {
@@ -357,6 +496,8 @@ async function submit() {
   errorMessage.value = '';
 
   try {
+    await validateCurrentStep();
+
     if (!verifiedVehicle.value && !isEdit.value) {
       throw new Error('Verify the registration plate before creating this job.');
     }
@@ -422,6 +563,7 @@ function resetForm() {
   Object.assign(form, { ...defaultFormState });
   verifiedVehicle.value = null;
   vehicleLookupError.value = '';
+  currentStep.value = 0;
   hydrateSelectedAddress('pickup', '', '');
   hydrateSelectedAddress('dropoff', '', '');
 }
@@ -482,6 +624,7 @@ async function loadJobForEditing() {
     };
     hydrateSelectedAddress('pickup', form.pickup_label, form.pickup_postcode);
     hydrateSelectedAddress('dropoff', form.dropoff_label, form.dropoff_postcode);
+    currentStep.value = 0;
   } catch (error) {
     console.error('Failed to load job for editing', error);
     loadError.value =
@@ -526,382 +669,455 @@ watch(
       {{ loadError }}
     </p>
 
-    <form v-else class="section-card grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" @submit.prevent="submit">
-      <div class="space-y-5">
-        <section class="space-y-5 border-b border-slate-200 pb-5">
-          <header>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Vehicle</p>
-            <h2 class="mt-1 text-xl font-black text-slate-950">What is being moved?</h2>
-          </header>
-
-          <div class="flex items-end gap-3">
-            <label class="block min-w-0 flex-1">
-              <span class="text-sm font-bold text-slate-700">Licence plate</span>
-              <input
-                v-model="form.title"
-                type="text"
-                required
-                placeholder="e.g. AB12 CDE"
-                :readonly="isEdit || Boolean(verifiedVehicle)"
-                @blur="!isEdit && !verifiedVehicle && lookupVehicle()"
-                class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                :class="verifiedVehicle ? 'bg-slate-100 font-black text-slate-700' : ''"
-              />
-            </label>
-
-            <button
-              v-if="!isEdit && !verifiedVehicle"
-              type="button"
-              class="btn-secondary shrink-0 px-5"
-              :disabled="vehicleLookupLoading || !form.title"
-              @click="lookupVehicle"
-            >
-              <span v-if="vehicleLookupLoading">Checking...</span>
-              <span v-else>Check plate</span>
-            </button>
-            <button
-              v-else-if="!isEdit"
-              type="button"
-              class="btn-secondary shrink-0 px-5"
-              :disabled="vehicleLookupLoading"
-              @click="changeVehicle"
-            >
-              Change plate
-            </button>
-          </div>
-
-          <p v-if="vehicleLookupError" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-            {{ vehicleLookupError }}
-          </p>
-
-          <div
-            v-if="verifiedVehicle"
-            class="grid gap-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 sm:grid-cols-3"
-          >
-            <div>
-              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Verified plate</p>
-              <p class="mt-1 text-lg font-black text-slate-950">{{ verifiedVehicle.registration }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Vehicle</p>
-              <p class="mt-1 text-lg font-black text-slate-950">{{ form.vehicle_make || '--' }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Details</p>
-              <p class="mt-1 text-lg font-black text-slate-950">{{ verifiedVehicle.vehicle_type || '--' }}</p>
+    <form v-else class="section-card space-y-6" @submit.prevent="handleWizardSubmit">
+      <header class="space-y-4 border-b border-slate-200 pb-5">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="space-y-2">
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Dealer job</p>
+              <div>
+                <h1 class="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                  {{ isEdit ? 'Edit job' : 'Create a new job' }}
+                </h1>
+                <p class="mt-1 text-sm text-slate-600">
+                  Step {{ currentStep + 1 }} of {{ wizardSteps.length }} · {{ currentWizardStep.label }}
+                </p>
+              </div>
             </div>
           </div>
 
-          <p v-else class="hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:block">
-            Enter the registration plate and MotorRelay will pull the vehicle details automatically. Dealers cannot type vehicle details manually.
+        <div class="space-y-2">
+          <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div
+              class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-300"
+              :style="{ width: `${wizardProgress}%` }"
+            ></div>
+          </div>
+          <p class="text-xs font-medium text-slate-500">
+            {{ currentStep === wizardSteps.length - 1 ? 'Final step: review the payment and post the job.' : 'Use Next to move through the job setup.' }}
           </p>
-        </section>
+        </div>
+      </header>
 
-        <section class="space-y-5 border-b border-slate-200 pb-5">
-          <header>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Route</p>
-            <h2 class="mt-1 text-xl font-black text-slate-950">Pickup and drop-off</h2>
-            <p class="mt-1 text-sm text-slate-600">
-              Enter each postcode, choose the exact address, then MotorRelay locks it into the job.
-            </p>
-          </header>
+      <Transition
+        mode="out-in"
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="opacity-0 translate-x-6"
+        enter-to-class="opacity-100 translate-x-0"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="opacity-100 translate-x-0"
+        leave-to-class="opacity-0 -translate-x-6"
+      >
+        <div :key="currentStep" class="relative space-y-5">
+          <p v-if="errorMessage" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            {{ errorMessage }}
+          </p>
 
-          <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)] md:items-start">
-            <div class="space-y-3">
+          <template v-if="currentStep === 0">
+            <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <header>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Vehicle</p>
+                <h2 class="mt-1 text-xl font-black text-slate-950">What is being moved?</h2>
+              </header>
+
               <div class="flex items-end gap-3">
                 <label class="block min-w-0 flex-1">
-                  <span class="text-sm font-bold text-slate-700">Pickup postcode</span>
+                  <span class="text-sm font-bold text-slate-700">Licence plate</span>
                   <input
-                    v-model="form.pickup_postcode"
+                    v-model="form.title"
                     type="text"
                     required
-                    :readonly="Boolean(form.pickup_label)"
-                    placeholder="e.g. M1 2AB"
+                    placeholder="e.g. AB12 CDE"
+                    :readonly="isEdit || Boolean(verifiedVehicle)"
+                    @blur="!isEdit && !verifiedVehicle && lookupVehicle()"
                     class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                    :class="form.pickup_label ? 'bg-slate-100 font-black text-slate-700' : ''"
+                    :class="verifiedVehicle ? 'bg-slate-100 font-black text-slate-700' : ''"
                   />
                 </label>
+
                 <button
-                  v-if="!form.pickup_label"
+                  v-if="!isEdit && !verifiedVehicle"
                   type="button"
                   class="btn-secondary shrink-0 px-5"
-                  :disabled="addressLookup.pickup.loading || !form.pickup_postcode"
-                  @click="lookupAddresses('pickup')"
+                  :disabled="vehicleLookupLoading || !form.title"
+                  @click="lookupVehicle"
                 >
-                  <span v-if="addressLookup.pickup.loading">Finding...</span>
-                  <span v-else>Find address</span>
+                  <span v-if="vehicleLookupLoading">Checking...</span>
+                  <span v-else>Check plate</span>
                 </button>
                 <button
-                  v-else
+                  v-else-if="!isEdit"
                   type="button"
                   class="btn-secondary shrink-0 px-5"
-                  @click="changeAddress('pickup')"
+                  :disabled="vehicleLookupLoading"
+                  @click="changeVehicle"
                 >
-                  Change
+                  Change plate
                 </button>
               </div>
 
-              <p v-if="addressLookup.pickup.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {{ addressLookup.pickup.error }}
+              <p v-if="vehicleLookupError" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {{ vehicleLookupError }}
               </p>
-              <button
-                v-if="addressLookup.pickup.error && !form.pickup_label"
-                type="button"
-                class="btn-secondary w-full"
-                @click="usePostcodeOnly('pickup')"
+
+              <div
+                v-if="verifiedVehicle"
+                class="grid gap-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 sm:grid-cols-3"
               >
-                Use pickup postcode only for testing
-              </button>
-
-              <label v-if="addressLookup.pickup.addresses.length && !form.pickup_label" class="block">
-                <span class="text-sm font-bold text-slate-700">Select pickup address</span>
-                <select
-                  class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                  @change="selectAddress('pickup', $event.target.value)"
-                >
-                  <option value="">Choose the exact pickup address</option>
-                  <option
-                    v-for="address in addressLookup.pickup.addresses"
-                    :key="address.id"
-                    :value="address.id"
-                  >
-                    {{ address.label }}{{ address.secondary ? ` — ${address.secondary}` : '' }}
-                  </option>
-                </select>
-              </label>
-
-              <div v-if="form.pickup_label" class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4">
-                <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Pickup address locked</p>
-                <p class="mt-1 text-base font-black text-slate-950">{{ form.pickup_label }}</p>
-                <p class="mt-1 text-sm text-slate-600">{{ form.pickup_postcode }}</p>
-              </div>
-            </div>
-
-            <div class="hidden pt-10 md:flex md:items-center md:justify-center">
-              <div class="relative h-10 w-full">
-                <div class="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-300 to-sky-300"></div>
-                <div class="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                <div class="absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-sky-500 ring-4 ring-sky-100"></div>
-                <div class="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-slate-950 text-lg shadow-xl">
-                  🚙
+                <div>
+                  <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Verified plate</p>
+                  <p class="mt-1 text-lg font-black text-slate-950">{{ verifiedVehicle.registration }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Vehicle</p>
+                  <p class="mt-1 text-lg font-black text-slate-950">{{ form.vehicle_make || '--' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Details</p>
+                  <p class="mt-1 text-lg font-black text-slate-950">{{ verifiedVehicle.vehicle_type || '--' }}</p>
                 </div>
               </div>
-            </div>
 
-            <div class="space-y-3">
-              <div class="flex items-end gap-3">
-                <label class="block min-w-0 flex-1">
-                  <span class="text-sm font-bold text-slate-700">Drop-off postcode</span>
-                  <input
-                    v-model="form.dropoff_postcode"
-                    type="text"
-                    required
-                    :readonly="Boolean(form.dropoff_label)"
-                    placeholder="e.g. LS1 4XY"
-                    class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                    :class="form.dropoff_label ? 'bg-slate-100 font-black text-slate-700' : ''"
-                  />
-                </label>
-                <button
-                  v-if="!form.dropoff_label"
-                  type="button"
-                  class="btn-secondary shrink-0 px-5"
-                  :disabled="addressLookup.dropoff.loading || !form.dropoff_postcode"
-                  @click="lookupAddresses('dropoff')"
-                >
-                  <span v-if="addressLookup.dropoff.loading">Finding...</span>
-                  <span v-else>Find address</span>
-                </button>
-                <button
-                  v-else
-                  type="button"
-                  class="btn-secondary shrink-0 px-5"
-                  @click="changeAddress('dropoff')"
-                >
-                  Change
+              <p v-else class="hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:block">
+                Enter the registration plate and MotorRelay will pull the vehicle details automatically. Dealers cannot type vehicle details manually.
+              </p>
+
+              <div class="flex justify-end">
+                <button type="button" class="btn-primary px-5 py-3" :disabled="vehicleLookupLoading" @click="goNext">
+                  Next: Route
                 </button>
               </div>
+            </section>
+          </template>
 
-              <p v-if="addressLookup.dropoff.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {{ addressLookup.dropoff.error }}
-              </p>
-              <button
-                v-if="addressLookup.dropoff.error && !form.dropoff_label"
-                type="button"
-                class="btn-secondary w-full"
-                @click="usePostcodeOnly('dropoff')"
-              >
-                Use drop-off postcode only for testing
-              </button>
+          <template v-else-if="currentStep === 1">
+            <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <header>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Route</p>
+                <h2 class="mt-1 text-xl font-black text-slate-950">Pickup and drop-off</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                  Enter each postcode, choose the exact address, then MotorRelay locks it into the job.
+                </p>
+              </header>
 
-              <label v-if="addressLookup.dropoff.addresses.length && !form.dropoff_label" class="block">
-                <span class="text-sm font-bold text-slate-700">Select drop-off address</span>
-                <select
-                  class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                  @change="selectAddress('dropoff', $event.target.value)"
-                >
-                  <option value="">Choose the exact drop-off address</option>
-                  <option
-                    v-for="address in addressLookup.dropoff.addresses"
-                    :key="address.id"
-                    :value="address.id"
+              <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)] md:items-start">
+                <div class="space-y-3">
+                  <div class="flex items-end gap-3">
+                    <label class="block min-w-0 flex-1">
+                      <span class="text-sm font-bold text-slate-700">Pickup postcode</span>
+                      <input
+                        v-model="form.pickup_postcode"
+                        type="text"
+                        required
+                        :readonly="Boolean(form.pickup_label)"
+                        placeholder="e.g. M1 2AB"
+                        class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
+                        :class="form.pickup_label ? 'bg-slate-100 font-black text-slate-700' : ''"
+                      />
+                    </label>
+                    <button
+                      v-if="!form.pickup_label"
+                      type="button"
+                      class="btn-secondary shrink-0 px-5"
+                      :disabled="addressLookup.pickup.loading || !form.pickup_postcode"
+                      @click="lookupAddresses('pickup')"
+                    >
+                      <span v-if="addressLookup.pickup.loading">Finding...</span>
+                      <span v-else>Find address</span>
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="btn-secondary shrink-0 px-5"
+                      @click="changeAddress('pickup')"
+                    >
+                      Change
+                    </button>
+                  </div>
+
+                  <p v-if="addressLookup.pickup.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                    {{ addressLookup.pickup.error }}
+                  </p>
+                  <button
+                    v-if="addressLookup.pickup.error && !form.pickup_label"
+                    type="button"
+                    class="btn-secondary w-full"
+                    @click="usePostcodeOnly('pickup')"
                   >
-                    {{ address.label }}{{ address.secondary ? ` — ${address.secondary}` : '' }}
-                  </option>
-                </select>
+                    Use pickup postcode only for testing
+                  </button>
+
+                  <label v-if="addressLookup.pickup.addresses.length && !form.pickup_label" class="block">
+                    <span class="text-sm font-bold text-slate-700">Select pickup address</span>
+                    <select
+                      class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
+                      @change="selectAddress('pickup', $event.target.value)"
+                    >
+                      <option value="">Choose the exact pickup address</option>
+                      <option
+                        v-for="address in addressLookup.pickup.addresses"
+                        :key="address.id"
+                        :value="address.id"
+                      >
+                        {{ address.label }}{{ address.secondary ? ` â€” ${address.secondary}` : '' }}
+                      </option>
+                    </select>
+                  </label>
+
+                  <div v-if="form.pickup_label" class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4">
+                    <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Pickup address locked</p>
+                    <p class="mt-1 text-base font-black text-slate-950">{{ form.pickup_label }}</p>
+                    <p class="mt-1 text-sm text-slate-600">{{ form.pickup_postcode }}</p>
+                  </div>
+                </div>
+
+                <div class="hidden pt-10 md:flex md:items-center md:justify-center">
+                  <div class="relative h-10 w-full">
+                    <div class="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-300 to-sky-300"></div>
+                    <div class="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-sky-500 ring-4 ring-sky-100"></div>
+                    <div class="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-slate-950 text-lg shadow-xl">
+                      🚗
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-3">
+                  <div class="flex items-end gap-3">
+                    <label class="block min-w-0 flex-1">
+                      <span class="text-sm font-bold text-slate-700">Drop-off postcode</span>
+                      <input
+                        v-model="form.dropoff_postcode"
+                        type="text"
+                        required
+                        :readonly="Boolean(form.dropoff_label)"
+                        placeholder="e.g. LS1 4XY"
+                        class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
+                        :class="form.dropoff_label ? 'bg-slate-100 font-black text-slate-700' : ''"
+                      />
+                    </label>
+                    <button
+                      v-if="!form.dropoff_label"
+                      type="button"
+                      class="btn-secondary shrink-0 px-5"
+                      :disabled="addressLookup.dropoff.loading || !form.dropoff_postcode"
+                      @click="lookupAddresses('dropoff')"
+                    >
+                      <span v-if="addressLookup.dropoff.loading">Finding...</span>
+                      <span v-else>Find address</span>
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="btn-secondary shrink-0 px-5"
+                      @click="changeAddress('dropoff')"
+                    >
+                      Change
+                    </button>
+                  </div>
+
+                  <p v-if="addressLookup.dropoff.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                    {{ addressLookup.dropoff.error }}
+                  </p>
+                  <button
+                    v-if="addressLookup.dropoff.error && !form.dropoff_label"
+                    type="button"
+                    class="btn-secondary w-full"
+                    @click="usePostcodeOnly('dropoff')"
+                  >
+                    Use drop-off postcode only for testing
+                  </button>
+
+                  <label v-if="addressLookup.dropoff.addresses.length && !form.dropoff_label" class="block">
+                    <span class="text-sm font-bold text-slate-700">Select drop-off address</span>
+                    <select
+                      class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
+                      @change="selectAddress('dropoff', $event.target.value)"
+                    >
+                      <option value="">Choose the exact drop-off address</option>
+                      <option
+                        v-for="address in addressLookup.dropoff.addresses"
+                        :key="address.id"
+                        :value="address.id"
+                      >
+                        {{ address.label }}{{ address.secondary ? ` â€” ${address.secondary}` : '' }}
+                      </option>
+                    </select>
+                  </label>
+
+                  <div v-if="form.dropoff_label" class="rounded-3xl border border-sky-200 bg-sky-50/70 p-4">
+                    <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Drop-off address locked</p>
+                    <p class="mt-1 text-base font-black text-slate-950">{{ form.dropoff_label }}</p>
+                    <p class="mt-1 text-sm text-slate-600">{{ form.dropoff_postcode }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3">
+                <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
+                <button type="button" class="btn-primary px-5 py-3" :disabled="addressLookup.pickup.loading || addressLookup.dropoff.loading" @click="goNext">
+                  Next: Movement
+                </button>
+              </div>
+            </section>
+          </template>
+
+          <template v-else-if="currentStep === 2">
+            <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <header>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Movement</p>
+                <h2 class="mt-1 text-xl font-black text-slate-950">Transport and timing</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                  Choose how the vehicle moves, then add the timings the driver needs to see.
+                </p>
+              </header>
+
+              <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-black uppercase tracking-wide text-slate-500">Selected transport</p>
+                <p class="mt-1 text-lg font-black text-slate-950">{{ selectedTransport.label }}</p>
+                <p class="mt-1 text-sm text-slate-600">{{ selectedTransport.helper }}</p>
+              </div>
+
+              <div>
+                <p class="text-sm font-bold text-slate-700">Transport type</p>
+                <div class="mt-3 grid grid-cols-2 gap-3">
+                  <button
+                    v-for="option in transportOptions"
+                    :key="option.value"
+                    type="button"
+                    :class="[
+                      'min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg',
+                      form.transport_type === option.value
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'
+                    ]"
+                    @click="selectTransport(option.value)"
+                  >
+                    <span class="font-black">{{ option.label }}</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">{{ option.helper }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid gap-4 md:grid-cols-2">
+                <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
+                  <input
+                    v-model="form.pickup_date"
+                    type="date"
+                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                  />
+                  <input
+                    v-model="form.pickup_time"
+                    type="time"
+                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                  />
+                </div>
+
+                <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
+                  <input
+                    v-model="form.delivery_date"
+                    type="date"
+                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                  />
+                  <input
+                    v-model="form.delivery_time"
+                    type="time"
+                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3">
+                <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
+                <button type="button" class="btn-primary px-5 py-3" @click="goNext">
+                  Next: Payment
+                </button>
+              </div>
+            </section>
+          </template>
+
+          <template v-else>
+            <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <header>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Payment</p>
+                <h2 class="mt-1 text-xl font-black text-slate-950">Price breakdown</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                  The dealer pays on creation. MotorRelay releases the driver payout after delivery proof is approved.
+                </p>
+              </header>
+
+              <label class="block">
+                <span class="text-sm font-bold text-slate-700">Dealer charge (GBP)</span>
+                <input
+                  v-model="form.price"
+                  type="number"
+                  min="0"
+                  required
+                  placeholder="e.g. 120"
+                  class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
+                />
               </label>
 
-              <div v-if="form.dropoff_label" class="rounded-3xl border border-sky-200 bg-sky-50/70 p-4">
-                <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Drop-off address locked</p>
-                <p class="mt-1 text-base font-black text-slate-950">{{ form.dropoff_label }}</p>
-                <p class="mt-1 text-sm text-slate-600">{{ form.dropoff_postcode }}</p>
+              <dl class="grid gap-3">
+                <div class="rounded-2xl bg-slate-50 p-4">
+                  <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dealer charge</dt>
+                  <dd class="mt-1 text-xl font-black text-slate-950">{{ formatMoney(jobPrice) }}</dd>
+                </div>
+                <div class="rounded-2xl bg-slate-950 p-4 text-white">
+                  <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver receives</dt>
+                  <dd class="mt-1 text-2xl font-black">{{ formatMoney(estimatedDriverPayout) }}</dd>
+                </div>
+              </dl>
+
+              <section class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5">
+                <label class="flex items-start gap-3">
+                  <input
+                    v-model="form.is_urgent"
+                    :disabled="!canUseUrgentBoost"
+                    type="checkbox"
+                    class="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>
+                    <span class="text-sm font-black text-emerald-900">Add urgent boost</span>
+                    <p class="mt-1 text-xs leading-5 text-emerald-800">{{ urgentHelperText }}</p>
+                  </span>
+                </label>
+
+                <div
+                  v-if="requiresUrgentAcknowledgement"
+                  class="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800"
+                >
+                  <p>This boost adds an extra charge for Starter plans.</p>
+                  <label class="mt-3 flex items-start gap-2">
+                    <input
+                      v-model="form.urgent_fee_ack"
+                      type="checkbox"
+                      class="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-700 focus:ring-amber-500"
+                    />
+                    <span>I understand an extra boost fee will be added to this job.</span>
+                  </label>
+                </div>
+                <p v-if="starterUsageInfo && starterUsageInfo.urgentRemaining === 0" class="mt-3 text-xs text-amber-700">
+                  Starter urgent boost quota reached for this month.
+                </p>
+              </section>
+
+              <div class="flex items-center justify-between gap-3">
+                <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
+                <button
+                  type="submit"
+                  class="btn-primary px-5 py-3"
+                  :disabled="submitting || (requiresUrgentAcknowledgement && !form.urgent_fee_ack)"
+                >
+                  <span v-if="submitting">{{ isEdit ? 'Saving...' : 'Opening checkout...' }}</span>
+                  <span v-else>{{ isEdit ? 'Save changes' : 'Create and pay' }}</span>
+                </button>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="space-y-5 border-b border-slate-200 pb-5">
-          <header>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Movement</p>
-            <h2 class="mt-1 text-xl font-black text-slate-950">Transport and timing</h2>
-          </header>
-
-          <div>
-            <p class="text-sm font-bold text-slate-700">Transport type</p>
-            <div class="mt-3 grid grid-cols-2 gap-3">
-              <button
-                v-for="option in transportOptions"
-                :key="option.value"
-                type="button"
-                :class="[
-                  'min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg',
-                  form.transport_type === option.value
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'
-                ]"
-                @click="selectTransport(option.value)"
-              >
-                <span class="font-black">{{ option.label }}</span>
-                <span class="mt-1 block text-xs leading-5 text-slate-500">{{ option.helper }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="grid gap-4 md:grid-cols-2">
-            <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
-              <input
-                v-model="form.pickup_date"
-                type="date"
-                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-              />
-              <input
-                v-model="form.pickup_time"
-                type="time"
-                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-              />
-            </div>
-
-            <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
-              <input
-                v-model="form.delivery_date"
-                type="date"
-                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-              />
-              <input
-                v-model="form.delivery_time"
-                type="time"
-                class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-              />
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <aside class="space-y-5 lg:sticky lg:top-24 lg:self-start">
-        <section class="space-y-4">
-          <header>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Payment</p>
-            <h2 class="mt-1 text-xl font-black text-slate-950">Price breakdown</h2>
-          </header>
-
-          <label class="block">
-            <span class="text-sm font-bold text-slate-700">Dealer charge (GBP)</span>
-            <input
-              v-model="form.price"
-              type="number"
-              min="0"
-              required
-              placeholder="e.g. 120"
-              class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-            />
-          </label>
-
-          <dl class="grid gap-3">
-            <div class="rounded-2xl bg-slate-50 p-4">
-              <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dealer charge</dt>
-              <dd class="mt-1 text-xl font-black text-slate-950">{{ formatMoney(jobPrice) }}</dd>
-            </div>
-            <div class="rounded-2xl bg-slate-950 p-4 text-white">
-              <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver receives</dt>
-              <dd class="mt-1 text-2xl font-black">{{ formatMoney(estimatedDriverPayout) }}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5">
-          <label class="flex items-start gap-3">
-            <input
-              v-model="form.is_urgent"
-              :disabled="!canUseUrgentBoost"
-              type="checkbox"
-              class="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            <span>
-              <span class="text-sm font-black text-emerald-900">Add urgent boost</span>
-              <p class="mt-1 text-xs leading-5 text-emerald-800">{{ urgentHelperText }}</p>
-            </span>
-          </label>
-
-          <div
-            v-if="requiresUrgentAcknowledgement"
-            class="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800"
-          >
-            <p>This boost adds an extra charge for Starter plans.</p>
-            <label class="mt-3 flex items-start gap-2">
-              <input
-                v-model="form.urgent_fee_ack"
-                type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-700 focus:ring-amber-500"
-              />
-              <span>I understand an extra boost fee will be added to this job.</span>
-            </label>
-          </div>
-          <p v-if="starterUsageInfo && starterUsageInfo.urgentRemaining === 0" class="mt-3 text-xs text-amber-700">
-            Starter urgent boost quota reached for this month.
-          </p>
-        </section>
-
-        <p v-if="errorMessage" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          {{ errorMessage }}
-        </p>
-
-        <section class="space-y-3">
-          <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Ready to post</p>
-          <p class="text-sm text-slate-600">
-            You can edit this job until a driver has been assigned.
-          </p>
-          <button
-            type="submit"
-            class="btn-primary w-full px-5 py-3"
-            :disabled="submitting || (requiresUrgentAcknowledgement && !form.urgent_fee_ack)"
-          >
-            <span v-if="submitting">{{ isEdit ? 'Saving...' : 'Opening checkout...' }}</span>
-            <span v-else>{{ isEdit ? 'Save changes' : 'Create and pay' }}</span>
-          </button>
-        </section>
-      </aside>
+            </section>
+          </template>
+        </div>
+      </Transition>
     </form>
   </div>
 </template>

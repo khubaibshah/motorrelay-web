@@ -826,7 +826,6 @@ watch(
       <header class="space-y-4 border-b border-slate-200 pb-5">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div class="space-y-2">
-              <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Dealer job</p>
               <div>
                 <h1 class="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
                   {{ isEdit ? 'Edit job' : 'Create a new job' }}
@@ -1144,84 +1143,92 @@ watch(
             </section>
           </template>
 
-          <template v-else-if="currentStep === 2">
-            <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <header>
-                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Movement</p>
-                <h2 class="mt-1 text-xl font-black text-slate-950">Transport and timing</h2>
-                <p class="mt-1 text-sm text-slate-600">
-                  Choose how the vehicle moves, then add the timings the driver needs to see.
-                </p>
-              </header>
+            <template v-else-if="currentStep === 2">
+              <section class="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+                <header class="space-y-1">
+                  <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Movement</p>
+                  <h2 class="text-xl font-black text-slate-950">Transport and timing</h2>
+                  <p class="text-sm text-slate-600">
+                    Choose how the vehicle moves, then add the timings the driver needs to see.
+                  </p>
+                </header>
 
-              <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <p class="text-xs font-black uppercase tracking-wide text-slate-500">Selected transport</p>
-                <p class="mt-1 text-lg font-black text-slate-950">{{ selectedTransport.label }}</p>
-                <p class="mt-1 text-sm text-slate-600">{{ selectedTransport.helper }}</p>
-              </div>
+                <div class="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.2fr_1fr] md:items-center">
+                  <div class="min-w-0">
+                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Selected transport</p>
+                    <p class="mt-1 text-base font-black text-slate-950">{{ selectedTransport.label }}</p>
+                  </div>
+                  <p class="min-w-0 text-sm leading-6 text-slate-600 md:text-right">
+                    {{ selectedTransport.helper }}
+                  </p>
+                </div>
 
-              <div>
-                <p class="text-sm font-bold text-slate-700">Transport type</p>
-                <div class="mt-3 grid grid-cols-2 gap-3">
-                  <button
-                    v-for="option in transportOptions"
-                    :key="option.value"
-                    type="button"
-                    :class="[
-                      'min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg',
-                      form.transport_type === option.value
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'
-                    ]"
-                    @click="selectTransport(option.value)"
+                <div>
+                  <p class="text-sm font-bold text-slate-700">Transport type</p>
+                  <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button
+                      v-for="option in transportOptions"
+                      :key="option.value"
+                      type="button"
+                      :class="[
+                        'min-w-0 rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md',
+                        form.transport_type === option.value
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'
+                      ]"
+                      @click="selectTransport(option.value)"
+                    >
+                      <span class="block font-black">{{ option.label }}</span>
+                      <span class="mt-1 block text-xs leading-5 text-slate-500">{{ option.helper }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="grid gap-3 md:grid-cols-2">
+                  <div
+                    class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-3"
+                    :class="validationState.pickup_date || validationState.pickup_time ? 'border-rose-400 bg-rose-50' : ''"
                   >
-                    <span class="font-black">{{ option.label }}</span>
-                    <span class="mt-1 block text-xs leading-5 text-slate-500">{{ option.helper }}</span>
-                  </button>
-                </div>
-              </div>
+                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
+                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                      <input
+                        v-model="form.pickup_date"
+                        type="date"
+                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
+                        :class="validationState.pickup_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                      />
+                      <input
+                        v-model="form.pickup_time"
+                        type="time"
+                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
+                        :class="validationState.pickup_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                      />
+                    </div>
+                  </div>
 
-              <div class="grid gap-4 md:grid-cols-2">
-                <div
-                  class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4"
-                  :class="validationState.pickup_date || validationState.pickup_time ? 'border-rose-400 bg-rose-50' : ''"
-                >
-                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
-                  <input
-                    v-model="form.pickup_date"
-                    type="date"
-                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-                    :class="validationState.pickup_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                  />
-                  <input
-                    v-model="form.pickup_time"
-                    type="time"
-                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-                    :class="validationState.pickup_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                  />
+                  <div
+                    class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-3"
+                    :class="validationState.delivery_date || validationState.delivery_time ? 'border-rose-400 bg-rose-50' : ''"
+                  >
+                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
+                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                      <input
+                        v-model="form.delivery_date"
+                        type="date"
+                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
+                        :class="validationState.delivery_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                      />
+                      <input
+                        v-model="form.delivery_time"
+                        type="time"
+                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
+                        :class="validationState.delivery_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div
-                  class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4"
-                  :class="validationState.delivery_date || validationState.delivery_time ? 'border-rose-400 bg-rose-50' : ''"
-                >
-                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
-                  <input
-                    v-model="form.delivery_date"
-                    type="date"
-                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-                    :class="validationState.delivery_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                  />
-                  <input
-                    v-model="form.delivery_time"
-                    type="time"
-                    class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
-                    :class="validationState.delivery_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                  />
-                </div>
-              </div>
-
-              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center justify-between gap-3">
                 <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
                 <button type="button" class="btn-primary px-5 py-3" @click="goNext">
                   Next

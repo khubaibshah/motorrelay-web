@@ -84,7 +84,7 @@ async function loadJobs() {
     }
   } catch (error) {
     console.error('Failed to load jobs', error);
-    errorMessage.value = 'Unable to load jobs right now.';
+    errorMessage.value = 'Unable to load runs right now.';
     availableJobs.value = [];
   } finally {
     availableLoading.value = false;
@@ -96,8 +96,8 @@ async function loadJobs() {
       const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
       activeJobs.value = rawJobs;
     } catch (error) {
-      console.error('Failed to load active jobs', error);
-      activeErrorMessage.value = 'We could not load active jobs right now.';
+    console.error('Failed to load active runs', error);
+      activeErrorMessage.value = 'We could not load active runs right now.';
       activeJobs.value = [];
     } finally {
       activeLoading.value = false;
@@ -113,8 +113,8 @@ async function loadJobs() {
     const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
     completedJobs.value = rawJobs;
   } catch (error) {
-    console.error('Failed to load completed jobs', error);
-    completedErrorMessage.value = 'We could not load completed jobs right now.';
+    console.error('Failed to load completed runs', error);
+    completedErrorMessage.value = 'We could not load completed runs right now.';
     completedJobs.value = [];
   } finally {
     completedLoading.value = false;
@@ -128,7 +128,7 @@ async function handleApply(job) {
     await applyForJob(job.id);
     appliedJobIds.value = new Set([...appliedJobIds.value, job.id]);
   } catch (error) {
-    console.error('Job application failed', error);
+    console.error('Run application failed', error);
     alert(error.response?.data?.message || 'We could not submit your application. Please try again.');
   }
 }
@@ -232,46 +232,46 @@ const mainJobs = computed(() => {
 const pageIntro = computed(() => {
   if (isDriver.value) {
     return {
-      eyebrow: 'Driver jobs',
-      title: 'Find and manage jobs',
+      eyebrow: 'Driver runs',
+      title: 'Find and manage runs',
       text: 'Request open runs, wait for dealer assignment, then complete delivery and proof.'
     };
   }
 
   if (isDealer.value) {
     return {
-      eyebrow: 'Dealer jobs',
-      title: 'Jobs command centre',
-      text: 'Post jobs, pay upfront, choose drivers, approve proof, and release payout.'
+      eyebrow: 'Dealer runs',
+      title: 'Runs command centre',
+      text: 'Post runs, pay upfront, choose drivers, approve proof, and release payout.'
     };
   }
 
   return {
     eyebrow: 'Marketplace',
-    title: 'Jobs',
+    title: 'Runs',
     text: 'Review, request, assign, and complete MotorRelay runs.'
   };
 });
 const processSteps = computed(() => {
   if (isDriver.value) {
-    return ['Request job', 'Dealer assigns driver', 'Deliver vehicle', 'Upload delivery proof'];
+    return ['Request run', 'Dealer assigns driver', 'Deliver vehicle', 'Upload delivery proof'];
   }
 
   if (isDealer.value) {
-    return ['Post job', 'Pay upfront', 'Choose driver', 'Approve proof', 'Release payout'];
+    return ['Post run', 'Pay upfront', 'Choose driver', 'Approve proof', 'Release payout'];
   }
 
   return ['Create or request', 'Assign driver', 'Track delivery', 'Close paperwork'];
 });
 const activeEmptyMessage = computed(() => {
-  if (isDriver.value) return 'No assigned jobs yet. Browse available jobs below and request one when you are ready.';
-  if (isDealer.value) return 'No dealer jobs yet. Create a job to start receiving driver requests.';
-  return 'No active jobs right now.';
+  if (isDriver.value) return 'No assigned runs yet. Browse available runs below and request one when you are ready.';
+  if (isDealer.value) return 'No dealer runs yet. Create a run to start receiving driver requests.';
+  return 'No active runs right now.';
 });
 const availableEmptyMessage = computed(() => {
-  if (isDriver.value) return 'No open jobs right now. Check back later or ask a dealer to post a run.';
-  if (isDealer.value) return 'No open jobs visible. Create a job to start receiving driver requests.';
-  return 'No jobs here yet.';
+  if (isDriver.value) return 'No open runs right now. Check back later or ask a dealer to post a run.';
+  if (isDealer.value) return 'No open runs visible. Create a run to start receiving driver requests.';
+  return 'No runs here yet.';
 });
 
 function hasApplied(jobId) {
@@ -290,7 +290,7 @@ function dealerNextAction(job) {
   if (paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id) return 'Release driver payout';
   if (paymentStatus === 'payout_released') return 'Paid out';
   if (['in_progress', 'accepted', 'collected', 'in_transit'].includes(status)) return 'Track delivery';
-  return 'View job';
+  return 'View run';
 }
 
 function dealerCurrentStage(job) {
@@ -369,13 +369,13 @@ function openConfirmDialog(job, mode) {
   confirmDialog.pending = false;
 
   if (mode === 'deliver') {
-    confirmDialog.message = 'Mark this job as delivered? The dealer will be notified.';
+    confirmDialog.message = 'Mark this run as delivered? The dealer will be notified.';
   } else if (mode === 'invoice') {
-    confirmDialog.message = 'Send the invoice for this job to the dealer? They will be able to download it immediately.';
+    confirmDialog.message = 'Send the invoice for this run to the dealer? They will be able to download it immediately.';
   } else {
-    confirmDialog.message = isDriver.value
-      ? 'Cancel this job? It will return to the board for other drivers. Add an optional note below.'
-      : 'Cancel this job? This will withdraw the job from the assigned driver and close it. Add an optional note below.';
+      confirmDialog.message = isDriver.value
+      ? 'Cancel this run? It will return to the board for other drivers. Add an optional note below.'
+      : 'Cancel this run? This will withdraw the run from the assigned driver and close it. Add an optional note below.';
   }
 
   confirmDialog.note = '';
@@ -392,20 +392,20 @@ async function confirmAction() {
     let message = '';
     if (confirmDialog.mode === 'deliver') {
       await markJobDelivered(confirmDialog.job.id);
-      message = 'Job marked as delivered.';
+      message = 'Run marked as delivered.';
     } else if (confirmDialog.mode === 'invoice') {
       await sendJobInvoice(confirmDialog.job.id);
       message = 'Invoice sent to the dealer.';
     } else {
       const payload = confirmDialog.note ? { reason: confirmDialog.note } : {};
       await cancelJob(confirmDialog.job.id, payload);
-      message = 'Job cancelled.';
+      message = 'Run cancelled.';
     }
     await loadJobs();
     successMessage.value = message;
     closeConfirmDialog();
   } catch (error) {
-    console.error('Job action failed', error);
+    console.error('Run action failed', error);
     alert(error.response?.data?.message || 'We could not complete this action. Please try again.');
     confirmDialog.pending = false;
   } finally {
@@ -501,7 +501,7 @@ onMounted(async () => {
             to="/jobs/new"
             class="btn-primary w-full sm:w-auto"
           >
-            Create job
+            Create run
           </RouterLink>
 
           <RouterLink
@@ -519,9 +519,9 @@ onMounted(async () => {
       <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer operations</p>
-          <h2 class="mt-1 text-xl font-black text-slate-950">Live jobs table</h2>
+          <h2 class="mt-1 text-xl font-black text-slate-950">Live runs table</h2>
           <p class="mt-2 text-sm text-slate-600">
-            Same jobs as the home page, shown in a searchable table. Click a row to open the job.
+            Same runs as the home page, shown in a searchable table. Click a row to open the run.
           </p>
         </div>
         <div class="grid w-full gap-3 sm:grid-cols-3">
@@ -581,11 +581,11 @@ onMounted(async () => {
       </header>
 
       <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading live jobs...
+        Loading live runs...
       </div>
 
       <div v-else-if="!filteredDealerJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-        No live jobs match your search.
+        No live runs match your search.
       </div>
 
       <div v-else class="space-y-4">
@@ -597,7 +597,7 @@ onMounted(async () => {
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="text-base font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
+                <p class="text-base font-black text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
                 <p class="mt-1 text-xs text-slate-500">
                   {{ job.pickup_label || job.pickup_postcode || '--' }} ? {{ job.dropoff_label || job.dropoff_postcode || '--' }}
                 </p>
@@ -636,7 +636,7 @@ onMounted(async () => {
           <table class="min-w-full divide-y divide-slate-200 text-left">
             <thead class="sticky top-0 z-10 bg-slate-50">
               <tr class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                <th class="px-4 py-3">Job</th>
+                <th class="px-4 py-3">Run</th>
                 <th class="px-4 py-3">Route</th>
                 <th class="px-4 py-3">Now</th>
                 <th class="px-4 py-3">Payment</th>
@@ -652,7 +652,7 @@ onMounted(async () => {
                 @click="openJob(job)"
               >
                 <td class="px-4 py-4 align-top">
-                  <p class="font-black text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
+                <p class="font-black text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
                   <p class="mt-1 text-xs text-slate-500">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
                 </td>
                 <td class="px-4 py-4 align-top text-sm text-slate-600">
@@ -734,13 +734,13 @@ onMounted(async () => {
     </p>
 
     <div v-if="availableLoading && !activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-      Loading jobs&hellip;
+      Loading runs&hellip;
     </div>
 
     <section v-if="showActiveSection" class="section-card order-1 space-y-4">
       <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 class="text-lg font-black text-slate-950">
-          {{ isDriver ? 'Your active jobs' : isDealer ? 'Your posted jobs' : 'Active jobs' }}
+          {{ isDriver ? 'Your active runs' : isDealer ? 'Your posted runs' : 'Active runs' }}
         </h2>
         <span v-if="isDealer" class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
           {{ mainJobs.length }} active
@@ -755,7 +755,7 @@ onMounted(async () => {
       </p>
 
       <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading your active jobs...
+        Loading your active runs...
       </div>
       <div v-else-if="!mainJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
         {{ activeEmptyMessage }}
@@ -775,7 +775,7 @@ onMounted(async () => {
 
             <div>
               <p class="text-lg font-black text-slate-950">
-                {{ job.title || `Job #${job.id}` }}
+              {{ job.title || `Run #${job.id}` }}
               </p>
               <p class="mt-1 text-sm text-slate-600">
                 {{ job.pickup_label || job.pickup_postcode || '--' }} → {{ job.dropoff_label || job.dropoff_postcode || '--' }}
@@ -791,7 +791,7 @@ onMounted(async () => {
                 class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
                 @click="openJob(job)"
               >
-                Manage job
+                Manage run
               </button>
               <RouterLink
                 v-if="canEditDealerJob(job)"
@@ -821,7 +821,7 @@ onMounted(async () => {
               </div>
 
               <p class="text-xl font-black text-slate-950">
-                {{ job.title || `Job #${job.id}` }}
+                {{ job.title || `Run #${job.id}` }}
               </p>
 
               <div class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
@@ -869,7 +869,7 @@ onMounted(async () => {
               :to="`/jobs/${job.id}/edit`"
               class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
             >
-              Edit job
+              Edit run
             </RouterLink>
             <button
               type="button"
@@ -878,7 +878,7 @@ onMounted(async () => {
               @click="handleCancelJob(job)"
             >
               <span v-if="isActionPending(job.id, 'cancel')">Cancelling...</span>
-              <span v-else>Cancel job</span>
+              <span v-else>Cancel run</span>
             </button>
             <button
               v-if="isDriver"
@@ -898,7 +898,7 @@ onMounted(async () => {
     <section v-if="isDriver" id="completed-jobs" class="section-card order-3 space-y-4">
       <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="text-xl font-black tracking-tight text-slate-950">Completed jobs</h2>
+          <h2 class="text-xl font-black tracking-tight text-slate-950">Completed runs</h2>
           <p class="text-xs text-slate-500">Finished runs and delivery history live here, not in your profile.</p>
         </div>
         <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
@@ -907,7 +907,7 @@ onMounted(async () => {
       </header>
 
       <div v-if="completedLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading completed jobs...
+        Loading completed runs...
       </div>
 
       <div v-else-if="completedErrorMessage" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
@@ -915,7 +915,7 @@ onMounted(async () => {
       </div>
 
       <div v-else-if="!completedJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        You have no completed jobs yet.
+        You have no completed runs yet.
       </div>
 
       <div v-else class="space-y-3">
@@ -927,7 +927,7 @@ onMounted(async () => {
         >
           <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0">
-              <p class="text-xl font-black tracking-tight text-slate-950">{{ job.title || `Job #${job.id}` }}</p>
+              <p class="text-xl font-black tracking-tight text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
               <p class="mt-1 text-xs text-slate-500">
                 Completed {{ formatDate(job.completed_at || job.updated_at || job.created_at) }}
               </p>
@@ -948,14 +948,14 @@ onMounted(async () => {
 
     <section v-if="isDriver || isAdmin" class="section-card order-2 space-y-4">
       <header class="flex items-center justify-between gap-3" v-if="isDriver">
-        <h2 class="text-xl font-black tracking-tight text-slate-950">Available jobs</h2>
+        <h2 class="text-xl font-black tracking-tight text-slate-950">Available runs</h2>
         <span class="text-xs font-semibold text-slate-500">
           {{ visibleJobs.length }} listed
         </span>
       </header>
 
       <div v-if="availableLoading && !visibleJobs.length" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading jobs...
+        Loading runs...
       </div>
 
       <div v-else-if="!visibleJobs.length" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
@@ -1002,7 +1002,7 @@ onMounted(async () => {
               @click.stop="handleApply(job)"
             >
               <span v-if="hasApplied(job.id)">Application sent</span>
-              <span v-else>Request this job</span>
+            <span v-else>Request this run</span>
             </button>
           </div>
         </button>
@@ -1020,10 +1020,10 @@ onMounted(async () => {
       <h3 class="text-lg font-semibold text-slate-900">
         {{
           confirmDialog.mode === 'deliver'
-            ? 'Mark job as delivered'
+            ? 'Mark run as delivered'
             : confirmDialog.mode === 'invoice'
             ? 'Send invoice'
-            : 'Cancel job'
+            : 'Cancel run'
         }}
       </h3>
       <p class="mt-3 text-sm text-slate-600">

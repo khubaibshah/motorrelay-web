@@ -19,7 +19,7 @@ const revenueLevers = [
   {
     label: 'Platform commission',
     value: '10% target',
-    note: 'Deducted from each completed job once payment processing is connected.'
+    note: 'Deducted from each completed run once payment processing is connected.'
   },
   {
     label: 'Urgent boost',
@@ -29,7 +29,7 @@ const revenueLevers = [
   {
     label: 'Dealer plans',
     value: 'Monthly',
-    note: 'Paid tiers can unlock more job posts, team tools, and reporting.'
+    note: 'Paid tiers can unlock more run posts, team tools, and reporting.'
   },
   {
     label: 'Driver premium',

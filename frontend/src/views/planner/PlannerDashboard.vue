@@ -5,7 +5,7 @@ const weeks = ref([
   {
     id: 'week-1',
     label: 'This Week',
-    jobs: [
+    runs: [
       { id: 'planner-1', jobId: 10, title: 'Deliver Jaguar XF', status: 'scheduled', day: 'Tue', driver: 'A. Smith' },
       { id: 'planner-2', jobId: 11, title: 'Collect Kia Sportage', status: 'scheduled', day: 'Thu', driver: 'You' }
     ]
@@ -13,7 +13,7 @@ const weeks = ref([
   {
     id: 'week-2',
     label: 'Next Week',
-    jobs: [
+    runs: [
       { id: 'planner-3', title: 'Deliver Tesla Model 3', status: 'draft', day: 'Mon', driver: 'TBC' }
     ]
   }
@@ -39,28 +39,28 @@ const weeks = ref([
       >
         <header class="mb-3 flex items-center justify-between">
           <h2 class="text-lg font-semibold text-slate-900">{{ week.label }}</h2>
-          <span class="badge bg-emerald-100 text-emerald-700">{{ week.jobs.length }} jobs</span>
+          <span class="badge bg-emerald-100 text-emerald-700">{{ week.runs.length }} runs</span>
         </header>
 
         <ol class="space-y-2">
           <li
-            v-for="job in week.jobs"
-            :key="job.id"
+          v-for="run in week.runs"
+          :key="run.id"
             class="rounded-xl border border-slate-200 p-3 transition hover:border-emerald-200 hover:shadow"
           >
             <RouterLink
-              v-if="job.jobId"
-              :to="`/jobs/${job.jobId}`"
+              v-if="run.jobId"
+              :to="`/jobs/${run.jobId}`"
               class="flex items-center justify-between gap-3 text-left"
             >
               <div>
-                <h3 class="text-sm font-semibold text-slate-900 hover:text-emerald-700">{{ job.title }}</h3>
+                <h3 class="text-sm font-semibold text-slate-900 hover:text-emerald-700">{{ run.title }}</h3>
                 <p class="text-xs text-slate-500">
-                  {{ job.day }} • {{ job.driver }}
+                  {{ run.day }} • {{ run.driver }}
                 </p>
               </div>
               <span class="badge bg-slate-100 text-slate-700">
-                {{ job.status }}
+                {{ run.status }}
               </span>
             </RouterLink>
             <div
@@ -68,13 +68,13 @@ const weeks = ref([
               class="flex items-center justify-between gap-3"
             >
               <div>
-                <h3 class="text-sm font-semibold text-slate-900">{{ job.title }}</h3>
+                <h3 class="text-sm font-semibold text-slate-900">{{ run.title }}</h3>
                 <p class="text-xs text-slate-500">
-                  {{ job.day }} • {{ job.driver }}
+                  {{ run.day }} • {{ run.driver }}
                 </p>
               </div>
               <span class="badge bg-slate-100 text-slate-700">
-                {{ job.status }}
+                {{ run.status }}
               </span>
             </div>
           </li>
@@ -86,13 +86,13 @@ const weeks = ref([
     <aside class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 class="text-sm font-semibold text-slate-900">Use the planner</h2>
       <p class="text-sm text-slate-600">
-        Reserve driver capacity, then publish jobs or assign to active runs without clashing schedules.
+        Reserve driver capacity, then publish runs or assign to active runs without clashing schedules.
       </p>
       <RouterLink
         to="/jobs"
         class="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
       >
-        Go to jobs
+        Go to runs
       </RouterLink>
       <RouterLink
         to="/profile"

@@ -95,7 +95,7 @@ onMounted(async () => {
     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
       <p class="font-bold">Why a download may be greyed out</p>
       <p>
-        The PDF download is only available after the job is completed, delivery proof is uploaded, and the dealer approves the job.
+        The PDF download is only available after the run is completed, delivery proof is uploaded, and the dealer approves the run.
         Demo or draft invoices can appear here before a PDF has been generated.
       </p>
     </div>
@@ -105,7 +105,7 @@ onMounted(async () => {
     </div>
 
     <div v-else-if="!invoices.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-600">
-      No invoices yet. Approved jobs will appear here once completion is signed off.
+      No invoices yet. Approved runs will appear here once completion is signed off.
     </div>
 
     <div v-else class="space-y-4">
@@ -114,7 +114,7 @@ onMounted(async () => {
           <thead class="bg-slate-50">
             <tr class="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <th class="px-4 py-3">Invoice</th>
-              <th class="px-4 py-3">Job</th>
+              <th class="px-4 py-3">Run</th>
               <th class="px-4 py-3">Subtotal</th>
               <th class="px-4 py-3">VAT</th>
               <th class="px-4 py-3">Total</th>
@@ -130,10 +130,10 @@ onMounted(async () => {
               </td>
               <td class="px-4 py-3">
                 <div class="font-medium text-slate-800">
-                  {{ invoice.job?.title || `Job #${invoice.job?.id ?? '--'}` }}
+                  {{ invoice.job?.title || `Run #${invoice.job?.id ?? '--'}` }}
                 </div>
                 <div class="text-xs text-slate-500">
-                  Job ID: {{ invoice.job?.id ?? '--' }}
+                  Run ID: {{ invoice.job?.id ?? '--' }}
                 </div>
               </td>
               <td class="px-4 py-3">
@@ -207,9 +207,9 @@ onMounted(async () => {
 
           <dl class="mt-3 grid gap-2 text-xs text-slate-600">
             <div>
-              <dt class="font-semibold uppercase tracking-wide text-slate-500">Job</dt>
+              <dt class="font-semibold uppercase tracking-wide text-slate-500">Run</dt>
               <dd class="text-sm font-medium text-slate-900">
-                {{ invoice.job?.title || `Job #${invoice.job?.id ?? '--'}` }}
+                {{ invoice.job?.title || `Run #${invoice.job?.id ?? '--'}` }}
               </dd>
             </div>
             <div class="flex items-center justify-between">

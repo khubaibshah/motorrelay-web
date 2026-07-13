@@ -65,7 +65,7 @@ function formatDate(value) {
           <thead class="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th class="px-4 py-3 font-semibold">Name</th>
-              <th class="px-4 py-3 font-semibold">Job</th>
+              <th class="px-4 py-3 font-semibold">Run</th>
               <th class="px-4 py-3 font-semibold">Status</th>
               <th class="px-4 py-3 font-semibold">Submitted</th>
             </tr>
@@ -73,7 +73,7 @@ function formatDate(value) {
           <tbody class="divide-y divide-slate-100">
             <tr v-for="row in rows" :key="row.id">
               <td class="px-4 py-3 font-medium text-slate-900">{{ row.driver }}</td>
-              <td class="px-4 py-3 text-slate-600">{{ row.job_title || 'Job' }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ row.job_title || 'Run' }}</td>
               <td class="px-4 py-3">
                 <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold uppercase text-emerald-700">
                   {{ row.status }}

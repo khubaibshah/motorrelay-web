@@ -49,7 +49,7 @@ async function submit() {
         <p class="text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">MotorRelay</p>
         <h1 class="mt-4 text-4xl font-black tracking-tight">One workspace for every vehicle movement.</h1>
         <p class="mt-4 text-sm leading-6 text-slate-300">
-          Manage jobs, messages, live tracking, delivery proof, expenses, and invoices from a focused operations dashboard.
+          Manage runs, messages, live tracking, delivery proof, expenses, and invoices from a focused operations dashboard.
         </p>
       </div>
 
@@ -70,7 +70,7 @@ async function submit() {
         <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">Welcome back</p>
         <h1 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Sign in to MotorRelay</h1>
         <p class="text-sm leading-6 text-slate-600">
-          Access your account to manage jobs, drivers, messages, tracking, and paperwork.
+          Access your account to manage runs, drivers, messages, tracking, and paperwork.
         </p>
       </header>
 

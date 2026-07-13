@@ -54,7 +54,7 @@ function formatAge(value) {
             <td class="px-4 py-3">
               <div class="font-semibold text-slate-900">{{ thread.subject || 'New Conversation' }}</div>
               <div class="text-xs text-slate-500">
-                Job {{ thread.job_reference || '—' }}
+                Run {{ thread.job_reference || '—' }}
               </div>
             </td>
             <td class="px-4 py-3 text-slate-700">
@@ -86,4 +86,3 @@ function formatAge(value) {
     </div>
   </div>
 </template>
-

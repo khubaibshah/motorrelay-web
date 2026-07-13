@@ -326,14 +326,14 @@ const statusDescription = computed(() => {
   const status = String(job.value.status || "").toLowerCase();
 
   if (status === "open") {
-    return "This job is open and awaiting driver applications.";
+    return "This run is open and awaiting driver applications.";
   }
 
   if (["pending", "accepted", "in_progress", "collected", "in_transit"].includes(status)) {
     if (assignedDriver.value) {
-      return `This job is currently in progress with ${assignedDriver.value.name}.`;
+      return `This run is currently in progress with ${assignedDriver.value.name}.`;
     }
-    return "This job is being prepared and will be assigned shortly.";
+    return "This run is being prepared and will be assigned shortly.";
   }
 
   if (status === "completion_pending") {
@@ -342,16 +342,16 @@ const statusDescription = computed(() => {
 
   if (["delivered", "completed", "closed"].includes(status)) {
     if (assignedDriver.value) {
-      return `This job was completed by ${assignedDriver.value.name}.`;
+      return `This run was completed by ${assignedDriver.value.name}.`;
     }
-    return "This job has been completed.";
+    return "This run has been completed.";
   }
 
   if (status === "cancelled") {
-    return "This job has been cancelled.";
+    return "This run has been cancelled.";
   }
 
-  return `This job status is ${job.value.status}.`;
+  return `This run status is ${job.value.status}.`;
 });
 
 const canReviewApplications = computed(() => {
@@ -413,11 +413,11 @@ const canMarkDeliveredFromDetail = computed(() => {
 });
 const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
-  if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this job is ready to start.';
-  if (paymentStatus.value === 'checkout_pending') return 'Waiting for the dealer to finish confirming this job.';
+  if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
+  if (paymentStatus.value === 'checkout_pending') return 'Waiting for the dealer to finish confirming this run.';
   if (canMarkCollected.value) return 'Collect the vehicle, then tap “Mark collected”.';
   if (canMarkDeliveredFromDetail.value) return 'Deliver the vehicle, then tap “Mark delivered”.';
-  if (canSubmitCompletion.value && !hasDeliveryProof.value) return 'Upload delivery proof so the dealer can approve the job.';
+  if (canSubmitCompletion.value && !hasDeliveryProof.value) return 'Upload delivery proof so the dealer can approve the run.';
   if (completionStatus.value === 'submitted') return 'Wait for the dealer to approve your proof.';
   if (completionStatus.value === 'approved' && paymentStatus.value !== 'payout_released') return 'Delivery is approved. Waiting for payout release.';
   if (paymentStatus.value === 'payout_released') return 'Payout has been released.';
@@ -448,7 +448,7 @@ const workflowSteps = computed(() => {
   if (isAssignedDriver.value) {
     return [
       {
-        label: 'Job accepted',
+      label: 'Run accepted',
         help: 'You have been assigned to this vehicle movement.',
         complete: isAssigned
       },
@@ -483,12 +483,12 @@ const workflowSteps = computed(() => {
   if (!isDealerForJob.value && currentRole.value !== 'admin') {
     return [
       {
-        label: 'Job posted',
-        help: 'This job is available for driver requests.',
+        label: 'Run posted',
+        help: 'This run is available for driver requests.',
         complete: true
       },
       {
-        label: myApplication.value ? 'Request sent' : 'Request job',
+        label: myApplication.value ? 'Request sent' : 'Request run',
         help: myApplication.value ? 'Your request has been sent to the dealer.' : 'Send a request so the dealer can review you.',
         complete: Boolean(myApplication.value)
       },
@@ -502,7 +502,7 @@ const workflowSteps = computed(() => {
 
   return [
     {
-      label: 'Job posted',
+    label: 'Run posted',
       help: 'The dealer created this vehicle movement.',
       complete: true
     },
@@ -562,7 +562,7 @@ const driverPayoutAmount = computed(() => {
 });
 const dealerPaymentAmount = computed(() => jobBasePrice.value + urgentFeeAmount.value);
 const headerDisplayAmount = computed(() => (currentRole.value === 'driver' ? driverPayoutAmount.value : jobBasePrice.value));
-const headerDisplayLabel = computed(() => (currentRole.value === 'driver' ? 'Driver payout' : 'Job value'));
+const headerDisplayLabel = computed(() => (currentRole.value === 'driver' ? 'Driver payout' : 'Run value'));
 const canStartCheckout = computed(() => {
   if (!job.value || !(isDealerForJob.value || currentRole.value === 'admin')) return false;
   return !['checkout_pending', 'paid', 'payout_released'].includes(paymentStatus.value);
@@ -574,7 +574,7 @@ const canReleasePayout = computed(() => {
   return completionStatus.value === 'approved' && !job.value.stripe_transfer_id;
 });
 const paymentActionHelp = computed(() => {
-  if (paymentStatus.value === 'unpaid') return 'Take dealer payment now so this job is funded before drivers start.';
+  if (paymentStatus.value === 'unpaid') return 'Take dealer payment now so this run is funded before drivers start.';
   if (paymentStatus.value === 'checkout_pending') return 'Checkout has started. If the dealer paid, use refresh or wait for Stripe to confirm.';
   if (paymentStatus.value === 'paid' && completionStatus.value !== 'approved') return 'Payment is held. Payout unlocks only after delivery proof is approved.';
   if (paymentStatus.value === 'paid' && completionStatus.value === 'approved') return 'Delivery is approved. You can now release the driver payout.';
@@ -595,13 +595,13 @@ const paymentCardTitle = computed(() => {
 });
 const paymentCardDescription = computed(() => {
   if (paymentStatus.value === 'unpaid') {
-    return 'Take payment before this job is offered to drivers.';
+    return 'Take payment before this run is offered to drivers.';
   }
   if (paymentStatus.value === 'checkout_pending') {
     return 'Stripe checkout has started. Refresh after the dealer completes payment.';
   }
   if (paymentStatus.value === 'payout_released') {
-    return 'The driver payout has been released for this completed job.';
+    return 'The driver payout has been released for this completed run.';
   }
   return 'Funds are held by MotorRelay until delivery proof is approved.';
 });
@@ -640,13 +640,13 @@ const requestPanelTitle = computed(() => {
   if (status === 'declined') return 'Request declined';
   if (status === 'pending') return 'Request sent';
 
-  return 'Want this job?';
+  return 'Want this run?';
 });
 const requestPanelText = computed(() => {
   const status = String(myApplication.value?.status || '').toLowerCase();
 
   if (status === 'accepted') {
-    return 'The dealer accepted your request. This job will appear in your current jobs.';
+    return 'The dealer accepted your request. This run will appear in your current runs.';
   }
 
   if (status === 'declined') {
@@ -654,10 +654,10 @@ const requestPanelText = computed(() => {
   }
 
   if (status === 'pending') {
-    return "Your request has been sent to the dealer. If they choose you, this job will move into your current jobs.";
+    return "Your request has been sent to the dealer. If they choose you, this run will move into your current runs.";
   }
 
-  return "Request this job so the dealer can review you and assign the run.";
+  return "Request this run so the dealer can review you and assign the driver.";
 });
 
 function applicationBadgeClass(status) {
@@ -695,8 +695,8 @@ async function loadJob() {
     syncExpensesFromJob();
     trackingState.lastUpdate = job.value?.last_tracked_at ?? null;
   } catch (error) {
-    console.error("Failed to load job", error);
-    errorMessage.value = "We could not load this job.";
+    console.error("Failed to load run", error);
+    errorMessage.value = "We could not load this run.";
     job.value = null;
     expenses.value = [];
     updateExpenseSummary([]);
@@ -1131,11 +1131,11 @@ watch(
 <template>
   <div class="space-y-4">
     <RouterLink to="/jobs" class="text-sm font-semibold text-emerald-600 hover:underline">
-      Back to jobs
+      Back to runs
     </RouterLink>
 
     <div v-if="loading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-      Loading job...
+      Loading run...
     </div>
 
     <div v-else-if="errorMessage" class="rounded-2xl border bg-white p-4 text-sm text-amber-600">
@@ -1143,14 +1143,14 @@ watch(
     </div>
 
     <div v-else-if="!job" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-      Job not found.
+      Run not found.
     </div>
 
     <div v-else class="space-y-4">
       <header class="flex flex-col items-start justify-between gap-3 rounded-2xl border bg-white p-6 md:flex-row md:items-center">
         <div>
           <h1 class="text-2xl font-bold text-slate-900">
-            {{ job.title || `Job #${job.id}` }}
+            {{ job.title || `Run #${job.id}` }}
           </h1>
           <p class="text-sm text-slate-600">
             {{ job.company || 'Customer' }} - {{ job.vehicle_make || 'Vehicle' }}
@@ -1178,12 +1178,12 @@ watch(
             :to="{ name: 'job-edit', params: { id: job.id } }"
             class="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
           >
-            Edit job
+            Edit run
             <span aria-hidden="true">→</span>
           </RouterLink>
         </div>
         <p class="mt-1">
-          This job will become visible to drivers at
+          This run will become visible to drivers at
           <strong>{{ goLiveFormatted }}</strong>. You can still make changes for the next few minutes before it publishes.
         </p>
       </section>
@@ -1218,7 +1218,7 @@ watch(
             @click="handleRequestJob"
           >
             <span v-if="jobRequestLoading">Sending request...</span>
-            <span v-else>Request this job</span>
+            <span v-else>Request this run</span>
           </button>
           <span
             v-else
@@ -1277,7 +1277,7 @@ watch(
       <section class="tile space-y-4 p-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Job progress</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Run progress</h2>
             <p class="mt-1 text-xs text-slate-500">
               Next: {{ currentWorkflowStep?.label || 'Complete' }}
             </p>
@@ -1338,7 +1338,7 @@ watch(
         </div>
 
         <div v-else-if="!applications.length" class="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
-          No driver applications yet. This section will update when drivers request the job.
+          No driver applications yet. This section will update when drivers request the run.
         </div>
 
         <div v-else class="space-y-3">
@@ -1448,7 +1448,7 @@ watch(
             @click="handleCheckout"
           >
             <span v-if="checkoutLoading">Opening checkout...</span>
-            <span v-else>Pay for this job</span>
+            <span v-else>Pay for this run</span>
           </button>
           <button
             v-if="paymentStatus === 'checkout_pending'"
@@ -1481,7 +1481,7 @@ watch(
       <section v-if="false" class="tile space-y-4 p-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Job progress</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Run progress</h2>
             <p class="mt-1 text-xs text-slate-500">
               Next: {{ currentWorkflowStep?.label || 'Complete' }}
             </p>
@@ -1657,7 +1657,7 @@ watch(
             @click="handleCheckout"
           >
             <span v-if="checkoutLoading">Opening checkout...</span>
-            <span v-else>Pay for this job</span>
+            <span v-else>Pay for this run</span>
           </button>
           <button
             v-if="paymentStatus === 'checkout_pending'"
@@ -1731,7 +1731,7 @@ watch(
         <header class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Basic analytics</h2>
-            <p class="text-xs text-slate-500">Snapshot of views generated while this job is live.</p>
+            <p class="text-xs text-slate-500">Snapshot of views generated while this run is live.</p>
           </div>
           <span class="rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
             {{ basicAnalytics.views_last_7_days }} this week
@@ -1762,7 +1762,7 @@ watch(
           <div>
             <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Expenses</h2>
             <p class="text-xs text-slate-500">
-              Track expense submissions and approvals for this job.
+              Track expense submissions and approvals for this run.
             </p>
           </div>
           <div class="flex flex-wrap gap-3 text-xs text-slate-500">
@@ -1968,7 +1968,7 @@ watch(
       >
         <header class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Job completion</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Run completion</h2>
             <p class="text-xs text-slate-500">
               Drivers submit delivery proof and dealers approve to trigger invoices.
             </p>
@@ -2202,7 +2202,7 @@ watch(
               <span aria-hidden="true">↗</span>
             </a>
             <p v-if="!navigationLinks.length" class="text-xs text-slate-500">
-              We could not determine a destination for this job yet.
+              We could not determine a destination for this run yet.
             </p>
           </div>
           <button

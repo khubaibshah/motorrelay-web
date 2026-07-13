@@ -14,7 +14,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
       <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Route</p>
       <h2 class="text-xl font-black text-slate-950">Pickup and drop-off</h2>
       <p class="text-sm text-slate-600">
-        Enter each postcode, choose the exact address, then MotorRelay locks it into the job.
+        Enter each postcode, choose the exact address, then MotorRelay locks it into the run.
       </p>
     </header>
 

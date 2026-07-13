@@ -5,7 +5,7 @@ const legalSections = [
   {
     title: 'Terms of Service',
     summary:
-      'MotorRelay connects dealerships with vetted drivers. Posting or accepting work binds you to honour job details, timelines, and payment terms. Disputes may result in temporary or permanent suspension.'
+      'MotorRelay connects dealerships with vetted drivers. Posting or accepting work binds you to honour run details, timelines, and payment terms. Disputes may result in temporary or permanent suspension.'
   },
   {
     title: 'Privacy & GDPR',
@@ -15,7 +15,7 @@ const legalSections = [
   {
     title: 'Insurance & Liability',
     summary:
-      'Dealers confirm appropriate trade insurance and driver cover before posting jobs. Drivers confirm vehicles are road legal and appropriately insured for MotorRelay work.'
+      'Dealers confirm appropriate trade insurance and driver cover before posting runs. Drivers confirm vehicles are road legal and appropriately insured for MotorRelay work.'
   },
   {
     title: 'Payments & Invoices',

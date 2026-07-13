@@ -99,14 +99,14 @@ function formatDate(value) {
 
         <div class="mt-6 grid gap-4 sm:grid-cols-2">
           <div class="rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
-            <h2 class="text-xs font-bold uppercase tracking-wide text-emerald-700">Open marketplace jobs</h2>
+            <h2 class="text-xs font-bold uppercase tracking-wide text-emerald-700">Open marketplace runs</h2>
             <p class="mt-3 text-4xl font-black text-emerald-950">{{ openJobs.length }}</p>
             <p class="mt-1 text-sm text-emerald-800">Runs still waiting for driver applications.</p>
           </div>
           <div class="rounded-3xl border border-sky-100 bg-sky-50 p-5">
             <h2 class="text-xs font-bold uppercase tracking-wide text-sky-700">Need payment</h2>
             <p class="mt-3 text-4xl font-black text-sky-950">{{ paymentDueJobs.length }}</p>
-            <p class="mt-1 text-sm text-sky-800">Assigned jobs waiting for dealer payment.</p>
+            <p class="mt-1 text-sm text-sky-800">Assigned runs waiting for dealer payment.</p>
           </div>
           <div class="rounded-3xl border border-amber-100 bg-amber-50 p-5">
             <h2 class="text-xs font-bold uppercase tracking-wide text-amber-700">Proof to review</h2>
@@ -116,7 +116,7 @@ function formatDate(value) {
           <div class="rounded-3xl border border-violet-100 bg-violet-50 p-5">
             <h2 class="text-xs font-bold uppercase tracking-wide text-violet-700">Payout ready</h2>
             <p class="mt-3 text-4xl font-black text-violet-950">{{ payoutReadyJobs.length }}</p>
-            <p class="mt-1 text-sm text-violet-800">Approved jobs ready to pay drivers.</p>
+            <p class="mt-1 text-sm text-violet-800">Approved runs ready to pay drivers.</p>
           </div>
         </div>
       </section>

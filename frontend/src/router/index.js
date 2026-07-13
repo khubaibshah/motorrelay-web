@@ -22,7 +22,7 @@ const routes = [
     name: 'jobs',
     component: () => import('../views/jobs/JobsIndex.vue'),
     meta: {
-      breadcrumb: 'Jobs'
+      breadcrumb: 'Runs'
     }
   },
   {
@@ -31,8 +31,8 @@ const routes = [
     component: () => import('../views/jobs/JobCreate.vue'),
     meta: {
       breadcrumb: [
-        { label: 'Jobs', to: '/jobs' },
-        { label: 'Create Job' }
+        { label: 'Runs', to: '/jobs' },
+        { label: 'Create Run' }
       ]
     }
   },
@@ -44,9 +44,9 @@ const routes = [
     meta: {
       requiresRole: 'dealer',
       breadcrumb: (route) => [
-        { label: 'Jobs', to: '/jobs' },
+        { label: 'Runs', to: '/jobs' },
         {
-          label: route.params.id ? `Edit Job ${route.params.id}` : 'Edit Job'
+          label: route.params.id ? `Edit Run ${route.params.id}` : 'Edit Run'
         }
       ]
     }
@@ -58,9 +58,9 @@ const routes = [
     props: true,
     meta: {
       breadcrumb: (route) => [
-        { label: 'Jobs', to: '/jobs' },
+        { label: 'Runs', to: '/jobs' },
         {
-          label: route.params.id ? `Job ${route.params.id}` : 'Job Detail'
+          label: route.params.id ? `Run ${route.params.id}` : 'Run Detail'
         }
       ]
     }
@@ -134,7 +134,7 @@ const routes = [
     meta: {
       breadcrumb: [
         { label: 'Profile', to: '/profile' },
-        { label: 'Completed jobs' }
+        { label: 'Completed runs' }
       ]
     }
   },

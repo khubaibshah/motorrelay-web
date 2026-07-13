@@ -77,8 +77,8 @@ const recentJobs = computed(() => completedList.value.slice(0, 5));
 const recentJobCount = computed(() => recentJobs.value.length);
 
 const metricCards = computed(() => [
-  { label: 'Completed jobs', value: metrics.value.completed },
-  { label: 'Active jobs', value: metrics.value.current },
+  { label: 'Completed runs', value: metrics.value.completed },
+  { label: 'Active runs', value: metrics.value.current },
   { label: 'On time', value: `${metrics.value.onTimePct}%` },
   { label: 'Total revenue', value: formattedRevenue.value },
   { label: 'Average price', value: formattedAverage.value },
@@ -86,10 +86,10 @@ const metricCards = computed(() => [
 ]);
 
 const updates = [
-  'Improved job matching accuracy',
-  'Urgent job boost helps dealers get faster driver attention',
+  'Improved run matching accuracy',
+  'Urgent run boost helps dealers get faster driver attention',
   'Live tracking accuracy upgrades',
-  'Tip: use job numbers when messaging support',
+  'Tip: use run numbers when messaging support',
   'New fraud checks protect payouts and invoices'
 ];
 const trustChecklist = computed(() => [
@@ -260,11 +260,11 @@ async function handlePayoutSetup() {
 
         <section class="min-w-0 max-w-[560px] rounded-2xl border border-slate-200 bg-white p-4 2xl:mx-auto">
           <header class="mb-3 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-slate-900">Recent jobs</h3>
+            <h3 class="text-sm font-semibold text-slate-900">Recent runs</h3>
             <span v-if="hasJobs" class="text-xs text-slate-500">Last {{ recentJobCount }} shown</span>
           </header>
           <p v-if="!hasJobs" class="text-sm text-slate-600">
-            No job activity yet. Accepted or posted runs will appear here once work starts.
+            No run activity yet. Accepted or posted runs will appear here once work starts.
           </p>
           <ol v-else class="space-y-3">
             <li

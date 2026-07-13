@@ -634,11 +634,11 @@ function validateMovementTimings() {
 
 async function submit() {
   if (!auth.token) {
-    errorMessage.value = 'You need to log in as a dealer to create jobs.';
+    errorMessage.value = 'You need to log in as a dealer to create runs.';
     return;
   }
   if (isEdit.value && auth.role !== 'dealer') {
-    errorMessage.value = 'Only dealers can edit jobs.';
+    errorMessage.value = 'Only dealers can edit runs.';
     return;
   }
 
@@ -649,7 +649,7 @@ async function submit() {
     await validateCurrentStep();
 
     if (!verifiedVehicle.value && !isEdit.value) {
-      throw new Error('Verify the registration plate before creating this job.');
+      throw new Error('Verify the registration plate before creating this run.');
     }
 
     if (!form.pickup_label) {
@@ -684,17 +684,17 @@ async function submit() {
       await auth.fetchMe().catch(() => null);
       const checkout = await createJobCheckout(createdJob.id);
       if (!checkout?.url) {
-        throw new Error('Job was created, but Stripe did not return a checkout link.');
+        throw new Error('Run was created, but Stripe did not return a checkout link.');
       }
       jobDraft.clearDraft();
       window.location.href = checkout.url;
     }
   } catch (error) {
-    console.error('Failed to create job', error);
+    console.error('Failed to create run', error);
     errorMessage.value =
       error.response?.data?.message ||
       error.message ||
-      'Could not save job. Please check the form.';
+      'Could not save run. Please check the form.';
   } finally {
     submitting.value = false;
   }
@@ -747,7 +747,7 @@ async function loadJobForEditing() {
     const { data } = await api.get(`/jobs/${jobId.value}`);
     const job = data?.data ?? data ?? null;
     if (!job) {
-      throw new Error('Job not found.');
+      throw new Error('Run not found.');
     }
 
     const pickup = splitDateTime(job.pickup_ready_at);
@@ -775,11 +775,11 @@ async function loadJobForEditing() {
     clearValidationState();
     currentStep.value = 0;
   } catch (error) {
-    console.error('Failed to load job for editing', error);
+    console.error('Failed to load run for editing', error);
     loadError.value =
       error.response?.data?.message ||
       error.message ||
-      'We could not load this job for editing.';
+      'We could not load this run for editing.';
   } finally {
     loading.value = false;
   }
@@ -811,7 +811,7 @@ watch(
 <template>
   <div class="mx-auto max-w-6xl space-y-5 overflow-x-hidden">
     <div v-if="loading" class="section-card text-sm text-slate-600">
-      Loading job details...
+      Loading run details...
     </div>
 
     <p v-else-if="loadError" class="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-700">
@@ -824,7 +824,7 @@ watch(
             <div class="space-y-2">
               <div>
                 <h1 class="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                  {{ isEdit ? 'Edit job' : 'Create a new job' }}
+                  {{ isEdit ? 'Edit run' : 'Create a run' }}
                 </h1>
               </div>
             </div>
@@ -952,7 +952,7 @@ watch(
     <ConfirmModal
       :open="showStartOverModal"
       title="Clear this draft and start over?"
-      description="This will remove the saved job details on this device and take you back to Vehicle."
+      description="This will remove the saved run details on this device and take you back to Vehicle."
       cancel-text="Cancel"
       confirm-text="Clear draft"
       confirm-tone="rose"

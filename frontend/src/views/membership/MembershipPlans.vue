@@ -14,14 +14,14 @@ const plans = [
     price: '£0',
     description: 'Core tools for independents getting started with MotorRelay.',
     drivers: [
-      'Access to local job board',
-      'Up to 5 job applications per day',
+      'Access to local run board',
+      'Up to 5 run applications per day',
       'Manual invoice downloads',
       'Community support centre'
     ],
     dealers: [
-      'Post up to 5 jobs per month',
-      'Daily job view analytics',
+      'Post up to 5 runs per month',
+      'Daily run view analytics',
       'Email notifications for run updates',
       'Single user seat'
     ]
@@ -35,10 +35,10 @@ const plans = [
       'Planner dashboard & saved routes',
       'Priority chat support',
       'Instant payout eligibility',
-      'Job search radius up to 100 miles'
+      'Run search radius up to 100 miles'
     ],
     dealers: [
-      'Post up to 40 jobs per month',
+      'Post up to 40 runs per month',
       '2 urgent boosts included monthly',
       'Shared inbox for team co-ordination',
       'Automated invoice exports'
@@ -50,13 +50,13 @@ const plans = [
     price: '£79/mo',
     description: 'Enterprise assistance for nationwide drivers and high-volume dealers.',
     drivers: [
-      'Unlimited job applications',
+      'Unlimited run applications',
       'Dedicated account manager',
       'Same-day fuel & expense reconciliation',
       'API hooks for telemetry integrations'
     ],
     dealers: [
-      'Unlimited job posts & archived reporting',
+      'Unlimited run posts & archived reporting',
       'Team permissions & workload routing',
       'Custom integrations & webhooks',
       'Quarterly optimisation reviews'

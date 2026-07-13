@@ -79,22 +79,22 @@ function currentJobAction(job) {
   const completionStatus = String(job?.completion_status || '').toLowerCase();
 
   if (status === 'in_progress' || status === 'accepted' || status === 'pending') {
-    return 'Open this job and mark the vehicle collected.';
+    return 'Open this run and mark the vehicle collected.';
   }
 
   if (status === 'collected' || status === 'in_transit') {
-    return 'Open this job and mark the vehicle delivered.';
+    return 'Open this run and mark the vehicle delivered.';
   }
 
   if (status === 'delivered' && completionStatus !== 'submitted') {
-    return 'Open this job and upload delivery proof.';
+    return 'Open this run and upload delivery proof.';
   }
 
   if (completionStatus === 'submitted' || status === 'completion_pending') {
     return 'Waiting for the dealer to approve your proof.';
   }
 
-  return 'Open this job to see the next step.';
+  return 'Open this run to see the next step.';
 }
 
 onMounted(async () => {
@@ -139,10 +139,10 @@ onMounted(async () => {
       >
         <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div class="space-y-3">
-            <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Current job</p>
+            <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Current run</p>
             <div>
               <h2 class="text-2xl font-black text-slate-950">
-                {{ currentJob.title || `Job #${currentJob.id}` }}
+                {{ currentJob.title || `Run #${currentJob.id}` }}
               </h2>
               <p class="mt-1 text-sm text-slate-600">
                 {{ currentJob.pickup_postcode || '--' }} to {{ currentJob.dropoff_postcode || '--' }}
@@ -176,26 +176,26 @@ onMounted(async () => {
             :to="`/jobs/${currentJob.id}`"
             class="btn-primary inline-flex justify-center px-5 py-3 text-sm"
           >
-            Open current job
+            Open current run
           </RouterLink>
           <RouterLink
             to="/jobs"
             class="btn-secondary inline-flex justify-center px-5 py-3 text-sm"
           >
-            View all jobs
+            View all runs
           </RouterLink>
         </div>
       </section>
 
       <section class="grid grid-cols-3 gap-3 lg:grid-cols-4">
         <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Active jobs</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Active runs</h2>
           <p class="mt-2 text-2xl font-bold text-slate-900">
             {{ stats.active_count ?? 0 }}
           </p>
         </article>
         <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed jobs</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed runs</h2>
           <p class="mt-2 text-2xl font-bold text-slate-900">
             {{ stats.completed_count ?? 0 }}
           </p>
@@ -257,19 +257,19 @@ onMounted(async () => {
       <section class="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900">Active jobs</h2>
+            <h2 class="text-lg font-semibold text-slate-900">Active runs</h2>
             <p class="text-xs text-slate-500">
-              Jobs currently assigned to you. Update status from the job detail screen.
+              Runs currently assigned to you. Update status from the run detail screen.
             </p>
           </div>
           <RouterLink to="/jobs" class="btn-secondary inline-flex w-full justify-center px-4 py-2 text-sm sm:w-auto">
-            View jobs
+            View runs
             <span aria-hidden="true">→</span>
           </RouterLink>
         </div>
 
         <div v-if="!activeJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          You have no active jobs right now.
+          You have no active runs right now.
         </div>
 
         <div v-else class="space-y-3">
@@ -282,7 +282,7 @@ onMounted(async () => {
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p class="text-sm font-semibold text-slate-900">
-                  {{ job.title || `Job #${job.id}` }}
+                  {{ job.title || `Run #${job.id}` }}
                 </p>
                 <p class="text-xs text-slate-500">
                   {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
@@ -311,7 +311,7 @@ onMounted(async () => {
             </p>
           </div>
           <RouterLink to="/jobs" class="btn-secondary inline-flex w-full justify-center px-4 py-2 text-sm sm:w-auto">
-            Browse jobs
+            Browse runs
             <span aria-hidden="true">→</span>
           </RouterLink>
         </div>
@@ -329,7 +329,7 @@ onMounted(async () => {
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p class="text-sm font-semibold text-slate-900">
-                  {{ application.job?.title || `Job #${application.job?.id}` }}
+                  {{ application.job?.title || `Run #${application.job?.id}` }}
                 </p>
                 <p class="text-xs text-slate-500">
                   Dealer: {{ application.job?.posted_by?.name || 'Dealer' }}
@@ -357,7 +357,7 @@ onMounted(async () => {
           <div>
             <h2 class="text-lg font-semibold text-slate-900">Recently completed</h2>
             <p class="text-xs text-slate-500">
-              A quick snapshot of the latest closed jobs. Explore everything from your scorecard.
+              A quick snapshot of the latest closed runs. Explore everything from your scorecard.
             </p>
           </div>
           <RouterLink to="/profile" class="btn-secondary inline-flex w-full justify-center px-4 py-2 text-sm sm:w-auto">
@@ -367,7 +367,7 @@ onMounted(async () => {
         </div>
 
         <div v-if="!completedJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          No completed jobs yet.
+          No completed runs yet.
         </div>
 
         <div v-else class="space-y-3">
@@ -379,7 +379,7 @@ onMounted(async () => {
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p class="text-sm font-semibold text-slate-900">
-                  {{ job.title || `Job #${job.id}` }}
+                  {{ job.title || `Run #${job.id}` }}
                 </p>
                 <p class="text-xs text-slate-500">
                   {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}

@@ -49,12 +49,12 @@ onMounted(() => {
 const dealerQuickLinks = [
   {
     to: '/jobs/new',
-    title: 'Create job',
+    title: 'Create run',
     description: 'Post a vehicle movement'
   },
   {
     to: '/jobs',
-    title: 'Manage jobs',
+    title: 'Manage runs',
     description: 'Assign, pay, approve, payout'
   },
   {
@@ -213,11 +213,11 @@ async function confirmPayoutDisconnect() {
             <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Dealer workspace</p>
             <h2 class="mt-1 text-xl font-black text-slate-950">Your dealer profile</h2>
             <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Keep this page simple: create jobs, manage payments, review proof, and download invoices.
+              Keep this page simple: create runs, manage payments, review proof, and download invoices.
             </p>
           </div>
           <RouterLink to="/jobs/new" class="btn-primary w-full sm:w-auto">
-            Create job
+            Create run
           </RouterLink>
         </div>
 

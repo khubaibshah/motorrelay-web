@@ -62,7 +62,7 @@ async function openNotification(notification) {
           <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Notifications</p>
           <h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950">Notification center</h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Track job changes, payment updates, proof approvals, and invoice events here.
+            Track run changes, payment updates, proof approvals, and invoice events here.
           </p>
         </div>
         <div class="flex items-center gap-3">

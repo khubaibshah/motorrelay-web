@@ -72,9 +72,9 @@ function resolvePod(job) {
       <header class="flex flex-wrap items-start gap-3">
       <BackButton />
       <div class="space-y-2">
-        <h1 class="text-2xl font-bold text-slate-900">Completed jobs</h1>
+        <h1 class="text-2xl font-bold text-slate-900">Completed runs</h1>
         <p class="text-sm text-slate-600">
-          Browse the full history of completed and closed jobs, with quick links to invoices and proof of delivery.
+          Browse the full history of completed and closed runs, with quick links to invoices and proof of delivery.
         </p>
       </div>
     </header>
@@ -84,12 +84,12 @@ function resolvePod(job) {
         v-if="!completedJobs.length"
         class="flex items-center justify-between rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
       >
-        <p>No jobs have been marked completed yet.</p>
+        <p>No runs have been marked completed yet.</p>
         <RouterLink
           to="/jobs"
           class="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
         >
-          Find new jobs
+          Find new runs
         </RouterLink>
       </div>
 
@@ -102,7 +102,7 @@ function resolvePod(job) {
           <header class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 class="text-lg font-semibold text-slate-900">
-                {{ job.title || job.company || job.reference || job.job_reference || 'MotorRelay job' }}
+                {{ job.title || job.company || job.reference || job.job_reference || 'MotorRelay run' }}
               </h2>
               <p class="text-xs text-slate-500">
                 Completed {{ formatDate(job.completed_at || job.updated_at || job.created_at) }}
@@ -167,7 +167,7 @@ function resolvePod(job) {
               :to="`/jobs/${job.id}`"
               class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Open job detail
+              Open run detail
             </RouterLink>
           </footer>
         </article>
@@ -178,7 +178,7 @@ function resolvePod(job) {
     <aside class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 class="text-sm font-semibold text-slate-900">Need more detail?</h2>
       <p class="text-sm text-slate-600">
-        Completed jobs store invoice and delivery evidence. Keep them updated to generate professional paperwork in seconds.
+        Completed runs store invoice and delivery evidence. Keep them updated to generate professional paperwork in seconds.
       </p>
       <RouterLink
         to="/invoices"

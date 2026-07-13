@@ -288,9 +288,9 @@ function scrollMessagesToBottom() {
       <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Messages</p>
-          <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Keep every job conversation in one place</h1>
+          <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Keep every run conversation in one place</h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Track updates, images, proof, and location messages without leaving the job.
+            Track updates, images, proof, and location messages without leaving the run.
           </p>
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -316,7 +316,7 @@ function scrollMessagesToBottom() {
             <input
               v-model="threadSearch"
               type="search"
-              placeholder="Search jobs, people, messages..."
+              placeholder="Search runs, people, messages..."
               class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
             >
           </header>
@@ -353,7 +353,7 @@ function scrollMessagesToBottom() {
               </div>
               <div class="mt-3 flex flex-wrap items-center gap-2">
                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                  {{ thread.job_id ? `Job #${thread.job_id}` : 'No job' }}
+                    {{ thread.job_id ? `Run #${thread.job_id}` : 'No run' }}
                 </span>
                 <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
                   {{ thread.updated_at ? new Date(thread.updated_at).toLocaleDateString() : '--' }}
@@ -386,7 +386,7 @@ function scrollMessagesToBottom() {
           <div class="max-w-md">
             <h2 class="text-xl font-black text-slate-950">Select a conversation</h2>
             <p class="mt-2 text-sm text-slate-600">
-              Choose a thread on the left to review updates, proof, and job messages.
+              Choose a thread on the left to review updates, proof, and run messages.
             </p>
           </div>
         </div>
@@ -405,7 +405,7 @@ function scrollMessagesToBottom() {
               </p>
             </div>
             <span v-if="selectedThread.job_id" class="badge bg-slate-100 text-slate-700">
-              Job #{{ selectedThread.job_id }}
+              Run #{{ selectedThread.job_id }}
             </span>
           </header>
 

@@ -118,7 +118,7 @@ watch(
   <div class="mx-auto w-full max-w-3xl space-y-8 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 lg:p-10">
     <header>
       <h1 class="text-2xl font-bold text-slate-900">Create your MotorRelay account</h1>
-      <p class="text-sm text-slate-600">Drivers and dealers join to post, accept and track jobs.</p>
+      <p class="text-sm text-slate-600">Drivers and dealers join to post, accept and track runs.</p>
     </header>
 
     <form class="space-y-4" @submit.prevent="submit">

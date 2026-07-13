@@ -44,8 +44,8 @@ const postedJobs = computed(() => {
 });
 
 const primaryAction = computed(() => {
-  if (auth.role === 'driver') return { to: '/jobs', label: 'Browse jobs' };
-  if (auth.role === 'dealer') return { to: '/jobs/new', label: 'Create job' };
+  if (auth.role === 'driver') return { to: '/jobs', label: 'Browse runs' };
+  if (auth.role === 'dealer') return { to: '/jobs/new', label: 'Create run' };
   if (auth.role === 'admin') return { to: '/admin', label: 'Open admin' };
   return { to: '/login', label: 'Sign in' };
 });
@@ -67,13 +67,13 @@ const quickLinks = computed(() => {
     return [
       { to: '/admin', title: 'Overview', text: 'Monitor platform activity and health.' },
       { to: '/admin/applications', title: 'Applications', text: 'Review driver and dealer activity.' },
-      { to: '/admin/system-health', title: 'System health', text: 'Spot stale jobs and conversations.' }
+      { to: '/admin/system-health', title: 'System health', text: 'Spot stale runs and conversations.' }
     ];
   }
 
   return [
     { to: '/signup', title: 'Drivers', text: 'Find work, submit proof, and manage invoices.' },
-    { to: '/signup', title: 'Dealers', text: 'Post jobs and assign trusted drivers.' },
+    { to: '/signup', title: 'Dealers', text: 'Post runs and assign trusted drivers.' },
     { to: '/login', title: 'Operations', text: 'Track messages, expenses, and paperwork.' }
   ];
 });
@@ -95,8 +95,8 @@ const dealerJobsProgress = computed(() => {
 
 const liveBoardMode = ref('open');
 const liveBoardJobs = computed(() => (liveBoardMode.value === 'progress' ? dealerJobsProgress.value : jobsToDisplay.value));
-const liveBoardTitle = computed(() => (liveBoardMode.value === 'progress' ? 'Jobs in progress' : 'Open jobs'));
-const liveBoardEmptyText = computed(() => (liveBoardMode.value === 'progress' ? 'No jobs in progress yet.' : openJobsEmptyText.value));
+const liveBoardTitle = computed(() => (liveBoardMode.value === 'progress' ? 'Runs in progress' : 'Open runs'));
+const liveBoardEmptyText = computed(() => (liveBoardMode.value === 'progress' ? 'No runs in progress yet.' : openJobsEmptyText.value));
 const liveBoardCountText = computed(() => {
   if (loading.value) return 'Syncing';
   return `${liveBoardJobs.value.length} shown`;
@@ -124,14 +124,14 @@ function paymentLabel(job) {
 
 const openJobsEmptyText = computed(() => {
   if (auth.role === 'driver') {
-    return 'No open jobs right now. Check back later for new dealer jobs.';
+    return 'No open runs right now. Check back later for new dealer runs.';
   }
 
   if (auth.role === 'dealer') {
-    return 'No open jobs yet. Create your first job to start receiving driver requests.';
+    return 'No open runs yet. Create your first run to start receiving driver requests.';
   }
 
-  return 'No open jobs yet. Jobs will appear here when dealers post them.';
+  return 'No open runs yet. Runs will appear here when dealers post them.';
 });
 </script>
 
@@ -149,7 +149,7 @@ const openJobsEmptyText = computed(() => {
               Move vehicles with less chasing.
             </h1>
             <p class="max-w-2xl text-sm leading-6 text-slate-600 sm:text-lg sm:leading-7">
-              MotorRelay brings jobs, drivers, live tracking, expenses, messages, proof of delivery, and invoices into one clean workspace.
+              MotorRelay brings runs, drivers, live tracking, expenses, messages, proof of delivery, and invoices into one clean workspace.
             </p>
           </div>
 
@@ -180,7 +180,7 @@ const openJobsEmptyText = computed(() => {
             :class="liveBoardMode === 'open' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
             @click="liveBoardMode = 'open'"
           >
-            Open jobs
+            Open runs
           </button>
           <button
             v-if="auth.role === 'dealer'"
@@ -189,7 +189,7 @@ const openJobsEmptyText = computed(() => {
             :class="liveBoardMode === 'progress' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
             @click="liveBoardMode = 'progress'"
           >
-            Jobs in progress
+            Runs in progress
           </button>
         </div>
       </div>

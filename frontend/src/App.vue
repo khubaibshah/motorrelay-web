@@ -222,7 +222,7 @@ const navLinks = [
   { to: '/', label: 'Home', exact: true, icon: 'home', showInBottomNav: true },
   { to: '/driver', label: 'Driver', roles: ['driver'], icon: 'jobs', showInBottomNav: true },
   { to: '/invoices', label: 'Invoices', roles: ['driver', 'dealer', 'admin'] },
-  { to: '/jobs', label: 'Jobs', icon: 'jobs', showInBottomNav: true },
+  { to: '/jobs', label: 'Runs', icon: 'jobs', showInBottomNav: true },
   { to: '/membership', label: 'Membership' },
   { to: '/messages', label: 'Messages', icon: 'messages', showInBottomNav: true },
   { to: '/notifications', label: 'Notifications', icon: 'notifications', showInBottomNav: true },

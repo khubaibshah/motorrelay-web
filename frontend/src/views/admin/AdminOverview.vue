@@ -10,14 +10,14 @@ const statCards = computed(() => {
   const stats = overview.value.stats || {};
   return [
     {
-      key: 'active_jobs',
-      label: 'Active jobs',
+      key: 'active_runs',
+      label: 'Active runs',
       value: stats.active_jobs?.value ?? 0,
       subtitle: stats.active_jobs?.subtitle || ''
     },
     {
-      key: 'completed_jobs',
-      label: 'Jobs completed',
+      key: 'completed_runs',
+      label: 'Runs completed',
       value: stats.completed_jobs?.value ?? 0,
       subtitle: stats.completed_jobs?.subtitle || ''
     },
@@ -74,7 +74,7 @@ const verificationTotals = computed(() => {
       <section class="tile rounded-2xl bg-white p-4">
         <header class="mb-3 flex items-center justify-between">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900">Job pipeline</h2>
+            <h2 class="text-lg font-semibold text-slate-900">Run pipeline</h2>
             <p class="text-xs text-slate-500">Quick glance at workflow status.</p>
           </div>
           <span
@@ -94,13 +94,13 @@ const verificationTotals = computed(() => {
             <header class="flex items-center gap-3">
               <div class="text-base font-semibold text-slate-900">{{ bucket.label }}</div>
               <span class="rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                {{ bucket.count }} {{ bucket.count === 1 ? 'job' : 'jobs' }}
+                {{ bucket.count }} {{ bucket.count === 1 ? 'run' : 'runs' }}
               </span>
             </header>
 
             <div class="sm:w-2/3 lg:w-3/4">
               <p v-if="!bucket.jobs?.length" class="rounded-xl border border-dashed border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-500">
-                No jobs currently in this step.
+                No runs currently in this step.
               </p>
 
               <ol v-else class="space-y-3 text-sm text-slate-600">
@@ -131,7 +131,7 @@ const verificationTotals = computed(() => {
         <header class="mb-3 flex items-center justify-between">
           <div>
             <h2 class="text-lg font-semibold text-slate-900">Driver leaderboard</h2>
-            <p class="text-xs text-slate-500">Based on assigned jobs.</p>
+            <p class="text-xs text-slate-500">Based on assigned runs.</p>
           </div>
           <span
             v-if="leaderboard.length"

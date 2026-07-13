@@ -113,35 +113,20 @@ async function handleLogout() {
 <template>
   <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
     <div class="space-y-4">
-      <section class="tile space-y-5 p-5 md:p-6">
-        <header class="flex items-center gap-4">
-          <div class="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700">
+      <section class="tile space-y-4 p-4 md:p-5">
+        <header class="flex items-start gap-3">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-base font-bold text-emerald-700">
             {{ initials }}
           </div>
-          <div class="min-w-0">
-            <h1 class="truncate text-2xl font-black text-slate-950">
+          <div class="min-w-0 flex-1">
+            <h1 class="truncate text-xl font-black text-slate-950 md:text-2xl">
               {{ auth.user?.name || 'New MotorRelay user' }}
             </h1>
-            <p class="truncate text-sm text-slate-500">
+            <p class="truncate text-xs text-slate-500 md:text-sm">
               {{ auth.user?.email || 'email@motorrelay.com' }}
             </p>
           </div>
         </header>
-
-        <div class="flex flex-wrap gap-3">
-          <div class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
-            <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Role</span>
-            <p class="mt-0.5 text-sm font-semibold text-slate-900">
-              {{ auth.role || 'Pending' }}
-            </p>
-          </div>
-          <div class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
-            <span class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Plan</span>
-            <p class="mt-0.5 text-sm font-semibold text-slate-900">
-              {{ auth.planDisplayLabel || 'Free' }}
-            </p>
-          </div>
-        </div>
       </section>
 
       <section

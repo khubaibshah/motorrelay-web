@@ -163,14 +163,19 @@
           <div v-else class="h-10 w-10" aria-hidden="true"></div>
         </div>
 
-        <button
+        <RouterLink
           v-if="!showLogin"
-          type="button"
-          class="btn-secondary hidden shrink-0 px-3 py-2 text-xs sm:px-4 sm:text-sm md:inline-flex"
-          @click="handleLogout"
+          to="/profile"
+          class="hidden shrink-0 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/80 p-2 text-slate-800 shadow-sm transition hover:border-emerald-200 hover:text-slate-950 md:inline-flex"
+          aria-label="Profile"
+          title="Profile"
         >
-          Logout
-        </button>
+          <span class="sr-only">Profile</span>
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="8.75" r="3.25" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.75 19a6.25 6.25 0 0 1 12.5 0" />
+          </svg>
+        </RouterLink>
       </nav>
     </header>
 

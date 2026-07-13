@@ -699,7 +699,7 @@ watch(
               @click="setStep(index)"
               :class="
                 index === currentStep
-                  ? 'bg-emerald-100 text-emerald-900'
+                  ? 'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-emerald-200'
                   : index < currentStep
                     ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                     : 'bg-slate-100 text-slate-400'
@@ -796,7 +796,7 @@ watch(
 
               <div class="flex justify-end">
                 <button type="button" class="btn-primary px-5 py-3" :disabled="vehicleLookupLoading" @click="goNext">
-                  Next: Route
+                  Next
                 </button>
               </div>
             </section>
@@ -968,7 +968,7 @@ watch(
               <div class="flex items-center justify-between gap-3">
                 <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
                 <button type="button" class="btn-primary px-5 py-3" :disabled="addressLookup.pickup.loading || addressLookup.dropoff.loading" @click="goNext">
-                  Next: Movement
+                  Next
                 </button>
               </div>
             </section>
@@ -1044,7 +1044,7 @@ watch(
               <div class="flex items-center justify-between gap-3">
                 <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
                 <button type="button" class="btn-primary px-5 py-3" @click="goNext">
-                  Next: Payment
+                  Next
                 </button>
               </div>
             </section>

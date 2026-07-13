@@ -4,6 +4,10 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import { createJobCheckout } from '@/services/payments';
 import { useAuthStore } from '@/stores/auth';
+import JobCreateVehicleStep from '@/components/jobs/JobCreateVehicleStep.vue';
+import JobCreateRouteStep from '@/components/jobs/JobCreateRouteStep.vue';
+import JobCreateMovementStep from '@/components/jobs/JobCreateMovementStep.vue';
+import JobCreatePaymentStep from '@/components/jobs/JobCreatePaymentStep.vue';
 
 const props = defineProps({
   id: {
@@ -25,12 +29,8 @@ const defaultFormState = {
   vehicle_make: '',
   price: '',
   transport_type: 'drive_away',
-  pickup_date: '',
-  pickup_time: '',
-  delivery_date: '',
-  delivery_time: '',
-  is_urgent: false,
-  urgent_fee_ack: false
+  pickup_at: '',
+  delivery_at: '',
 };
 
 const form = reactive({ ...defaultFormState });
@@ -51,12 +51,9 @@ const validationState = reactive({
   dropoff_postcode: false,
   dropoff_label: false,
   transport_type: false,
-  pickup_date: false,
-  pickup_time: false,
-  delivery_date: false,
-  delivery_time: false,
+  pickup_at: false,
+  delivery_at: false,
   price: false,
-  urgent_fee_ack: false
 });
 const addressLookup = reactive({
   pickup: {
@@ -87,13 +84,6 @@ const transportOptions = [
     helper: 'The vehicle should be moved on a trailer or transporter.'
   }
 ];
-
-const timeSlotValues = Array.from({ length: 96 }, (_, index) => {
-  const totalMinutes = index * 15;
-  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-  const minutes = String(totalMinutes % 60).padStart(2, '0');
-  return `${hours}:${minutes}`;
-});
 
 const wizardStepKeys = ['vehicle', 'route', 'movement', 'payment'];
 
@@ -142,16 +132,6 @@ function syncWizardStepQuery(stepIndex, mode = 'push') {
   }).catch(() => null);
 }
 
-function buildTimeOptions(selectedValue) {
-  if (selectedValue && !timeSlotValues.includes(selectedValue)) {
-    return [selectedValue, ...timeSlotValues];
-  }
-  return timeSlotValues;
-}
-
-const pickupTimeOptions = computed(() => buildTimeOptions(form.pickup_time));
-const deliveryTimeOptions = computed(() => buildTimeOptions(form.delivery_time));
-
 const wizardSteps = [
   { key: 'vehicle', label: 'Vehicle' },
   { key: 'route', label: 'Route' },
@@ -174,30 +154,15 @@ const jobId = computed(() => {
 
 const isEdit = computed(() => Boolean(jobId.value));
 
-const paidPlans = ['gold_driver', 'dealer_pro'];
-const planSlug = computed(() => (auth.planSlug || auth.user?.plan_slug || '').toLowerCase());
-const hasPaidPlan = computed(() => paidPlans.includes(planSlug.value));
-const requiresUrgentAcknowledgement = computed(() => form.is_urgent && !hasPaidPlan.value);
 const jobPrice = computed(() => Number(form.price || 0));
 const platformCommissionRate = 0.1;
 const estimatedPlatformFee = computed(() => Math.max(jobPrice.value * platformCommissionRate, 0));
-const estimatedUrgentFee = computed(() => (requiresUrgentAcknowledgement.value ? 25 : 0));
-const estimatedDealerTotal = computed(() => jobPrice.value + estimatedUrgentFee.value);
 const estimatedDriverPayout = computed(() => Math.max(jobPrice.value - estimatedPlatformFee.value, 0));
 const moneyFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
   currency: 'GBP',
   maximumFractionDigits: 2
 });
-const urgentHelperText = computed(() => {
-  if (!form.is_urgent) {
-    return 'Optional. Use this when the job needs driver attention quickly.';
-  }
-  return hasPaidPlan.value
-    ? 'Urgent boost is included with your subscription.'
-    : 'Urgent boost adds an extra charge on Starter before the job is posted.';
-});
-
 function formatMoney(value) {
   return moneyFormatter.format(Number(value || 0));
 }
@@ -412,15 +377,6 @@ watch(
 );
 
 watch(
-  () => form.is_urgent,
-  (next) => {
-    if (!next) {
-      form.urgent_fee_ack = false;
-    }
-  }
-);
-
-watch(
   () => form.transport_type,
   (next) => {
     if (next) {
@@ -454,12 +410,10 @@ watch(
 );
 
 watch(
-  () => [form.pickup_date, form.pickup_time, form.delivery_date, form.delivery_time],
-  ([pickupDate, pickupTime, deliveryDate, deliveryTime]) => {
-    if (pickupDate) validationState.pickup_date = false;
-    if (pickupTime) validationState.pickup_time = false;
-    if (deliveryDate) validationState.delivery_date = false;
-    if (deliveryTime) validationState.delivery_time = false;
+  () => [form.pickup_at, form.delivery_at],
+  ([pickupAt, deliveryAt]) => {
+    if (pickupAt) validationState.pickup_at = false;
+    if (deliveryAt) validationState.delivery_at = false;
   }
 );
 
@@ -471,46 +425,6 @@ watch(
     }
   }
 );
-
-watch(
-  () => form.urgent_fee_ack,
-  (next) => {
-    if (next) {
-      validationState.urgent_fee_ack = false;
-    }
-  }
-);
-
-const starterUsageInfo = computed(() => {
-  if (planSlug.value !== 'starter') return null;
-
-  const jobLimit = auth.planLimits?.monthly_job_posts ?? null;
-  const jobUsed = auth.usage?.job_posts_this_month ?? 0;
-  const urgentLimit = auth.planLimits?.urgent_boost_per_month ?? null;
-  const urgentUsed = auth.usage?.urgent_boosts_used ?? 0;
-
-  return {
-    jobLimit,
-    jobUsed,
-    jobRemaining: jobLimit != null ? Math.max(jobLimit - jobUsed, 0) : null,
-    urgentLimit,
-    urgentUsed,
-    urgentRemaining: urgentLimit != null ? Math.max(urgentLimit - urgentUsed, 0) : null
-  };
-});
-
-const canUseUrgentBoost = computed(() => {
-  if (!starterUsageInfo.value) return true;
-  if (starterUsageInfo.value.urgentRemaining === null) return true;
-  return starterUsageInfo.value.urgentRemaining > 0;
-});
-
-watch(canUseUrgentBoost, (allowed) => {
-  if (!allowed) {
-    form.is_urgent = false;
-    form.urgent_fee_ack = false;
-  }
-});
 
 function setStep(stepIndex) {
   if (stepIndex < 0 || stepIndex >= wizardSteps.length) {
@@ -551,32 +465,24 @@ async function validateCurrentStep() {
     }
   }
 
-  if (currentStep.value === 2) {
-    if (!form.transport_type) {
-      setValidationError('transport_type', 'Please choose a transport type.');
-    }
-    if (!form.pickup_date) {
-      setValidationError('pickup_date', 'Please choose a pickup date.');
-    }
-    if (!form.pickup_time) {
-      setValidationError('pickup_time', 'Please choose a pickup time.');
-    }
-    if (!form.delivery_date) {
-      setValidationError('delivery_date', 'Please choose a delivery date.');
-    }
-    if (!form.delivery_time) {
-      setValidationError('delivery_time', 'Please choose a delivery time.');
-    }
+    if (currentStep.value === 2) {
+      if (!form.transport_type) {
+        setValidationError('transport_type', 'Please choose a transport type.');
+      }
+      if (!form.pickup_at) {
+        setValidationError('pickup_at', 'Please choose a pickup date and time.');
+      }
+      if (!form.delivery_at) {
+        setValidationError('delivery_at', 'Please choose a delivery date and time.');
+      }
 
-    if (
-      validationState.transport_type ||
-      validationState.pickup_date ||
-      validationState.pickup_time ||
-      validationState.delivery_date ||
-      validationState.delivery_time
-    ) {
-      throw new Error('Please complete the highlighted fields before continuing.');
-    }
+      if (
+        validationState.transport_type ||
+        validationState.pickup_at ||
+        validationState.delivery_at
+      ) {
+        throw new Error('Please complete the highlighted fields before continuing.');
+      }
 
       validateMovementTimings();
     }
@@ -587,12 +493,8 @@ async function validateCurrentStep() {
       throw new Error('Please complete the highlighted field before continuing.');
     }
 
-    if (requiresUrgentAcknowledgement.value && !form.urgent_fee_ack) {
-      setValidationError('urgent_fee_ack', 'Please acknowledge the urgent boost fee.');
-      throw new Error('Please complete the highlighted field before continuing.');
     }
   }
-}
 
 async function handleWizardSubmit() {
   if (isLastStep.value) {
@@ -625,45 +527,50 @@ function goBack() {
 }
 
 
-function buildDateTime(dateValue, timeValue) {
-  if (!dateValue) {
+function buildDateTime(dateTimeValue) {
+  if (!dateTimeValue) {
     return null;
   }
-  const timePart = timeValue ? `${timeValue}` : '00:00';
-  return `${dateValue} ${timePart}`;
+  return dateTimeValue;
 }
 
-function buildComparison(dateValue, timeValue) {
-  if (!dateValue) {
+function buildComparison(dateTimeValue) {
+  if (!dateTimeValue) {
     return null;
   }
-  const safeTime = timeValue ? `${timeValue}:00` : '00:00:00';
-  return new Date(`${dateValue}T${safeTime}`);
+  const [datePart, timePart = '00:00'] = `${dateTimeValue}`.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours, minutes] = timePart.split(':').map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day, hours || 0, minutes || 0, 0, 0);
 }
 
 function validateMovementTimings() {
-  const pickupComparable = buildComparison(form.pickup_date, form.pickup_time);
-  const deliveryComparable = buildComparison(form.delivery_date, form.delivery_time);
+  const pickupComparable = buildComparison(form.pickup_at);
+  const deliveryComparable = buildComparison(form.delivery_at);
   const now = new Date();
 
   if (deliveryComparable && deliveryComparable <= now) {
     validationMessage.value = 'Delivery due must be in the future.';
-    setValidationError('delivery_date', 'Delivery due must be in the future.');
-    setValidationError('delivery_time', 'Delivery due must be in the future.');
+    setValidationError('delivery_at', 'Delivery due must be in the future.');
     throw new Error('Delivery due must be in the future.');
   }
 
   if (pickupComparable && deliveryComparable && deliveryComparable.getTime() === pickupComparable.getTime()) {
     validationMessage.value = 'Pickup and delivery cannot be the same date and time.';
-    setValidationError('delivery_date', 'Delivery due cannot match pickup exactly.');
-    setValidationError('delivery_time', 'Delivery due cannot match pickup exactly.');
+    setValidationError('pickup_at', 'Pickup and delivery cannot be the same date and time.');
+    setValidationError('delivery_at', 'Delivery due cannot match pickup exactly.');
     throw new Error('Pickup and delivery cannot be the same date and time.');
   }
 
   if (pickupComparable && deliveryComparable && deliveryComparable < pickupComparable) {
     validationMessage.value = 'Delivery due must be after pickup ready time.';
-    setValidationError('delivery_date', 'Delivery due must be after pickup ready time.');
-    setValidationError('delivery_time', 'Delivery due must be after pickup ready time.');
+    setValidationError('pickup_at', 'Delivery due must be after pickup ready time.');
+    setValidationError('delivery_at', 'Delivery due must be after pickup ready time.');
     throw new Error('Delivery due time must be after the pickup ready time.');
   }
 }
@@ -696,25 +603,19 @@ async function submit() {
       throw new Error('Find and select the exact drop-off address.');
     }
 
-    if (requiresUrgentAcknowledgement.value && !form.urgent_fee_ack) {
-      throw new Error('Please acknowledge the urgent boost fee before continuing.');
-    }
+      validateMovementTimings();
 
-    validateMovementTimings();
-
-    const payload = {
-      title: form.title,
-      pickup_postcode: form.pickup_postcode,
-      pickup_label: form.pickup_label,
-      dropoff_postcode: form.dropoff_postcode,
-      dropoff_label: form.dropoff_label,
-      price: Number(form.price || 0),
-      transport_type: form.transport_type,
-      pickup_ready_at: buildDateTime(form.pickup_date, form.pickup_time),
-      delivery_due_at: buildDateTime(form.delivery_date, form.delivery_time),
-      is_urgent: form.is_urgent,
-      urgent_accept_fee: requiresUrgentAcknowledgement.value ? form.urgent_fee_ack : false
-    };
+      const payload = {
+        title: form.title,
+        pickup_postcode: form.pickup_postcode,
+        pickup_label: form.pickup_label,
+        dropoff_postcode: form.dropoff_postcode,
+        dropoff_label: form.dropoff_label,
+        price: Number(form.price || 0),
+        transport_type: form.transport_type,
+        pickup_ready_at: buildDateTime(form.pickup_at),
+        delivery_due_at: buildDateTime(form.delivery_at),
+      };
 
     if (isEdit.value) {
       await api.patch(`/jobs/${jobId.value}`, payload);
@@ -752,16 +653,14 @@ function resetForm() {
 
 function splitDateTime(value) {
   if (!value) {
-    return { date: '', time: '' };
+    return '';
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return { date: '', time: '' };
+    return '';
   }
   const pad = (num) => String(num).padStart(2, '0');
-  const datePart = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  return { date: datePart, time: timePart };
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 async function loadJobForEditing() {
@@ -792,12 +691,8 @@ async function loadJobForEditing() {
       vehicle_make: job.vehicle_make || '',
       price: job.price != null ? String(job.price) : '',
       transport_type: job.transport_type || 'drive_away',
-      pickup_date: pickup.date,
-      pickup_time: pickup.time,
-      delivery_date: dropoff.date,
-      delivery_time: dropoff.time,
-      is_urgent: Boolean(job.is_urgent),
-      urgent_fee_ack: Boolean(job.is_urgent)
+      pickup_at: pickup,
+      delivery_at: dropoff,
     });
     verifiedVehicle.value = {
       registration: normaliseRegistration(job.title || ''),
@@ -907,450 +802,53 @@ watch(
             {{ bannerMessage }}
           </p>
 
-          <template v-if="currentStep === 0">
-            <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <header>
-                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Vehicle</p>
-                <h2 class="mt-1 text-xl font-black text-slate-950">What is being moved?</h2>
-              </header>
+          <JobCreateVehicleStep
+            v-if="currentStep === 0"
+            :form="form"
+            :verified-vehicle="verifiedVehicle"
+            :validation-state="validationState"
+            :is-edit="isEdit"
+            :vehicle-lookup-loading="vehicleLookupLoading"
+            @lookup-vehicle="lookupVehicle"
+            @change-vehicle="changeVehicle"
+            @next="goNext"
+          />
 
-              <div class="flex items-end gap-3">
-                <label class="block min-w-0 flex-1">
-                  <span class="text-sm font-bold text-slate-700">Licence plate</span>
-                  <input
-                    v-model="form.title"
-                    type="text"
-                    required
-                    placeholder="e.g. AB12 CDE"
-                    :readonly="isEdit || Boolean(verifiedVehicle)"
-                    @blur="!isEdit && !verifiedVehicle && lookupVehicle()"
-                    class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                    :class="[
-                      verifiedVehicle ? 'bg-slate-100 font-black text-slate-700' : '',
-                      validationState.vehicle && !verifiedVehicle ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
-                    ]"
-                  />
-                </label>
+          <JobCreateRouteStep
+            v-else-if="currentStep === 1"
+            :form="form"
+            :address-lookup="addressLookup"
+            :validation-state="validationState"
+            @lookup-addresses="lookupAddresses"
+            @select-address="selectAddress"
+            @change-address="changeAddress"
+            @use-postcode-only="usePostcodeOnly"
+            @back="goBack"
+            @next="goNext"
+          />
 
-                <button
-                  v-if="!isEdit && !verifiedVehicle"
-                  type="button"
-                  class="btn-secondary shrink-0 px-5"
-                  :disabled="vehicleLookupLoading || !form.title"
-                  @click="lookupVehicle"
-                >
-                  <span v-if="vehicleLookupLoading">Checking...</span>
-                  <span v-else>Check plate</span>
-                </button>
-                <button
-                  v-else-if="!isEdit"
-                  type="button"
-                  class="btn-secondary shrink-0 px-5"
-                  :disabled="vehicleLookupLoading"
-                  @click="changeVehicle"
-                >
-                  Change plate
-                </button>
-              </div>
+          <JobCreateMovementStep
+            v-else-if="currentStep === 2"
+            :form="form"
+            :transport-options="transportOptions"
+            :validation-state="validationState"
+            @select-transport="selectTransport"
+            @back="goBack"
+            @next="goNext"
+          />
 
-              <div
-                v-if="verifiedVehicle"
-                class="grid gap-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 sm:grid-cols-3"
-              >
-                <div>
-                  <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Verified plate</p>
-                  <p class="mt-1 text-lg font-black text-slate-950">{{ verifiedVehicle.registration }}</p>
-                </div>
-                <div>
-                  <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Vehicle</p>
-                  <p class="mt-1 text-lg font-black text-slate-950">{{ form.vehicle_make || '--' }}</p>
-                </div>
-                <div>
-                  <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Details</p>
-                  <p class="mt-1 text-lg font-black text-slate-950">{{ verifiedVehicle.vehicle_type || '--' }}</p>
-                </div>
-              </div>
-
-                  <p
-                    v-else
-                    class="hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:block"
-                    :class="validationState.vehicle ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
-                  >
-                    Enter the registration plate and MotorRelay will pull the vehicle details automatically. Dealers cannot type vehicle details manually.
-                  </p>
-
-              <div class="flex justify-end">
-                <button type="button" class="btn-primary px-5 py-3" :disabled="vehicleLookupLoading" @click="goNext">
-                  Next
-                </button>
-              </div>
-            </section>
-          </template>
-
-            <template v-else-if="currentStep === 1">
-              <section class="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-                <header class="space-y-1">
-                  <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Route</p>
-                  <h2 class="text-xl font-black text-slate-950">Pickup and drop-off</h2>
-                  <p class="text-sm text-slate-600">
-                    Enter each postcode, choose the exact address, then MotorRelay locks it into the job.
-                  </p>
-                </header>
-
-                <div class="grid gap-3 md:grid-cols-2">
-                  <div class="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup</p>
-                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                      <label class="block min-w-0">
-                        <span class="text-sm font-bold text-slate-700">Postcode</span>
-                        <input
-                          v-model="form.pickup_postcode"
-                          type="text"
-                          required
-                          :readonly="Boolean(form.pickup_label)"
-                          placeholder="e.g. M1 2AB"
-                          class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                          :class="[
-                            form.pickup_label ? 'bg-slate-100 font-black text-slate-700' : '',
-                            validationState.pickup_postcode && !form.pickup_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
-                          ]"
-                        />
-                      </label>
-                      <button
-                        v-if="!form.pickup_label"
-                        type="button"
-                        class="btn-secondary shrink-0 px-4 py-3 text-sm"
-                        :disabled="addressLookup.pickup.loading || !form.pickup_postcode"
-                        @click="lookupAddresses('pickup')"
-                      >
-                        <span v-if="addressLookup.pickup.loading">Finding...</span>
-                        <span v-else>Find</span>
-                      </button>
-                      <button
-                        v-else
-                        type="button"
-                        class="btn-secondary shrink-0 px-4 py-3 text-sm"
-                        @click="changeAddress('pickup')"
-                      >
-                        Change
-                      </button>
-                    </div>
-
-                    <p v-if="addressLookup.pickup.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                      {{ addressLookup.pickup.error }}
-                    </p>
-                    <button
-                      v-if="addressLookup.pickup.error && !form.pickup_label"
-                      type="button"
-                      class="btn-secondary w-full"
-                      @click="usePostcodeOnly('pickup')"
-                    >
-                      Use postcode only for testing
-                    </button>
-
-                    <label v-if="addressLookup.pickup.addresses.length && !form.pickup_label" class="block">
-                      <span class="text-sm font-bold text-slate-700">Exact address</span>
-                      <select
-                        class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                        @change="selectAddress('pickup', $event.target.value)"
-                      >
-                        <option value="">Choose the exact pickup address</option>
-                        <option
-                          v-for="address in addressLookup.pickup.addresses"
-                          :key="address.id"
-                          :value="address.id"
-                        >
-                          {{ address.label }}{{ address.secondary ? ` â€” ${address.secondary}` : '' }}
-                        </option>
-                      </select>
-                    </label>
-
-                    <div
-                      v-if="form.pickup_label"
-                      class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-3"
-                      :class="validationState.pickup_label ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
-                    >
-                      <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Pickup locked</p>
-                      <p class="mt-1 text-base font-black text-slate-950">{{ form.pickup_label }}</p>
-                      <p class="mt-1 text-sm text-slate-600">{{ form.pickup_postcode }}</p>
-                    </div>
-                  </div>
-
-                  <div class="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Drop-off</p>
-                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                      <label class="block min-w-0">
-                        <span class="text-sm font-bold text-slate-700">Postcode</span>
-                        <input
-                          v-model="form.dropoff_postcode"
-                          type="text"
-                          required
-                          :readonly="Boolean(form.dropoff_label)"
-                          placeholder="e.g. LS1 4XY"
-                          class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                          :class="[
-                            form.dropoff_label ? 'bg-slate-100 font-black text-slate-700' : '',
-                            validationState.dropoff_postcode && !form.dropoff_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
-                          ]"
-                        />
-                      </label>
-                      <button
-                        v-if="!form.dropoff_label"
-                        type="button"
-                        class="btn-secondary shrink-0 px-4 py-3 text-sm"
-                        :disabled="addressLookup.dropoff.loading || !form.dropoff_postcode"
-                        @click="lookupAddresses('dropoff')"
-                      >
-                        <span v-if="addressLookup.dropoff.loading">Finding...</span>
-                        <span v-else>Find</span>
-                      </button>
-                      <button
-                        v-else
-                        type="button"
-                        class="btn-secondary shrink-0 px-4 py-3 text-sm"
-                        @click="changeAddress('dropoff')"
-                      >
-                        Change
-                      </button>
-                    </div>
-
-                    <p v-if="addressLookup.dropoff.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                      {{ addressLookup.dropoff.error }}
-                    </p>
-                    <button
-                      v-if="addressLookup.dropoff.error && !form.dropoff_label"
-                      type="button"
-                      class="btn-secondary w-full"
-                      @click="usePostcodeOnly('dropoff')"
-                    >
-                      Use postcode only for testing
-                    </button>
-
-                    <label v-if="addressLookup.dropoff.addresses.length && !form.dropoff_label" class="block">
-                      <span class="text-sm font-bold text-slate-700">Exact address</span>
-                      <select
-                        class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                        @change="selectAddress('dropoff', $event.target.value)"
-                      >
-                        <option value="">Choose the exact drop-off address</option>
-                        <option
-                          v-for="address in addressLookup.dropoff.addresses"
-                          :key="address.id"
-                          :value="address.id"
-                        >
-                          {{ address.label }}{{ address.secondary ? ` â€” ${address.secondary}` : '' }}
-                        </option>
-                      </select>
-                    </label>
-
-                    <div
-                      v-if="form.dropoff_label"
-                      class="rounded-3xl border border-sky-200 bg-sky-50/70 p-3"
-                      :class="validationState.dropoff_label ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
-                    >
-                      <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Drop-off locked</p>
-                      <p class="mt-1 text-base font-black text-slate-950">{{ form.dropoff_label }}</p>
-                      <p class="mt-1 text-sm text-slate-600">{{ form.dropoff_postcode }}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="flex items-center justify-between gap-3">
-                  <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
-                  <button type="button" class="btn-primary px-5 py-3" :disabled="addressLookup.pickup.loading || addressLookup.dropoff.loading" @click="goNext">
-                    Next
-                  </button>
-                </div>
-              </section>
-            </template>
-
-            <template v-else-if="currentStep === 2">
-              <section class="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-                <header class="space-y-1">
-                  <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Movement</p>
-                  <h2 class="text-xl font-black text-slate-950">Transport and timing</h2>
-                  <p class="text-sm text-slate-600">
-                    Choose how the vehicle moves, then add the timings the driver needs to see.
-                  </p>
-                </header>
-
-                  <div>
-                    <p class="text-sm font-bold text-slate-700">Transport type</p>
-                    <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <button
-                      v-for="option in transportOptions"
-                      :key="option.value"
-                      type="button"
-                      :class="[
-                        'min-w-0 rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md',
-                        form.transport_type === option.value
-                          ? 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
-                          : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'
-                      ]"
-                      @click="selectTransport(option.value)"
-                    >
-                      <span class="block font-black">{{ option.label }}</span>
-                      <span class="mt-1 block text-xs leading-5 text-slate-500">{{ option.helper }}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="grid gap-3 md:grid-cols-2">
-                  <div
-                    class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-3"
-                    :class="validationState.pickup_date || validationState.pickup_time ? 'border-rose-400 bg-rose-50' : ''"
-                  >
-                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
-                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                      <label class="block min-w-0">
-                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Date</span>
-                        <input
-                          v-model="form.pickup_date"
-                          type="date"
-                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                          :class="validationState.pickup_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                        />
-                      </label>
-                      <label class="block min-w-0">
-                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Time</span>
-                        <select
-                          v-model="form.pickup_time"
-                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                          :class="validationState.pickup_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                        >
-                          <option value="">Select time</option>
-                          <option v-for="slot in pickupTimeOptions" :key="slot" :value="slot">
-                            {{ slot }}
-                          </option>
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div
-                    class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-3"
-                    :class="validationState.delivery_date || validationState.delivery_time ? 'border-rose-400 bg-rose-50' : ''"
-                  >
-                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
-                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                      <label class="block min-w-0">
-                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Date</span>
-                        <input
-                          v-model="form.delivery_date"
-                          type="date"
-                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                          :class="validationState.delivery_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                        />
-                      </label>
-                      <label class="block min-w-0">
-                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Time</span>
-                        <select
-                          v-model="form.delivery_time"
-                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
-                          :class="validationState.delivery_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                        >
-                          <option value="">Select time</option>
-                          <option v-for="slot in deliveryTimeOptions" :key="slot" :value="slot">
-                            {{ slot }}
-                          </option>
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="flex items-center justify-between gap-3">
-                <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
-                <button type="button" class="btn-primary px-5 py-3" @click="goNext">
-                  Next
-                </button>
-              </div>
-            </section>
-          </template>
-
-          <template v-else>
-            <section class="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <header>
-                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Payment</p>
-                <h2 class="mt-1 text-xl font-black text-slate-950">Price breakdown</h2>
-                <p class="mt-1 text-sm text-slate-600">
-                  The dealer pays on creation. MotorRelay releases the driver payout after delivery proof is approved.
-                </p>
-              </header>
-
-              <label class="block">
-                <span class="text-sm font-bold text-slate-700">Dealer charge (GBP)</span>
-                <input
-                  v-model="form.price"
-                  type="number"
-                  min="0"
-                  required
-                  placeholder="e.g. 120"
-                  class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                  :class="validationState.price ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                />
-              </label>
-
-              <dl class="grid gap-3">
-                <div class="rounded-2xl bg-slate-50 p-4">
-                  <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dealer charge</dt>
-                  <dd class="mt-1 text-xl font-black text-slate-950">{{ formatMoney(jobPrice) }}</dd>
-                </div>
-                <div class="rounded-2xl bg-slate-950 p-4 text-white">
-                  <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver receives</dt>
-                  <dd class="mt-1 text-2xl font-black">{{ formatMoney(estimatedDriverPayout) }}</dd>
-                </div>
-              </dl>
-
-              <section
-                class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5"
-                :class="validationState.urgent_fee_ack ? 'border-rose-400 bg-rose-50' : ''"
-              >
-                <label class="flex items-start gap-3">
-                  <input
-                    v-model="form.is_urgent"
-                    :disabled="!canUseUrgentBoost"
-                    type="checkbox"
-                    class="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>
-                    <span class="text-sm font-black text-emerald-900">Add urgent boost</span>
-                    <p class="mt-1 text-xs leading-5 text-emerald-800">{{ urgentHelperText }}</p>
-                  </span>
-                </label>
-
-                <div
-                  v-if="requiresUrgentAcknowledgement"
-                  class="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800"
-                >
-                  <p>This boost adds an extra charge for Starter plans.</p>
-                  <label class="mt-3 flex items-start gap-2">
-                    <input
-                      v-model="form.urgent_fee_ack"
-                      type="checkbox"
-                      class="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-700 focus:ring-amber-500"
-                    />
-                    <span>I understand an extra boost fee will be added to this job.</span>
-                  </label>
-                </div>
-                <p v-if="starterUsageInfo && starterUsageInfo.urgentRemaining === 0" class="mt-3 text-xs text-amber-700">
-                  Starter urgent boost quota reached for this month.
-                </p>
-              </section>
-
-              <div class="flex items-center justify-between gap-3">
-                <button type="button" class="btn-secondary px-5" @click="goBack">Back</button>
-                <button
-                  type="submit"
-                  class="btn-primary px-5 py-3"
-                  :disabled="submitting || (requiresUrgentAcknowledgement && !form.urgent_fee_ack)"
-                >
-                  <span v-if="submitting">{{ isEdit ? 'Saving...' : 'Opening checkout...' }}</span>
-                  <span v-else>{{ isEdit ? 'Save changes' : 'Create and pay' }}</span>
-                </button>
-              </div>
-            </section>
-          </template>
+          <JobCreatePaymentStep
+            v-else
+            :form="form"
+            :validation-state="validationState"
+            :job-price="jobPrice"
+            :estimated-driver-payout="estimatedDriverPayout"
+            :submitting="submitting"
+            :is-edit="isEdit"
+            :format-money="formatMoney"
+            @back="goBack"
+            @submit="handleWizardSubmit"
+          />
         </div>
       </Transition>
     </form>

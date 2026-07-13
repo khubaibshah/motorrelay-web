@@ -33,13 +33,15 @@ function hasDraftContent(draft) {
       draft.form?.pickup_at ||
       draft.form?.delivery_at ||
       draft.form?.transport_type === 'trailer' ||
-      draft.verifiedVehicle?.registration
+      draft.verifiedVehicle?.registration ||
+      draft.reviewUnlocked
   );
 }
 
 export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
   const currentStep = ref(0);
   const verifiedVehicle = ref(null);
+  const reviewUnlocked = ref(false);
   const form = reactive(createDefaultFormState());
   const hydrated = ref(false);
 
@@ -56,6 +58,7 @@ export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
   function snapshot() {
     return {
       currentStep: currentStep.value,
+      reviewUnlocked: reviewUnlocked.value,
       form: {
         ...form
       },
@@ -102,6 +105,7 @@ export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
         4
       );
       verifiedVehicle.value = draft.verifiedVehicle || null;
+      reviewUnlocked.value = Boolean(draft.reviewUnlocked) || currentStep.value >= 4;
     } catch (error) {
       console.warn('Could not restore job draft', error);
     } finally {
@@ -112,12 +116,17 @@ export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
   function clearDraft() {
     currentStep.value = 0;
     verifiedVehicle.value = null;
+    reviewUnlocked.value = false;
     Object.assign(form, createDefaultFormState());
     clearStorage();
   }
 
   function setStep(step) {
-    currentStep.value = Number(step) || 0;
+    const nextStep = Number(step) || 0;
+    currentStep.value = nextStep;
+    if (nextStep >= 4) {
+      reviewUnlocked.value = true;
+    }
   }
 
   restore();
@@ -127,6 +136,7 @@ export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
   return {
     currentStep,
     verifiedVehicle,
+    reviewUnlocked,
     form,
     hydrated,
     restore,

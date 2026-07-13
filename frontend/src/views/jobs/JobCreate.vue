@@ -143,6 +143,8 @@ const currentWizardStep = computed(() => wizardSteps[currentStep.value] ?? wizar
 const wizardProgress = computed(() => ((currentStep.value + 1) / wizardSteps.length) * 100);
 const isFirstStep = computed(() => currentStep.value === 0);
 const isLastStep = computed(() => currentStep.value === wizardSteps.length - 1);
+const isReviewStep = computed(() => currentStep.value === wizardSteps.length - 1);
+const reviewUnlocked = computed(() => Boolean(jobDraft.reviewUnlocked));
 const bannerMessage = computed(() => validationMessage.value || errorMessage.value || vehicleLookupError.value);
 
 const jobId = computed(() => {
@@ -164,7 +166,8 @@ const moneyFormatter = new Intl.NumberFormat('en-GB', {
   maximumFractionDigits: 2
 });
 function formatMoney(value) {
-  return moneyFormatter.format(Number(value || 0));
+  const rawValue = value && typeof value === 'object' && 'value' in value ? value.value : value;
+  return moneyFormatter.format(Number(rawValue || 0));
 }
 
 function formatShortDateTime(value) {
@@ -198,8 +201,20 @@ const reviewSections = computed(() => [
   {
     key: 'movement',
     label: 'Movement',
-    value: `${transportOptions.find((option) => option.value === form.transport_type)?.label || 'Drive-away'} • ${formatShortDateTime(form.pickup_at)} → ${formatShortDateTime(form.delivery_at)}`,
+    lines: [
+      transportOptions.find((option) => option.value === form.transport_type)?.label || 'Drive-away',
+      `${formatShortDateTime(form.pickup_at)} → ${formatShortDateTime(form.delivery_at)}`
+    ],
     step: 2
+  },
+  {
+    key: 'payment',
+    label: 'Payment',
+    lines: [
+      `${formatMoney(jobPrice.value)} total`,
+      `Driver ${formatMoney(estimatedDriverPayout.value)}`
+    ],
+    step: 3
   }
 ]);
 
@@ -809,18 +824,20 @@ watch(
           </div>
           <div class="flex flex-wrap gap-3 pt-2 sm:gap-4">
             <button
-              v-for="(step, index) in wizardSteps"
-              :key="step.key"
-              type="button"
-              class="rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] transition"
-              :disabled="index > currentStep"
+            v-for="(step, index) in wizardSteps"
+            :key="step.key"
+            type="button"
+            class="rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] transition"
+              :disabled="!reviewUnlocked && index > currentStep"
               @click="setStep(index)"
               :class="
                 index === currentStep
                   ? 'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-emerald-200'
-                  : index < currentStep
-                    ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    : 'bg-slate-100 text-slate-400'
+                  : reviewUnlocked
+                    ? 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-slate-950'
+                    : index < currentStep
+                      ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      : 'bg-slate-100 text-slate-400'
               "
             >
               {{ step.label }}
@@ -895,8 +912,6 @@ watch(
             v-else
             :form="form"
             :review-sections="reviewSections"
-            :job-price="jobPrice"
-            :estimated-driver-payout="estimatedDriverPayout"
             :submitting="submitting"
             :is-edit="isEdit"
             :format-money="formatMoney"

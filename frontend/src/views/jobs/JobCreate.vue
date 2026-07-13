@@ -647,18 +647,21 @@ function validateMovementTimings() {
   const now = new Date();
 
   if (deliveryComparable && deliveryComparable <= now) {
+    validationMessage.value = 'Delivery due must be in the future.';
     setValidationError('delivery_date', 'Delivery due must be in the future.');
     setValidationError('delivery_time', 'Delivery due must be in the future.');
     throw new Error('Delivery due must be in the future.');
   }
 
   if (pickupComparable && deliveryComparable && deliveryComparable.getTime() === pickupComparable.getTime()) {
+    validationMessage.value = 'Pickup and delivery cannot be the same date and time.';
     setValidationError('delivery_date', 'Delivery due cannot match pickup exactly.');
     setValidationError('delivery_time', 'Delivery due cannot match pickup exactly.');
     throw new Error('Pickup and delivery cannot be the same date and time.');
   }
 
   if (pickupComparable && deliveryComparable && deliveryComparable < pickupComparable) {
+    validationMessage.value = 'Delivery due must be after pickup ready time.';
     setValidationError('delivery_date', 'Delivery due must be after pickup ready time.');
     setValidationError('delivery_time', 'Delivery due must be after pickup ready time.');
     throw new Error('Delivery due time must be after the pickup ready time.');

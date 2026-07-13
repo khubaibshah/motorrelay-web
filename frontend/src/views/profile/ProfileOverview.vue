@@ -14,7 +14,6 @@ const payoutSetupError = ref('');
 const showDisconnectModal = ref(false);
 
 const isDriver = computed(() => auth.role === 'driver');
-const isDealer = computed(() => auth.role === 'dealer');
 const hasStripePayoutAccount = computed(() => Boolean(auth.user?.stripe_account_id));
 const payoutsEnabled = computed(() => Boolean(auth.user?.stripe_payouts_enabled || auth.user?.stripe_onboarding_complete));
 const payoutCardTitle = computed(() => {
@@ -47,29 +46,6 @@ onMounted(() => {
     auth.fetchMe().catch(() => null);
   }
 });
-
-const dealerQuickLinks = [
-  {
-    to: '/jobs/new',
-    title: 'Create run',
-    description: 'Post a vehicle movement'
-  },
-  {
-    to: '/jobs',
-    title: 'Manage runs',
-    description: 'Assign, pay, approve, payout'
-  },
-  {
-    to: '/invoices',
-    title: 'Invoices',
-    description: 'View completed paperwork'
-  },
-  {
-    to: '/messages',
-    title: 'Messages',
-    description: 'Talk to assigned drivers'
-  }
-];
 
 async function handlePayoutSetup() {
   payoutSetupLoading.value = true;
@@ -215,36 +191,6 @@ async function handleLogout() {
         </p>
       </section>
 
-      <section
-        v-if="isDealer"
-        class="rounded-2xl border border-slate-200 bg-white p-6"
-      >
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Dealer workspace</p>
-            <h2 class="mt-1 text-xl font-black text-slate-950">Your dealer profile</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Keep this page simple: create runs, manage payments, review proof, and download invoices.
-            </p>
-          </div>
-          <RouterLink to="/jobs/new" class="btn-primary w-full sm:w-auto">
-            Create run
-          </RouterLink>
-        </div>
-
-        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <RouterLink
-            v-for="link in dealerQuickLinks"
-            :key="link.to"
-            :to="link.to"
-            class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:-translate-y-0.5 hover:bg-white hover:shadow"
-          >
-            <div class="text-sm font-black text-slate-950">{{ link.title }}</div>
-            <p class="mt-1 text-xs text-slate-600">{{ link.description }}</p>
-          </RouterLink>
-        </div>
-
-      </section>
     </div>
 
     <aside class="tile space-y-4 p-6">

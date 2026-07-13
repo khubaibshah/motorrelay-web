@@ -1,11 +1,13 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { RouterLink } from 'vue-router';
 import { disconnectDriverPayoutAccount, startDriverPayoutOnboarding } from '@/services/payments';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 
 const auth = useAuthStore();
+const router = useRouter();
 const payoutSetupLoading = ref(false);
 const payoutDisconnectLoading = ref(false);
 const payoutSetupError = ref('');
@@ -22,12 +24,12 @@ const payoutCardTitle = computed(() => {
 });
 const payoutCardText = computed(() => {
   if (payoutsEnabled.value) {
-    return 'Your Stripe payout account is connected. MotorRelay can release payment after delivery proof is approved.';
+    return 'Your Stripe payout account is connected. MotorRelay can release payment after inspection photos are approved.';
   }
   if (hasStripePayoutAccount.value) {
     return 'Your Stripe payout account exists. If Stripe still needs information, use the button to finish or update setup.';
   }
-  return 'Add your bank details securely with Stripe so MotorRelay can release payment after delivery proof is approved.';
+  return 'Add your bank details securely with Stripe so MotorRelay can release payment after inspection photos are approved.';
 });
 
 const initials = computed(() => {
@@ -118,6 +120,15 @@ async function confirmPayoutDisconnect() {
   } finally {
     payoutDisconnectLoading.value = false;
   }
+}
+
+async function handleLogout() {
+  await auth.logout();
+  if (typeof window !== 'undefined') {
+    window.location.assign('/login');
+    return;
+  }
+  await router.replace({ name: 'login' });
 }
 
 </script>
@@ -252,7 +263,7 @@ async function confirmPayoutDisconnect() {
       <button
         type="button"
         class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800"
-        @click="auth.logout"
+        @click="handleLogout"
       >
         Logout
       </button>

@@ -345,7 +345,11 @@ async function toggleNotificationDropdown() {
 
 async function handleLogout() {
   await auth.logout();
-  router.push({ name: 'login' });
+  if (typeof window !== 'undefined') {
+    window.location.assign('/login');
+    return;
+  }
+  router.replace({ name: 'login' });
 }
 
 async function openToast(toast) {

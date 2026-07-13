@@ -54,7 +54,7 @@ function handlePriceBlur(event) {
       <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Payment</p>
       <h2 class="mt-1 text-xl font-black text-slate-950">Price breakdown</h2>
       <p class="mt-1 text-sm text-slate-600">
-        The dealer pays on creation. MotorRelay releases the driver payout after delivery proof is approved.
+        The dealer pays on creation. MotorRelay releases the driver payout after the inspection is approved.
       </p>
     </header>
 

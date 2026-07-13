@@ -20,7 +20,7 @@ const legalSections = [
   {
     title: 'Payments & Invoices',
     summary:
-      'MotorRelay issues invoices and release payments once proof of delivery and compliance checks pass. Fraud checks may delay payouts. Keep bank and company details up to date in Account settings.'
+      'MotorRelay issues invoices and release payments once inspection photos and compliance checks pass. Fraud checks may delay payouts. Keep bank and company details up to date in Account settings.'
   },
   {
     title: 'Support & Escalations',

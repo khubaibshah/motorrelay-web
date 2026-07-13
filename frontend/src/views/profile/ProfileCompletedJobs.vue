@@ -74,7 +74,7 @@ function resolvePod(job) {
       <div class="space-y-2">
         <h1 class="text-2xl font-bold text-slate-900">Completed runs</h1>
         <p class="text-sm text-slate-600">
-          Browse the full history of completed and closed runs, with quick links to invoices and proof of delivery.
+          Browse the full history of completed and closed runs, with quick links to invoices and inspection photos.
         </p>
       </div>
     </header>

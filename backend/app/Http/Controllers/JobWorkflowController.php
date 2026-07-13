@@ -67,6 +67,10 @@ class JobWorkflowController extends Controller
 
         $this->ensureDealerPaymentHeld($job);
 
+        if (!$job->delivery_proof_path) {
+            abort(422, 'Upload the pre-delivery inspection photos before marking this run as collected.');
+        }
+
         $job->update([
             'status' => 'collected'
         ]);
@@ -181,7 +185,7 @@ class JobWorkflowController extends Controller
 
         $proofDisk = config('invoices.proof_disk');
         $file = $request->file('proof');
-        $directory = sprintf('jobs/%d/proof', $job->id);
+        $directory = sprintf('jobs/%d/inspection', $job->id);
         $extension = $file->getClientOriginalExtension() ?: 'pdf';
         $filename = sprintf('%s-%s.%s', now()->format('YmdHis'), Str::ulid(), $extension);
         $path = $file->storeAs($directory, $filename, $proofDisk);
@@ -218,7 +222,11 @@ class JobWorkflowController extends Controller
         }
 
         if (!$job->delivery_proof_path) {
-            abort(422, 'Delivery proof is required before approval.');
+            abort(422, 'Pre-delivery inspection photos are required before approval.');
+        }
+
+        if (!in_array(strtolower((string) $job->status), ['delivered', 'completion_pending', 'completed', 'closed'], true)) {
+            abort(422, 'The run must be delivered before approval.');
         }
 
         $this->ensureDealerPaymentHeld($job);
@@ -318,7 +326,7 @@ class JobWorkflowController extends Controller
         }
 
         if (!$job->delivery_proof_path) {
-            abort(404, 'No delivery proof uploaded.');
+            abort(404, 'No pre-delivery inspection photos uploaded.');
         }
 
         $disk = $job->delivery_proof_disk ?? config('invoices.proof_disk');
@@ -328,7 +336,7 @@ class JobWorkflowController extends Controller
         }
 
         $extension = pathinfo($job->delivery_proof_path, PATHINFO_EXTENSION) ?: 'pdf';
-        $filename = sprintf('job-%d-proof.%s', $job->id, $extension);
+        $filename = sprintf('job-%d-inspection.%s', $job->id, $extension);
 
         return $storage->response($job->delivery_proof_path, $filename, [], 'inline');
     }

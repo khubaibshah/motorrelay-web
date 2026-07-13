@@ -111,7 +111,7 @@ function formatDate(value) {
           <div class="rounded-3xl border border-amber-100 bg-amber-50 p-5">
             <h2 class="text-xs font-bold uppercase tracking-wide text-amber-700">Proof to review</h2>
             <p class="mt-3 text-4xl font-black text-amber-950">{{ proofReviewJobs.length }}</p>
-            <p class="mt-1 text-sm text-amber-800">Drivers have uploaded delivery proof.</p>
+            <p class="mt-1 text-sm text-amber-800">Drivers have uploaded pre-delivery inspection photos.</p>
           </div>
           <div class="rounded-3xl border border-violet-100 bg-violet-50 p-5">
             <h2 class="text-xs font-bold uppercase tracking-wide text-violet-700">Payout ready</h2>

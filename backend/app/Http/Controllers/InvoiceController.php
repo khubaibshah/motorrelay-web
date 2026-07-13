@@ -59,11 +59,11 @@ class InvoiceController extends Controller
         }
 
         if ($job->completion_status !== 'submitted') {
-            abort(422, 'Submit completion for this job before sending an invoice.');
+            abort(422, 'Upload the pre-delivery inspection photos before sending an invoice.');
         }
 
         if (!$job->delivery_proof_path) {
-            abort(422, 'Upload delivery proof before sending an invoice.');
+            abort(422, 'Upload pre-delivery inspection photos before sending an invoice.');
         }
 
         $job->loadMissing(['expenses', 'postedBy', 'assignedTo']);

@@ -87,7 +87,7 @@ function currentJobAction(job) {
   }
 
   if (status === 'delivered' && completionStatus !== 'submitted') {
-    return 'Open this run and upload delivery proof.';
+    return 'Open this run and upload inspection photos.';
   }
 
   if (completionStatus === 'submitted' || status === 'completion_pending') {

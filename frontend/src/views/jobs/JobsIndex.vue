@@ -242,7 +242,7 @@ const pageIntro = computed(() => {
     return {
       eyebrow: 'Dealer runs',
       title: 'Runs command centre',
-      text: 'Post runs, pay upfront, choose drivers, approve proof, and release payout.'
+      text: 'Post runs, pay upfront, choose drivers, review inspection photos, and release payout.'
     };
   }
 
@@ -254,11 +254,11 @@ const pageIntro = computed(() => {
 });
 const processSteps = computed(() => {
   if (isDriver.value) {
-    return ['Request run', 'Dealer assigns driver', 'Deliver vehicle', 'Upload delivery proof'];
+    return ['Request run', 'Dealer assigns driver', 'Upload inspection photos', 'Deliver vehicle'];
   }
 
   if (isDealer.value) {
-    return ['Post run', 'Pay upfront', 'Choose driver', 'Approve proof', 'Release payout'];
+    return ['Post run', 'Pay upfront', 'Choose driver', 'Approve inspection', 'Release payout'];
   }
 
   return ['Create or request', 'Assign driver', 'Track delivery', 'Close paperwork'];
@@ -286,7 +286,7 @@ function dealerNextAction(job) {
   if (paymentStatus === 'unpaid') return 'Take payment';
   if (paymentStatus === 'checkout_pending') return 'Refresh payment';
   if (!job?.assigned_to_id) return 'Review driver requests';
-  if (completionStatus === 'submitted') return 'Approve delivery proof';
+  if (completionStatus === 'submitted') return 'Approve inspection';
   if (paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id) return 'Release driver payout';
   if (paymentStatus === 'payout_released') return 'Paid out';
   if (['in_progress', 'accepted', 'collected', 'in_transit'].includes(status)) return 'Track delivery';
@@ -300,7 +300,7 @@ function dealerCurrentStage(job) {
 
   if (paymentStatus === 'payout_released') return 'Payout released';
   if (completionStatus === 'approved' || status === 'completed') return 'Approved';
-  if (completionStatus === 'submitted') return 'Proof uploaded';
+  if (completionStatus === 'submitted') return 'Inspection uploaded';
   if (['delivered', 'completion_pending'].includes(status)) return 'Delivered';
   if (paymentStatus === 'paid') return 'Payment held';
   if (paymentStatus === 'checkout_pending') return 'Payment pending';
@@ -315,11 +315,11 @@ function dealerMovingTo(job) {
 
   if (paymentStatus === 'payout_released') return 'Complete';
   if (completionStatus === 'approved') return job?.stripe_transfer_id ? 'Complete' : 'Release payout';
-  if (completionStatus === 'submitted') return 'Approve proof';
+  if (completionStatus === 'submitted') return 'Approve inspection';
   if (paymentStatus === 'unpaid') return 'Take payment';
   if (paymentStatus === 'checkout_pending') return 'Confirm payment';
   if (!job?.assigned_to_id) return 'Choose driver';
-  return 'Delivery proof';
+  return 'Inspection photos';
 }
 
 function paymentLabel(job) {

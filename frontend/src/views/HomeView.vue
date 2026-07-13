@@ -149,7 +149,7 @@ const openJobsEmptyText = computed(() => {
               Move vehicles with less chasing.
             </h1>
             <p class="max-w-2xl text-sm leading-6 text-slate-600 sm:text-lg sm:leading-7">
-              MotorRelay brings runs, drivers, live tracking, expenses, messages, proof of delivery, and invoices into one clean workspace.
+              MotorRelay brings runs, drivers, live tracking, expenses, messages, inspection photos, and invoices into one clean workspace.
             </p>
           </div>
 

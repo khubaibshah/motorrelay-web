@@ -404,6 +404,7 @@ const canSubmitCompletion = computed(() => {
 const canMarkCollected = computed(() => {
   if (!isAssignedDriver.value) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
+  if (!hasDeliveryProof.value) return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
 });
 const canMarkDeliveredFromDetail = computed(() => {
@@ -415,10 +416,10 @@ const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
   if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
   if (paymentStatus.value === 'checkout_pending') return 'Waiting for the dealer to finish confirming this run.';
-  if (canMarkCollected.value) return 'Collect the vehicle, then tap “Mark collected”.';
+  if (canMarkCollected.value) return 'Collect the vehicle, then tap Mark collected.';
   if (canMarkDeliveredFromDetail.value) return 'Deliver the vehicle, then tap “Mark delivered”.';
-  if (canSubmitCompletion.value && !hasDeliveryProof.value) return 'Upload delivery proof so the dealer can approve the run.';
-  if (completionStatus.value === 'submitted') return 'Wait for the dealer to approve your proof.';
+  if (canSubmitCompletion.value && !hasDeliveryProof.value) return 'Upload inspection photos so the dealer can review the run.';
+  if (completionStatus.value === 'submitted') return 'Wait for the dealer to review your inspection photos.';
   if (completionStatus.value === 'approved' && paymentStatus.value !== 'payout_released') return 'Delivery is approved. Waiting for payout release.';
   if (paymentStatus.value === 'payout_released') return 'Payout has been released.';
   return '';
@@ -428,6 +429,7 @@ const showDriverNextAction = computed(() => Boolean(driverNextActionText.value))
 const canApproveCompletion = computed(() => {
   if (!(currentRole.value === "admin" || isDealerForJob.value)) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
+  if (!['delivered', 'completion_pending', 'completed', 'closed'].includes(String(job.value?.status || '').toLowerCase())) return false;
   return completionStatus.value === "submitted";
 });
 
@@ -453,8 +455,13 @@ const workflowSteps = computed(() => {
         complete: isAssigned
       },
       {
+        label: 'Upload inspection photos',
+        help: 'Photograph the vehicle as soon as you arrive so the dealer and driver both have a record.',
+        complete: proofComplete
+      },
+      {
         label: 'Collect vehicle',
-        help: 'Collect the vehicle from the pickup location.',
+        help: 'Collect the vehicle from the pickup location after the inspection is uploaded.',
         complete: ['collected', 'in_transit', 'delivered', 'completion_pending', 'completed', 'closed'].includes(status)
       },
       {
@@ -463,13 +470,8 @@ const workflowSteps = computed(() => {
         complete: deliveryComplete
       },
       {
-        label: 'Upload proof',
-        help: 'Upload photo, signed document, or delivery proof.',
-        complete: proofComplete
-      },
-      {
         label: 'Dealer approval',
-        help: 'The dealer checks your proof and approves completion.',
+        help: 'The dealer checks your inspection photos and approves completion.',
         complete: approvalComplete
       },
       {
@@ -517,14 +519,14 @@ const workflowSteps = computed(() => {
       complete: isAssigned
     },
     {
+      label: 'Inspection uploaded',
+      help: 'The driver uploads pre-delivery inspection photos for dealer review.',
+      complete: proofComplete
+    },
+    {
       label: 'Vehicle delivered',
       help: 'The assigned driver marks the vehicle as delivered.',
       complete: deliveryComplete
-    },
-    {
-      label: 'Proof uploaded',
-      help: 'The driver uploads delivery proof for dealer review.',
-      complete: proofComplete
     },
     {
       label: 'Approved and invoiced',
@@ -576,10 +578,10 @@ const canReleasePayout = computed(() => {
 const paymentActionHelp = computed(() => {
   if (paymentStatus.value === 'unpaid') return 'Take dealer payment now so this run is funded before drivers start.';
   if (paymentStatus.value === 'checkout_pending') return 'Checkout has started. If the dealer paid, use refresh or wait for Stripe to confirm.';
-  if (paymentStatus.value === 'paid' && completionStatus.value !== 'approved') return 'Payment is held. Payout unlocks only after delivery proof is approved.';
-  if (paymentStatus.value === 'paid' && completionStatus.value === 'approved') return 'Delivery is approved. You can now release the driver payout.';
+  if (paymentStatus.value === 'paid' && completionStatus.value !== 'approved') return 'Payment is held. Payout unlocks only after the inspection is approved.';
+  if (paymentStatus.value === 'paid' && completionStatus.value === 'approved') return 'Inspection is approved. You can now release the driver payout.';
   if (paymentStatus.value === 'payout_released') return 'Driver payout has been released.';
-  return 'Take payment, choose a driver, approve proof, then release payout.';
+  return 'Take payment, choose a driver, review inspection photos, then release payout.';
 });
 const paymentCardEyebrow = computed(() => {
   if (paymentStatus.value === 'unpaid') return 'Next step';
@@ -603,7 +605,7 @@ const paymentCardDescription = computed(() => {
   if (paymentStatus.value === 'payout_released') {
     return 'The driver payout has been released for this completed run.';
   }
-  return 'Funds are held by MotorRelay until delivery proof is approved.';
+  return 'Funds are held by MotorRelay until the inspection is approved.';
 });
 const paymentStatusBadgeClass = computed(() => {
   if (paymentStatus.value === 'paid') return 'bg-emerald-100 text-emerald-700';
@@ -613,7 +615,7 @@ const paymentStatusBadgeClass = computed(() => {
 });
 const paymentConfirmationText = computed(() => {
   if (paymentStatus.value === 'paid') {
-    return 'Payment confirmed. Funds are held until delivery proof is approved.';
+    return 'Payment confirmed. Funds are held until the inspection is approved.';
   }
   if (paymentStatus.value === 'payout_released') {
     return 'Payout released. This payment workflow is complete.';
@@ -891,7 +893,7 @@ function deliveryProofDownloadName() {
       `job-${job.value?.id}`
   );
 
-  return baseName || "delivery-proof";
+  return baseName || "inspection";
 }
 
 function onCompletionProofChange(event) {
@@ -902,7 +904,7 @@ function onCompletionProofChange(event) {
 async function handleCompletionSubmit() {
   if (!job.value) return;
   if (!completionForm.proof) {
-    completionError.value = "Please upload delivery proof before submitting.";
+    completionError.value = "Please upload inspection photos before submitting.";
     return;
   }
 
@@ -1084,14 +1086,14 @@ async function handleDownloadProof() {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${deliveryProofDownloadName()}-proof.${extension}`;
+    link.download = `${deliveryProofDownloadName()}.${extension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   } catch (error) {
-    console.error("Failed to download delivery proof", error);
-    alert("We could not download the delivery proof.");
+    console.error("Failed to download inspection", error);
+    alert("We could not download the inspection photos.");
   } finally {
     proofDownloading.value = false;
   }
@@ -1615,7 +1617,7 @@ watch(
           <div>
             <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Payment</h2>
             <p class="text-xs text-slate-500">
-              Take dealer payment now. MotorRelay holds it until delivery proof is approved.
+              Take dealer payment now. MotorRelay holds it until the inspection is approved.
             </p>
           </div>
           <span class="badge bg-slate-100 text-slate-800 uppercase">{{ paymentStatus }}</span>
@@ -1968,9 +1970,9 @@ watch(
       >
         <header class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Run completion</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Pre-delivery inspection</h2>
             <p class="text-xs text-slate-500">
-              Drivers submit delivery proof and dealers approve to trigger invoices.
+              Drivers upload inspection photos as soon as they arrive. Dealers review them later as the run progresses.
             </p>
           </div>
           <span class="badge bg-slate-100 text-slate-800 uppercase">{{ completionStatus }}</span>
@@ -2022,16 +2024,17 @@ watch(
             ></textarea>
           </div>
           <div class="md:col-span-2">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Delivery proof</label>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Inspection photos</label>
             <input
               :key="completionFormKey"
               type="file"
               accept=".jpg,.jpeg,.png,.pdf"
               class="mt-1 w-full text-sm text-slate-600"
+              multiple
               required
               @change="onCompletionProofChange"
             />
-            <p class="mt-1 text-xs text-slate-500">Upload delivery proof images or a signed PDF up to 8 MB.</p>
+            <p class="mt-1 text-xs text-slate-500">Upload inspection images or a signed PDF up to 8 MB.</p>
           </div>
           <div class="md:col-span-2 flex justify-end">
             <button
@@ -2039,8 +2042,8 @@ watch(
               class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
               :disabled="completionSubmitting"
             >
-              <span v-if="completionSubmitting">Submitting...</span>
-              <span v-else>Submit completion</span>
+              <span v-if="completionSubmitting">Uploading...</span>
+              <span v-else>Upload inspection</span>
             </button>
           </div>
         </form>
@@ -2050,7 +2053,7 @@ watch(
           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600"
         >
           <div>
-            <span class="font-semibold text-slate-500 uppercase tracking-wide">Delivery proof</span>
+            <span class="font-semibold text-slate-500 uppercase tracking-wide">Inspection photos</span>
             <p class="text-sm text-slate-900">
               Uploaded {{ formatDateTime(job?.completion_submitted_at) }}
             </p>
@@ -2058,13 +2061,13 @@ watch(
           <button
             type="button"
             class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-            :disabled="proofDownloading"
-            @click="handleDownloadProof"
-          >
-            <span v-if="proofDownloading">Downloading...</span>
-            <span v-else>Download proof</span>
-          </button>
-        </div>
+          :disabled="proofDownloading"
+          @click="handleDownloadProof"
+        >
+          <span v-if="proofDownloading">Downloading...</span>
+          <span v-else>Download inspection</span>
+        </button>
+      </div>
 
         <div v-if="canApproveCompletion" class="flex flex-wrap gap-2">
           <button

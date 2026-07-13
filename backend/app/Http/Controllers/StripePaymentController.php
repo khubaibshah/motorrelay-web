@@ -251,7 +251,7 @@ class StripePaymentController extends Controller
         }
 
         if (!$job->delivery_proof_path || $job->completion_status !== 'approved') {
-            abort(422, 'Dealer must approve delivery proof before releasing payout.');
+            abort(422, 'Dealer must approve the pre-delivery inspection before releasing payout.');
         }
 
         if ($job->stripe_transfer_id) {

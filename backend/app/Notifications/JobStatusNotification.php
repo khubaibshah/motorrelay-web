@@ -95,9 +95,9 @@ class JobStatusNotification extends Notification
                 'url' => $route,
             ],
             'driver_submitted_completion' => [
-                'title' => 'Proof uploaded',
-                'body' => sprintf('Delivery proof was uploaded for %s.', $jobLabel),
-                'action_label' => 'Review proof',
+                'title' => 'Inspection uploaded',
+                'body' => sprintf('Pre-delivery inspection photos were uploaded for %s.', $jobLabel),
+                'action_label' => 'Review inspection',
                 'url' => $route,
             ],
             'completion_approved' => [

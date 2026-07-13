@@ -9,6 +9,7 @@ import JobCreateVehicleStep from '@/components/jobs/JobCreateVehicleStep.vue';
 import JobCreateRouteStep from '@/components/jobs/JobCreateRouteStep.vue';
 import JobCreateMovementStep from '@/components/jobs/JobCreateMovementStep.vue';
 import JobCreatePaymentStep from '@/components/jobs/JobCreatePaymentStep.vue';
+import JobCreateReviewStep from '@/components/jobs/JobCreateReviewStep.vue';
 
 const props = defineProps({
   id: {
@@ -83,7 +84,7 @@ const transportOptions = [
   }
 ];
 
-const wizardStepKeys = ['vehicle', 'route', 'movement', 'payment'];
+const wizardStepKeys = ['vehicle', 'route', 'movement', 'payment', 'review'];
 
 function normaliseStepKey(value) {
   return (value || '').toString().trim().toLowerCase();
@@ -134,7 +135,8 @@ const wizardSteps = [
   { key: 'vehicle', label: 'Vehicle' },
   { key: 'route', label: 'Route' },
   { key: 'movement', label: 'Movement' },
-  { key: 'payment', label: 'Payment' }
+  { key: 'payment', label: 'Payment' },
+  { key: 'review', label: 'Review' }
 ];
 
 const currentWizardStep = computed(() => wizardSteps[currentStep.value] ?? wizardSteps[0]);
@@ -164,6 +166,42 @@ const moneyFormatter = new Intl.NumberFormat('en-GB', {
 function formatMoney(value) {
   return moneyFormatter.format(Number(value || 0));
 }
+
+function formatShortDateTime(value) {
+  if (!value) return '--';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--';
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+}
+
+const reviewSections = computed(() => [
+  {
+    key: 'vehicle',
+    label: 'Vehicle',
+    value: [verifiedVehicle.value?.registration || form.title || '--', form.vehicle_make || ''].filter(Boolean).join(' • '),
+    step: 0
+  },
+  {
+    key: 'route',
+    label: 'Route',
+    value: `${form.pickup_label || form.pickup_postcode || '--'} → ${form.dropoff_label || form.dropoff_postcode || '--'}`,
+    step: 1
+  },
+  {
+    key: 'movement',
+    label: 'Movement',
+    value: `${transportOptions.find((option) => option.value === form.transport_type)?.label || 'Drive-away'} • ${formatShortDateTime(form.pickup_at)} → ${formatShortDateTime(form.delivery_at)}`,
+    step: 2
+  }
+]);
 
 function normaliseRegistration(value) {
   return (value || '').toString().replace(/[^a-z0-9]/gi, '').toUpperCase();
@@ -841,7 +879,7 @@ watch(
           />
 
           <JobCreatePaymentStep
-            v-else
+            v-else-if="currentStep === 3"
             :form="form"
             :validation-state="validationState"
             :job-price="jobPrice"
@@ -850,6 +888,20 @@ watch(
             :is-edit="isEdit"
             :format-money="formatMoney"
             @back="goBack"
+            @next="goNext"
+          />
+
+          <JobCreateReviewStep
+            v-else
+            :form="form"
+            :review-sections="reviewSections"
+            :job-price="jobPrice"
+            :estimated-driver-payout="estimatedDriverPayout"
+            :submitting="submitting"
+            :is-edit="isEdit"
+            :format-money="formatMoney"
+            @back="goBack"
+            @go-to-step="setStep"
             @submit="handleWizardSubmit"
           />
         </div>

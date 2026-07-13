@@ -99,7 +99,7 @@ export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
       Object.assign(form, createDefaultFormState(), draft.form || {});
       currentStep.value = Math.min(
         Math.max(Number(draft.currentStep ?? 0), 0),
-        3
+        4
       );
       verifiedVehicle.value = draft.verifiedVehicle || null;
     } catch (error) {

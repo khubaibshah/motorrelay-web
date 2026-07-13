@@ -11,7 +11,7 @@ const props = defineProps({
   formatMoney: { type: Function, required: true }
 });
 
-defineEmits(['back', 'submit']);
+defineEmits(['back', 'next']);
 
 const editingPrice = ref(false);
 
@@ -97,13 +97,8 @@ function handlePriceBlur(event) {
 
     <div class="flex items-center justify-between gap-3">
       <button type="button" class="btn-secondary px-5" @click="$emit('back')">Back</button>
-      <button
-        type="submit"
-        class="btn-primary px-5 py-3"
-        :disabled="submitting"
-      >
-        <span v-if="submitting">{{ isEdit ? 'Saving...' : 'Opening checkout...' }}</span>
-        <span v-else>{{ isEdit ? 'Save changes' : 'Create and pay' }}</span>
+      <button type="button" class="btn-primary px-5 py-3" @click="$emit('next')">
+        <span>{{ isEdit ? 'Review changes' : 'Review & continue' }}</span>
       </button>
     </div>
   </section>

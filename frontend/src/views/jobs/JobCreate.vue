@@ -88,6 +88,13 @@ const transportOptions = [
   }
 ];
 
+const timeSlotValues = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const minutes = String(totalMinutes % 60).padStart(2, '0');
+  return `${hours}:${minutes}`;
+});
+
 const wizardStepKeys = ['vehicle', 'route', 'movement', 'payment'];
 
 function normaliseStepKey(value) {
@@ -138,6 +145,16 @@ function syncWizardStepQuery(stepIndex, mode = 'push') {
 const selectedTransport = computed(() => {
   return transportOptions.find((option) => option.value === form.transport_type) ?? transportOptions[0];
 });
+
+function buildTimeOptions(selectedValue) {
+  if (selectedValue && !timeSlotValues.includes(selectedValue)) {
+    return [selectedValue, ...timeSlotValues];
+  }
+  return timeSlotValues;
+}
+
+const pickupTimeOptions = computed(() => buildTimeOptions(form.pickup_time));
+const deliveryTimeOptions = computed(() => buildTimeOptions(form.delivery_time));
 
 const wizardSteps = [
   { key: 'vehicle', label: 'Vehicle' },
@@ -1191,18 +1208,28 @@ watch(
                   >
                     <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
                     <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                      <input
-                        v-model="form.pickup_date"
-                        type="date"
-                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
-                        :class="validationState.pickup_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                      />
-                      <input
-                        v-model="form.pickup_time"
-                        type="time"
-                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
-                        :class="validationState.pickup_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                      />
+                      <label class="block min-w-0">
+                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Date</span>
+                        <input
+                          v-model="form.pickup_date"
+                          type="date"
+                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+                          :class="validationState.pickup_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                        />
+                      </label>
+                      <label class="block min-w-0">
+                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Time</span>
+                        <select
+                          v-model="form.pickup_time"
+                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+                          :class="validationState.pickup_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                        >
+                          <option value="">Select time</option>
+                          <option v-for="slot in pickupTimeOptions" :key="slot" :value="slot">
+                            {{ slot }}
+                          </option>
+                        </select>
+                      </label>
                     </div>
                   </div>
 
@@ -1212,18 +1239,28 @@ watch(
                   >
                     <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
                     <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                      <input
-                        v-model="form.delivery_date"
-                        type="date"
-                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
-                        :class="validationState.delivery_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                      />
-                      <input
-                        v-model="form.delivery_time"
-                        type="time"
-                        class="block w-full max-w-full min-w-0 box-border rounded-2xl border px-3 py-3 text-sm"
-                        :class="validationState.delivery_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
-                      />
+                      <label class="block min-w-0">
+                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Date</span>
+                        <input
+                          v-model="form.delivery_date"
+                          type="date"
+                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+                          :class="validationState.delivery_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                        />
+                      </label>
+                      <label class="block min-w-0">
+                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Time</span>
+                        <select
+                          v-model="form.delivery_time"
+                          class="block w-full max-w-full min-w-0 box-border rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+                          :class="validationState.delivery_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+                        >
+                          <option value="">Select time</option>
+                          <option v-for="slot in deliveryTimeOptions" :key="slot" :value="slot">
+                            {{ slot }}
+                          </option>
+                        </select>
+                      </label>
                     </div>
                   </div>
                 </div>

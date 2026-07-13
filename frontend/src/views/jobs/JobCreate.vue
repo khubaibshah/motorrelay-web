@@ -678,9 +678,6 @@ watch(
                 <h1 class="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
                   {{ isEdit ? 'Edit job' : 'Create a new job' }}
                 </h1>
-                <p class="mt-1 text-sm text-slate-600">
-                  Step {{ currentStep + 1 }} of {{ wizardSteps.length }} · {{ currentWizardStep.label }}
-                </p>
               </div>
             </div>
           </div>
@@ -692,9 +689,22 @@ watch(
               :style="{ width: `${wizardProgress}%` }"
             ></div>
           </div>
-          <p class="text-xs font-medium text-slate-500">
-            {{ currentStep === wizardSteps.length - 1 ? 'Final step: review the payment and post the job.' : 'Use Next to move through the job setup.' }}
-          </p>
+          <div class="flex flex-wrap gap-3 pt-2 sm:gap-4">
+            <div
+              v-for="(step, index) in wizardSteps"
+              :key="step.key"
+              class="rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] transition"
+              :class="
+                index === currentStep
+                  ? 'bg-emerald-100 text-emerald-900'
+                  : index < currentStep
+                    ? 'bg-slate-200 text-slate-700'
+                    : 'bg-slate-100 text-slate-400'
+              "
+            >
+              {{ step.label }}
+            </div>
+          </div>
         </div>
       </header>
 

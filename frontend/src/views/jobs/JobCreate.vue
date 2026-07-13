@@ -142,10 +142,6 @@ function syncWizardStepQuery(stepIndex, mode = 'push') {
   }).catch(() => null);
 }
 
-const selectedTransport = computed(() => {
-  return transportOptions.find((option) => option.value === form.transport_type) ?? transportOptions[0];
-});
-
 function buildTimeOptions(selectedValue) {
   if (selectedValue && !timeSlotValues.includes(selectedValue)) {
     return [selectedValue, ...timeSlotValues];
@@ -582,13 +578,8 @@ async function validateCurrentStep() {
       throw new Error('Please complete the highlighted fields before continuing.');
     }
 
-    const pickupComparable = buildComparison(form.pickup_date, form.pickup_time);
-    const deliveryComparable = buildComparison(form.delivery_date, form.delivery_time);
-
-    if (pickupComparable && deliveryComparable && deliveryComparable < pickupComparable) {
-      throw new Error('Delivery due time must be after the pickup ready time.');
+      validateMovementTimings();
     }
-  }
 
   if (currentStep.value === 3) {
     if (!form.price || Number(form.price) <= 0) {
@@ -650,6 +641,30 @@ function buildComparison(dateValue, timeValue) {
   return new Date(`${dateValue}T${safeTime}`);
 }
 
+function validateMovementTimings() {
+  const pickupComparable = buildComparison(form.pickup_date, form.pickup_time);
+  const deliveryComparable = buildComparison(form.delivery_date, form.delivery_time);
+  const now = new Date();
+
+  if (deliveryComparable && deliveryComparable <= now) {
+    setValidationError('delivery_date', 'Delivery due must be in the future.');
+    setValidationError('delivery_time', 'Delivery due must be in the future.');
+    throw new Error('Delivery due must be in the future.');
+  }
+
+  if (pickupComparable && deliveryComparable && deliveryComparable.getTime() === pickupComparable.getTime()) {
+    setValidationError('delivery_date', 'Delivery due cannot match pickup exactly.');
+    setValidationError('delivery_time', 'Delivery due cannot match pickup exactly.');
+    throw new Error('Pickup and delivery cannot be the same date and time.');
+  }
+
+  if (pickupComparable && deliveryComparable && deliveryComparable < pickupComparable) {
+    setValidationError('delivery_date', 'Delivery due must be after pickup ready time.');
+    setValidationError('delivery_time', 'Delivery due must be after pickup ready time.');
+    throw new Error('Delivery due time must be after the pickup ready time.');
+  }
+}
+
 async function submit() {
   if (!auth.token) {
     errorMessage.value = 'You need to log in as a dealer to create jobs.';
@@ -682,12 +697,7 @@ async function submit() {
       throw new Error('Please acknowledge the urgent boost fee before continuing.');
     }
 
-    const pickupComparable = buildComparison(form.pickup_date, form.pickup_time);
-    const deliveryComparable = buildComparison(form.delivery_date, form.delivery_time);
-
-    if (pickupComparable && deliveryComparable && deliveryComparable < pickupComparable) {
-      throw new Error('Delivery due time must be after the pickup ready time.');
-    }
+    validateMovementTimings();
 
     const payload = {
       title: form.title,
@@ -1161,19 +1171,9 @@ watch(
                   </p>
                 </header>
 
-                <div class="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.2fr_1fr] md:items-center">
-                  <div class="min-w-0">
-                    <p class="text-xs font-black uppercase tracking-wide text-slate-500">Selected transport</p>
-                    <p class="mt-1 text-base font-black text-slate-950">{{ selectedTransport.label }}</p>
-                  </div>
-                  <p class="min-w-0 text-sm leading-6 text-slate-600 md:text-right">
-                    {{ selectedTransport.helper }}
-                  </p>
-                </div>
-
-                <div>
-                  <p class="text-sm font-bold text-slate-700">Transport type</p>
-                  <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div>
+                    <p class="text-sm font-bold text-slate-700">Transport type</p>
+                    <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <button
                       v-for="option in transportOptions"
                       :key="option.value"

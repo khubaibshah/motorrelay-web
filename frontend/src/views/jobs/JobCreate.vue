@@ -213,8 +213,8 @@ const reviewSections = computed(() => [
     key: 'payment',
     label: 'Payment',
     lines: [
-      `${formatMoney(jobPrice.value)} total`,
-      `Driver ${formatMoney(estimatedDriverPayout.value)}`
+      `Driver receives ${formatMoney(estimatedDriverPayout.value)}`,
+      `Dealer pays ${formatMoney(jobPrice.value)}`
     ],
     step: 3
   }
@@ -951,10 +951,10 @@ watch(
 
     <ConfirmModal
       :open="showStartOverModal"
-      title="Clear this draft and start over?"
+      title="Clear this run and start over?"
       description="This will remove the saved run details on this device and take you back to Vehicle."
       cancel-text="Cancel"
-      confirm-text="Clear draft"
+      confirm-text="Clear run"
       confirm-tone="rose"
       icon-text="!"
       icon-class="bg-rose-100 text-rose-700"

@@ -83,12 +83,12 @@ async function loadThreads() {
   try {
     const data = await fetchThreads();
     threads.value = Array.isArray(data?.data) ? data.data : [];
-    if (!selectedThreadId.value && threads.value.length) {
-      await selectThread(threads.value[0].id);
-    } else if (selectedThreadId.value) {
+    if (selectedThreadId.value) {
       const active = threads.value.find((thread) => thread.id === selectedThreadId.value);
       if (!active && threads.value.length) {
-        await selectThread(threads.value[0].id);
+        selectedThreadId.value = null;
+        messages.value = [];
+        mobileView.value = 'list';
       }
     }
   } catch (error) {

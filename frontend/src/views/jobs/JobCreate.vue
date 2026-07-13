@@ -37,12 +37,27 @@ const form = reactive({ ...defaultFormState });
 
 const submitting = ref(false);
 const errorMessage = ref('');
+const validationMessage = ref('');
 const loading = ref(false);
 const loadError = ref('');
 const vehicleLookupLoading = ref(false);
 const vehicleLookupError = ref('');
 const verifiedVehicle = ref(null);
 const currentStep = ref(0);
+const validationState = reactive({
+  vehicle: false,
+  pickup_postcode: false,
+  pickup_label: false,
+  dropoff_postcode: false,
+  dropoff_label: false,
+  transport_type: false,
+  pickup_date: false,
+  pickup_time: false,
+  delivery_date: false,
+  delivery_time: false,
+  price: false,
+  urgent_fee_ack: false
+});
 const addressLookup = reactive({
   pickup: {
     loading: false,
@@ -85,6 +100,26 @@ function stepIndexFromKey(value) {
   return index >= 0 ? index : 0;
 }
 
+function clearValidationState() {
+  Object.keys(validationState).forEach((key) => {
+    validationState[key] = false;
+  });
+  validationMessage.value = '';
+}
+
+function setValidationError(key, message) {
+  if (Object.prototype.hasOwnProperty.call(validationState, key)) {
+    validationState[key] = true;
+  }
+  if (message && !validationMessage.value) {
+    validationMessage.value = message;
+  }
+}
+
+function hasValidationError(key) {
+  return Boolean(validationState[key]);
+}
+
 function syncWizardStepQuery(stepIndex, mode = 'push') {
   const stepKey = wizardStepKeys[stepIndex] ?? wizardStepKeys[0];
   if (normaliseStepKey(route.query.step) === stepKey) {
@@ -115,6 +150,7 @@ const currentWizardStep = computed(() => wizardSteps[currentStep.value] ?? wizar
 const wizardProgress = computed(() => ((currentStep.value + 1) / wizardSteps.length) * 100);
 const isFirstStep = computed(() => currentStep.value === 0);
 const isLastStep = computed(() => currentStep.value === wizardSteps.length - 1);
+const bannerMessage = computed(() => validationMessage.value || errorMessage.value || vehicleLookupError.value);
 
 const jobId = computed(() => {
   if (props.id === null || props.id === undefined || props.id === '') {
@@ -175,6 +211,8 @@ async function lookupAddresses(type) {
   state.addresses = [];
   state.selected = null;
   form[labelField] = '';
+  validationState[postcodeField] = false;
+  validationState[labelField] = false;
 
   if (!postcode) {
     state.error = 'Enter a postcode first.';
@@ -222,6 +260,8 @@ async function selectAddress(type, selectedId) {
     state.postcode = result.postcode || state.postcode || form[`${type}_postcode`];
     form[`${type}_postcode`] = state.postcode || form[`${type}_postcode`];
     form[`${type}_label`] = label;
+    validationState[`${type}_postcode`] = false;
+    validationState[`${type}_label`] = false;
   } catch (error) {
     console.error('Address resolution failed', error);
     state.error = error.response?.data?.message || error.message || 'Could not resolve this address.';
@@ -237,6 +277,8 @@ function changeAddress(type) {
   state.selected = null;
   state.postcode = '';
   form[`${type}_label`] = '';
+  validationState[`${type}_postcode`] = false;
+  validationState[`${type}_label`] = false;
 }
 
 function usePostcodeOnly(type) {
@@ -254,6 +296,8 @@ function usePostcodeOnly(type) {
   state.error = '';
   state.addresses = [];
   state.selected = { id: 'postcode-only', label: postcode };
+  validationState[postcodeField] = false;
+  validationState[`${type}_label`] = false;
 }
 
 function hydrateSelectedAddress(type, label, postcode) {
@@ -262,6 +306,8 @@ function hydrateSelectedAddress(type, label, postcode) {
   state.addresses = [];
   state.postcode = normalisePostcode(postcode);
   state.selected = label ? { id: 'saved', label } : null;
+  validationState[`${type}_postcode`] = false;
+  validationState[`${type}_label`] = false;
 }
 
 async function lookupVehicle() {
@@ -293,6 +339,9 @@ async function lookupVehicle() {
     verifiedVehicle.value = vehicle;
     form.title = vehicle.registration;
     form.vehicle_make = vehicle.display_name || [vehicle.make, vehicle.model].filter(Boolean).join(' ') || '';
+    validationState.vehicle = false;
+    validationMessage.value = '';
+    errorMessage.value = '';
   } catch (error) {
     console.error('Vehicle lookup failed', error);
     vehicleLookupError.value = error.response?.data?.message || error.message || 'Could not verify this registration.';
@@ -310,8 +359,11 @@ function changeVehicle() {
 
   verifiedVehicle.value = null;
   vehicleLookupError.value = '';
+  validationMessage.value = '';
+  errorMessage.value = '';
   form.title = '';
   form.vehicle_make = '';
+  validationState.vehicle = false;
 }
 
 watch(
@@ -355,6 +407,67 @@ watch(
   }
 );
 
+watch(
+  () => form.transport_type,
+  (next) => {
+    if (next) {
+      validationState.transport_type = false;
+    }
+  }
+);
+
+watch(
+  () => [form.pickup_postcode, form.pickup_label],
+  ([pickupPostcode, pickupLabel]) => {
+    if (pickupPostcode) {
+      validationState.pickup_postcode = false;
+    }
+    if (pickupLabel) {
+      validationState.pickup_label = false;
+    }
+  }
+);
+
+watch(
+  () => [form.dropoff_postcode, form.dropoff_label],
+  ([dropoffPostcode, dropoffLabel]) => {
+    if (dropoffPostcode) {
+      validationState.dropoff_postcode = false;
+    }
+    if (dropoffLabel) {
+      validationState.dropoff_label = false;
+    }
+  }
+);
+
+watch(
+  () => [form.pickup_date, form.pickup_time, form.delivery_date, form.delivery_time],
+  ([pickupDate, pickupTime, deliveryDate, deliveryTime]) => {
+    if (pickupDate) validationState.pickup_date = false;
+    if (pickupTime) validationState.pickup_time = false;
+    if (deliveryDate) validationState.delivery_date = false;
+    if (deliveryTime) validationState.delivery_time = false;
+  }
+);
+
+watch(
+  () => form.price,
+  (next) => {
+    if (Number(next) > 0) {
+      validationState.price = false;
+    }
+  }
+);
+
+watch(
+  () => form.urgent_fee_ack,
+  (next) => {
+    if (next) {
+      validationState.urgent_fee_ack = false;
+    }
+  }
+);
+
 const starterUsageInfo = computed(() => {
   if (planSlug.value !== 'starter') return null;
 
@@ -391,11 +504,14 @@ function setStep(stepIndex) {
     return;
   }
 
+  errorMessage.value = '';
+  validationMessage.value = '';
   currentStep.value = stepIndex;
 }
 
 async function validateCurrentStep() {
   errorMessage.value = '';
+  clearValidationState();
 
   if (currentStep.value === 0) {
     if (!verifiedVehicle.value && !isEdit.value) {
@@ -403,21 +519,52 @@ async function validateCurrentStep() {
     }
 
     if (!verifiedVehicle.value && !isEdit.value) {
-      throw new Error('Verify the registration plate before continuing.');
+      setValidationError('vehicle', 'Please verify the registration plate before continuing.');
+      throw new Error('Please complete the highlighted field before continuing.');
     }
   }
 
   if (currentStep.value === 1) {
     if (!form.pickup_label) {
-      throw new Error('Select the exact pickup address before continuing.');
+      setValidationError('pickup_postcode', 'Please complete the pickup postcode.');
+      setValidationError('pickup_label', 'Please choose the exact pickup address.');
+      throw new Error('Please complete the highlighted fields before continuing.');
     }
 
     if (!form.dropoff_label) {
-      throw new Error('Select the exact drop-off address before continuing.');
+      setValidationError('dropoff_postcode', 'Please complete the drop-off postcode.');
+      setValidationError('dropoff_label', 'Please choose the exact drop-off address.');
+      throw new Error('Please complete the highlighted fields before continuing.');
     }
   }
 
   if (currentStep.value === 2) {
+    if (!form.transport_type) {
+      setValidationError('transport_type', 'Please choose a transport type.');
+    }
+    if (!form.pickup_date) {
+      setValidationError('pickup_date', 'Please choose a pickup date.');
+    }
+    if (!form.pickup_time) {
+      setValidationError('pickup_time', 'Please choose a pickup time.');
+    }
+    if (!form.delivery_date) {
+      setValidationError('delivery_date', 'Please choose a delivery date.');
+    }
+    if (!form.delivery_time) {
+      setValidationError('delivery_time', 'Please choose a delivery time.');
+    }
+
+    if (
+      validationState.transport_type ||
+      validationState.pickup_date ||
+      validationState.pickup_time ||
+      validationState.delivery_date ||
+      validationState.delivery_time
+    ) {
+      throw new Error('Please complete the highlighted fields before continuing.');
+    }
+
     const pickupComparable = buildComparison(form.pickup_date, form.pickup_time);
     const deliveryComparable = buildComparison(form.delivery_date, form.delivery_time);
 
@@ -428,11 +575,13 @@ async function validateCurrentStep() {
 
   if (currentStep.value === 3) {
     if (!form.price || Number(form.price) <= 0) {
-      throw new Error('Enter a dealer charge before continuing.');
+      setValidationError('price', 'Please enter a dealer charge.');
+      throw new Error('Please complete the highlighted field before continuing.');
     }
 
     if (requiresUrgentAcknowledgement.value && !form.urgent_fee_ack) {
-      throw new Error('Please acknowledge the urgent boost fee before continuing.');
+      setValidationError('urgent_fee_ack', 'Please acknowledge the urgent boost fee.');
+      throw new Error('Please complete the highlighted field before continuing.');
     }
   }
 }
@@ -452,6 +601,7 @@ async function goNext() {
     if (!isLastStep.value) {
       currentStep.value += 1;
       errorMessage.value = '';
+      validationMessage.value = '';
     }
   } catch (error) {
     errorMessage.value = error.message || 'Please complete this step.';
@@ -460,6 +610,7 @@ async function goNext() {
 
 function goBack() {
   errorMessage.value = '';
+  validationMessage.value = '';
   if (!isFirstStep.value) {
     currentStep.value -= 1;
   }
@@ -564,6 +715,7 @@ function resetForm() {
   verifiedVehicle.value = null;
   vehicleLookupError.value = '';
   currentStep.value = 0;
+  clearValidationState();
   hydrateSelectedAddress('pickup', '', '');
   hydrateSelectedAddress('dropoff', '', '');
 }
@@ -624,6 +776,7 @@ async function loadJobForEditing() {
     };
     hydrateSelectedAddress('pickup', form.pickup_label, form.pickup_postcode);
     hydrateSelectedAddress('dropoff', form.dropoff_label, form.dropoff_postcode);
+    clearValidationState();
     currentStep.value = 0;
   } catch (error) {
     console.error('Failed to load job for editing', error);
@@ -721,8 +874,8 @@ watch(
         leave-to-class="opacity-0 -translate-x-6"
       >
         <div :key="currentStep" class="relative space-y-5">
-          <p v-if="errorMessage" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-            {{ errorMessage }}
+          <p v-if="bannerMessage" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">
+            {{ bannerMessage }}
           </p>
 
           <template v-if="currentStep === 0">
@@ -743,7 +896,10 @@ watch(
                     :readonly="isEdit || Boolean(verifiedVehicle)"
                     @blur="!isEdit && !verifiedVehicle && lookupVehicle()"
                     class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                    :class="verifiedVehicle ? 'bg-slate-100 font-black text-slate-700' : ''"
+                    :class="[
+                      verifiedVehicle ? 'bg-slate-100 font-black text-slate-700' : '',
+                      validationState.vehicle && !verifiedVehicle ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
+                    ]"
                   />
                 </label>
 
@@ -768,10 +924,6 @@ watch(
                 </button>
               </div>
 
-              <p v-if="vehicleLookupError" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {{ vehicleLookupError }}
-              </p>
-
               <div
                 v-if="verifiedVehicle"
                 class="grid gap-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 sm:grid-cols-3"
@@ -790,9 +942,13 @@ watch(
                 </div>
               </div>
 
-              <p v-else class="hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:block">
-                Enter the registration plate and MotorRelay will pull the vehicle details automatically. Dealers cannot type vehicle details manually.
-              </p>
+                  <p
+                    v-else
+                    class="hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:block"
+                    :class="validationState.vehicle ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
+                  >
+                    Enter the registration plate and MotorRelay will pull the vehicle details automatically. Dealers cannot type vehicle details manually.
+                  </p>
 
               <div class="flex justify-end">
                 <button type="button" class="btn-primary px-5 py-3" :disabled="vehicleLookupLoading" @click="goNext">
@@ -824,7 +980,10 @@ watch(
                         :readonly="Boolean(form.pickup_label)"
                         placeholder="e.g. M1 2AB"
                         class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                        :class="form.pickup_label ? 'bg-slate-100 font-black text-slate-700' : ''"
+                        :class="[
+                          form.pickup_label ? 'bg-slate-100 font-black text-slate-700' : '',
+                          validationState.pickup_postcode && !form.pickup_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
+                        ]"
                       />
                     </label>
                     <button
@@ -876,7 +1035,11 @@ watch(
                     </select>
                   </label>
 
-                  <div v-if="form.pickup_label" class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4">
+                  <div
+                    v-if="form.pickup_label"
+                    class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4"
+                    :class="validationState.pickup_label ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
+                  >
                     <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Pickup address locked</p>
                     <p class="mt-1 text-base font-black text-slate-950">{{ form.pickup_label }}</p>
                     <p class="mt-1 text-sm text-slate-600">{{ form.pickup_postcode }}</p>
@@ -905,7 +1068,10 @@ watch(
                         :readonly="Boolean(form.dropoff_label)"
                         placeholder="e.g. LS1 4XY"
                         class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-                        :class="form.dropoff_label ? 'bg-slate-100 font-black text-slate-700' : ''"
+                        :class="[
+                          form.dropoff_label ? 'bg-slate-100 font-black text-slate-700' : '',
+                          validationState.dropoff_postcode && !form.dropoff_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
+                        ]"
                       />
                     </label>
                     <button
@@ -957,7 +1123,11 @@ watch(
                     </select>
                   </label>
 
-                  <div v-if="form.dropoff_label" class="rounded-3xl border border-sky-200 bg-sky-50/70 p-4">
+                  <div
+                    v-if="form.dropoff_label"
+                    class="rounded-3xl border border-sky-200 bg-sky-50/70 p-4"
+                    :class="validationState.dropoff_label ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
+                  >
                     <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Drop-off address locked</p>
                     <p class="mt-1 text-base font-black text-slate-950">{{ form.dropoff_label }}</p>
                     <p class="mt-1 text-sm text-slate-600">{{ form.dropoff_postcode }}</p>
@@ -1012,31 +1182,41 @@ watch(
               </div>
 
               <div class="grid gap-4 md:grid-cols-2">
-                <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div
+                  class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4"
+                  :class="validationState.pickup_date || validationState.pickup_time ? 'border-rose-400 bg-rose-50' : ''"
+                >
                   <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</p>
                   <input
                     v-model="form.pickup_date"
                     type="date"
                     class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                    :class="validationState.pickup_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
                   />
                   <input
                     v-model="form.pickup_time"
                     type="time"
                     class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                    :class="validationState.pickup_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
                   />
                 </div>
 
-                <div class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div
+                  class="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4"
+                  :class="validationState.delivery_date || validationState.delivery_time ? 'border-rose-400 bg-rose-50' : ''"
+                >
                   <p class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</p>
                   <input
                     v-model="form.delivery_date"
                     type="date"
                     class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                    :class="validationState.delivery_date ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
                   />
                   <input
                     v-model="form.delivery_time"
                     type="time"
                     class="mt-3 block w-full max-w-full min-w-0 box-border rounded-2xl border px-4 py-3 text-sm"
+                    :class="validationState.delivery_time ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
                   />
                 </div>
               </div>
@@ -1069,6 +1249,7 @@ watch(
                   required
                   placeholder="e.g. 120"
                   class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
+                  :class="validationState.price ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
                 />
               </label>
 
@@ -1083,7 +1264,10 @@ watch(
                 </div>
               </dl>
 
-              <section class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5">
+              <section
+                class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5"
+                :class="validationState.urgent_fee_ack ? 'border-rose-400 bg-rose-50' : ''"
+              >
                 <label class="flex items-start gap-3">
                   <input
                     v-model="form.is_urgent"

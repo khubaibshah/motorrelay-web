@@ -10,6 +10,7 @@ import JobCreateRouteStep from '@/components/jobs/JobCreateRouteStep.vue';
 import JobCreateMovementStep from '@/components/jobs/JobCreateMovementStep.vue';
 import JobCreatePaymentStep from '@/components/jobs/JobCreatePaymentStep.vue';
 import JobCreateReviewStep from '@/components/jobs/JobCreateReviewStep.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 
 const props = defineProps({
   id: {
@@ -29,6 +30,7 @@ const errorMessage = ref('');
 const validationMessage = ref('');
 const loading = ref(false);
 const loadError = ref('');
+const showStartOverModal = ref(false);
 const vehicleLookupLoading = ref(false);
 const vehicleLookupError = ref('');
 const verifiedVehicle = computed({
@@ -707,6 +709,19 @@ function resetForm() {
   hydrateSelectedAddress('dropoff', '', '');
 }
 
+function openStartOverModal() {
+  showStartOverModal.value = true;
+}
+
+function closeStartOverModal() {
+  showStartOverModal.value = false;
+}
+
+function confirmStartOver() {
+  showStartOverModal.value = false;
+  resetForm();
+}
+
 function splitDateTime(value) {
   if (!value) {
     return '';
@@ -822,25 +837,36 @@ watch(
               :style="{ width: `${wizardProgress}%` }"
             ></div>
           </div>
-          <div class="flex flex-wrap gap-3 pt-2 sm:gap-4">
+          <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+            <div class="flex flex-wrap gap-3 sm:gap-4">
+              <button
+              v-for="(step, index) in wizardSteps"
+              :key="step.key"
+              type="button"
+              class="rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] transition"
+                :disabled="!reviewUnlocked && index > currentStep"
+                @click="setStep(index)"
+                :class="
+                  index === currentStep
+                    ? 'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-emerald-200'
+                    : reviewUnlocked
+                      ? 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-slate-950'
+                      : index < currentStep
+                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        : 'bg-slate-100 text-slate-400'
+                "
+              >
+                {{ step.label }}
+              </button>
+            </div>
+
             <button
-            v-for="(step, index) in wizardSteps"
-            :key="step.key"
-            type="button"
-            class="rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] transition"
-              :disabled="!reviewUnlocked && index > currentStep"
-              @click="setStep(index)"
-              :class="
-                index === currentStep
-                  ? 'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-emerald-200'
-                  : reviewUnlocked
-                    ? 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-slate-950'
-                    : index < currentStep
-                      ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                      : 'bg-slate-100 text-slate-400'
-              "
+              v-if="!isEdit"
+              type="button"
+              class="rounded-full border border-rose-200 bg-rose-50 px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-rose-700 transition hover:bg-rose-100 hover:text-rose-800"
+              @click="openStartOverModal"
             >
-              {{ step.label }}
+              Start over
             </button>
           </div>
         </div>
@@ -922,5 +948,18 @@ watch(
         </div>
       </Transition>
     </form>
+
+    <ConfirmModal
+      :open="showStartOverModal"
+      title="Clear this draft and start over?"
+      description="This will remove the saved job details on this device and take you back to Vehicle."
+      cancel-text="Cancel"
+      confirm-text="Clear draft"
+      confirm-tone="rose"
+      icon-text="!"
+      icon-class="bg-rose-100 text-rose-700"
+      @cancel="closeStartOverModal"
+      @confirm="confirmStartOver"
+    />
   </div>
 </template>

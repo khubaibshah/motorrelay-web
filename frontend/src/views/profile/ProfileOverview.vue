@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { RouterLink } from 'vue-router';
 import { disconnectDriverPayoutAccount, startDriverPayoutOnboarding } from '@/services/payments';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 
 const auth = useAuthStore();
 const payoutSetupLoading = ref(false);
@@ -257,46 +258,19 @@ async function confirmPayoutDisconnect() {
       </button>
     </aside>
 
-    <Teleport to="body">
-      <div
-        v-if="showDisconnectModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
-        @click.self="closePayoutDisconnectModal"
-      >
-        <div class="w-full max-w-md rounded-3xl border border-white/70 bg-white p-6 shadow-2xl">
-          <div class="flex items-start gap-4">
-            <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
-              !
-            </div>
-            <div>
-              <h2 class="text-lg font-black text-slate-950">Disconnect Stripe payouts?</h2>
-              <p class="mt-2 text-sm leading-6 text-slate-600">
-                You will not be able to receive driver payouts until Stripe setup is connected again.
-              </p>
-            </div>
-          </div>
-
-          <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              class="btn-secondary w-full sm:w-auto"
-              :disabled="payoutDisconnectLoading"
-              @click="closePayoutDisconnectModal"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="btn-primary w-full bg-rose-600 hover:bg-rose-700 sm:w-auto"
-              :disabled="payoutDisconnectLoading"
-              @click="confirmPayoutDisconnect"
-            >
-              <span v-if="payoutDisconnectLoading">Disconnecting...</span>
-              <span v-else>Disconnect account</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <ConfirmModal
+      :open="showDisconnectModal"
+      title="Disconnect Stripe payouts?"
+      description="You will not be able to receive driver payouts until Stripe setup is connected again."
+      cancel-text="Cancel"
+      confirm-text="Disconnect account"
+      :loading="payoutDisconnectLoading"
+      loading-text="Disconnecting..."
+      confirm-tone="rose"
+      icon-text="!"
+      icon-class="bg-rose-100 text-rose-700"
+      @cancel="closePayoutDisconnectModal"
+      @confirm="confirmPayoutDisconnect"
+    />
   </div>
 </template>

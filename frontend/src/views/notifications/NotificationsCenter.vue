@@ -64,7 +64,7 @@ async function clearAllNotifications() {
     <section class="section-card">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Notifications</p>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Notifications</p>
           <h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950">Notification center</h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             Track run changes, payment updates, proof approvals, and invoice events here.

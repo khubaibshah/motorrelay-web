@@ -87,7 +87,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10"
           :class="validationState.pickup_label ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-400 dark:bg-rose-400/10 dark:text-rose-200' : ''"
         >
-          <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Pickup locked</p>
+          <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Pickup locked</p>
           <p class="mt-1 text-base font-black text-slate-950 dark:text-emerald-300">{{ form.pickup_label }}</p>
           <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ form.pickup_postcode }}</p>
         </div>
@@ -161,7 +161,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           class="rounded-3xl border border-sky-200 bg-sky-50/70 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10"
           :class="validationState.dropoff_label ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-400 dark:bg-rose-400/10 dark:text-rose-200' : ''"
         >
-          <p class="text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-emerald-300">Drop-off locked</p>
+          <p class="text-xs font-black uppercase tracking-wide text-sky-700 dark:text-emerald-300">Drop-off locked</p>
           <p class="mt-1 text-base font-black text-slate-950 dark:text-emerald-300">{{ form.dropoff_label }}</p>
           <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ form.dropoff_postcode }}</p>
         </div>

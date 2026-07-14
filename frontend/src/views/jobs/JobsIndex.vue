@@ -567,7 +567,7 @@ onMounted(async () => {
     >
       <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{{ pageIntro.eyebrow }}</p>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">{{ pageIntro.eyebrow }}</p>
           <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{{ pageIntro.title }}</h1>
           <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{{ pageIntro.text }}</p>
         </div>
@@ -595,7 +595,7 @@ onMounted(async () => {
     <section v-if="isDealer" class="section-card space-y-4 dark:border-white/10 dark:bg-slate-950 dark:text-white">
       <header class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Dealer operations</p>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Dealer operations</p>
           <RouterLink
             to="/jobs/new"
             class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
@@ -618,7 +618,7 @@ onMounted(async () => {
               class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.06]"
             >
               <p class="text-base font-black text-slate-950 dark:text-emerald-300">{{ stat.value }}</p>
-              <p class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-emerald-100">{{ stat.label }}</p>
+              <p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-emerald-100">{{ stat.label }}</p>
             </div>
           </div>
         </div>
@@ -626,7 +626,7 @@ onMounted(async () => {
 
       <div v-if="showAllDealerRuns" class="grid w-full gap-3 sm:grid-cols-3">
           <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-search" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
+            <label for="dealer-jobs-search" class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
               Search
             </label>
             <input
@@ -639,7 +639,7 @@ onMounted(async () => {
           </div>
 
           <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-status" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
+            <label for="dealer-jobs-status" class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
               Status
             </label>
             <select
@@ -662,7 +662,7 @@ onMounted(async () => {
           </div>
 
           <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-payment" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
+            <label for="dealer-jobs-payment" class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
               Payment
             </label>
             <select
@@ -734,7 +734,7 @@ onMounted(async () => {
         <div :class="showAllDealerRuns ? 'max-h-[34rem] overflow-auto' : ''">
           <table class="min-w-full divide-y divide-slate-200 text-left dark:divide-white/10">
             <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950">
-              <tr class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
+              <tr class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
                 <th class="px-4 py-3">Run</th>
                 <th class="px-4 py-3">Now</th>
                 <th class="px-4 py-3">Payment</th>
@@ -849,7 +849,7 @@ onMounted(async () => {
       <header class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run marketplace</p>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run marketplace</p>
             <h2 class="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-emerald-300">Runs</h2>
             <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-emerald-100">
               Browse open runs, manage assigned work, and review completed delivery history from one place.
@@ -862,7 +862,7 @@ onMounted(async () => {
 
         <form class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.06] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_auto]" @submit.prevent="submitDriverSearch">
           <label class="block min-w-0">
-            <span class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Search</span>
+            <span class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Search</span>
             <input
               v-model="driverSearch"
               type="search"
@@ -871,7 +871,7 @@ onMounted(async () => {
             >
           </label>
           <label class="block min-w-0">
-            <span class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Transport</span>
+            <span class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Transport</span>
             <select
               v-model="driverTransportFilter"
               class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
@@ -958,7 +958,7 @@ onMounted(async () => {
               v-if="driverRunsTab !== 'available'"
               class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right dark:bg-emerald-400 dark:text-slate-950"
             >
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver payout</p>
+              <p class="text-xs font-black uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver payout</p>
               <div class="mt-1 text-2xl font-black">
                 {{ priceFormatter.format(visibleAmountForJob(job)) }}
               </div>
@@ -1104,11 +1104,11 @@ onMounted(async () => {
 
               <div class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
                 <div class="rounded-2xl bg-slate-50 p-3">
-                  <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Route</p>
+                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Route</p>
                   <p class="mt-1 font-semibold text-slate-800">{{ job.pickup_postcode || '--' }} to {{ job.dropoff_postcode || '--' }}</p>
                 </div>
                 <div class="rounded-2xl bg-slate-50 p-3">
-                  <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Driver</p>
+                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Driver</p>
                   <p class="mt-1 font-semibold text-slate-800">
                     <template v-if="isDriver">
                       {{ job.posted_by?.name || 'Dealer' }}
@@ -1119,14 +1119,14 @@ onMounted(async () => {
                   </p>
                 </div>
                 <div class="rounded-2xl bg-slate-50 p-3">
-                  <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Next action</p>
+                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Next action</p>
                   <p class="mt-1 font-semibold text-emerald-700">{{ job.status }}</p>
                 </div>
               </div>
             </div>
 
             <div class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right">
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver payout</p>
+              <p class="text-xs font-black uppercase tracking-wide text-slate-400">Driver payout</p>
               <div class="mt-1 text-3xl font-black">
                 {{ priceFormatter.format(visibleAmountForJob(job)) }}
               </div>
@@ -1250,7 +1250,7 @@ onMounted(async () => {
         >
           <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0">
-              <p v-if="isDriver" class="text-xs font-bold uppercase tracking-wide text-slate-500">Driver payout</p>
+              <p v-if="isDriver" class="text-xs font-black uppercase tracking-wide text-slate-500">Driver payout</p>
               <div class="text-2xl font-black text-slate-950">
                 {{ priceFormatter.format(visibleAmountForJob(job)) }}
               </div>

@@ -76,7 +76,7 @@ function handlePriceBlur(event) {
 
     <dl class="grid min-w-0 gap-3 md:grid-cols-2">
       <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
-        <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dealer charge</dt>
+        <dt class="text-xs font-black uppercase tracking-wide text-slate-500">Dealer charge</dt>
         <dd
           class="mt-1 truncate text-lg font-black tabular-nums text-slate-950 sm:text-xl dark:text-emerald-300"
           :title="formatMoney(jobPrice)"
@@ -85,7 +85,7 @@ function handlePriceBlur(event) {
         </dd>
       </div>
       <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-950 p-4 text-white dark:bg-emerald-400 dark:text-slate-950">
-        <dt class="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver receives</dt>
+        <dt class="text-xs font-black uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver receives</dt>
         <dd
           class="mt-1 truncate text-lg font-black tabular-nums sm:text-2xl"
           :title="formatMoney(estimatedDriverPayout)"

@@ -1153,7 +1153,7 @@ watch(
       <header class="tile space-y-4 p-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run details</p>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run details</p>
             <h1 class="mt-1 break-words text-2xl font-black text-slate-950 dark:text-white">
               {{ job.title || `Run #${job.id}` }}
             </h1>
@@ -1168,7 +1168,7 @@ watch(
 
         <div class="flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-emerald-100">{{ headerDisplayLabel }}</p>
+            <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">{{ headerDisplayLabel }}</p>
             <p class="mt-1 text-3xl font-black text-emerald-600 dark:text-emerald-300">
               {{ priceFormatter.format(headerDisplayAmount) }}
             </p>
@@ -1206,7 +1206,7 @@ watch(
       >
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Driver request</p>
+            <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Driver request</p>
             <div class="mt-1 flex flex-wrap items-center gap-2">
               <h2 class="text-xl font-black text-slate-950">{{ requestPanelTitle }}</h2>
               <span
@@ -1247,7 +1247,7 @@ watch(
       <section class="tile space-y-3 p-4">
           <div class="grid gap-3">
             <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <h2 class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Pickup</h2>
+              <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Pickup</h2>
               <p class="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">{{ job.pickup_label || job.pickup_postcode || 'Pickup location' }}</p>
               <p v-if="job.pickup_label && job.pickup_label !== job.pickup_postcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ job.pickup_postcode || '--' }}</p>
             </div>
@@ -1259,7 +1259,7 @@ watch(
             </div>
 
             <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <h2 class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Drop-off</h2>
+              <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Drop-off</h2>
               <p class="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">{{ job.dropoff_label || job.dropoff_postcode || 'Drop-off location' }}</p>
               <p v-if="job.dropoff_label && job.dropoff_label !== job.dropoff_postcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ job.dropoff_postcode || '--' }}</p>
             </div>
@@ -1267,11 +1267,11 @@ watch(
 
           <div class="grid grid-cols-2 gap-3 text-sm">
             <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Distance</p>
+              <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Distance</p>
               <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ job.distance_mi ? `${job.distance_mi} mi` : '--' }}</p>
             </div>
             <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Transport</p>
+              <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Transport</p>
               <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ transportLabel }}</p>
             </div>
           </div>
@@ -1320,7 +1320,7 @@ watch(
       <section v-if="showApplicationsAtTop" class="tile space-y-4 border-emerald-200 bg-emerald-50/40 p-4">
         <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Next step</p>
+            <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Next step</p>
             <h2 class="mt-1 text-lg font-black text-slate-950">Choose a driver</h2>
             <p class="text-sm text-slate-600">
               Payment is taken upfront. Review applications and assign one driver after funding is confirmed.
@@ -1403,7 +1403,7 @@ watch(
       >
         <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-sky-700">{{ paymentCardEyebrow }}</p>
+            <p class="text-xs font-black uppercase tracking-wide text-sky-700">{{ paymentCardEyebrow }}</p>
             <h2 class="mt-1 text-lg font-black text-slate-950">{{ paymentCardTitle }}</h2>
             <p class="text-sm text-slate-600">
               {{ paymentCardDescription }}
@@ -1544,7 +1544,7 @@ watch(
       <section v-if="showDriverNextAction" class="tile space-y-3 border-emerald-200 bg-emerald-50/40 p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Next driver action</p>
+            <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Next driver action</p>
             <h2 class="mt-1 text-lg font-black text-slate-950">{{ currentWorkflowStep?.label || 'Complete' }}</h2>
             <p class="mt-1 text-sm text-slate-600">{{ driverNextActionText }}</p>
           </div>

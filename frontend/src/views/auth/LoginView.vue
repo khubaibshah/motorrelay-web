@@ -46,7 +46,7 @@ async function submit() {
   <div class="mx-auto grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-900/5 backdrop-blur sm:rounded-[2rem] lg:grid-cols-[0.9fr_1.1fr] dark:border-white/10 dark:bg-slate-950 dark:shadow-black/30 dark:ring-white/10">
     <aside class="hidden bg-slate-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
       <div>
-        <p class="text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">MotorRelay</p>
+        <p class="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">MotorRelay</p>
         <h1 class="mt-4 text-4xl font-black tracking-tight">One workspace for every vehicle movement.</h1>
         <p class="mt-4 text-sm leading-6 text-slate-300">
           Manage runs, messages, live tracking, inspection photos, expenses, and invoices from a focused operations dashboard.
@@ -83,7 +83,7 @@ async function submit() {
       </nav>
 
       <header class="space-y-2">
-        <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">Welcome back</p>
+        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">Welcome back</p>
         <h1 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl dark:text-emerald-300">Sign in to MotorRelay</h1>
         <p class="text-sm leading-6 text-slate-600 dark:text-emerald-100">
           Access your account to manage runs, drivers, messages, tracking, and paperwork.

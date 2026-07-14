@@ -215,7 +215,7 @@ const openJobsEmptyText = computed(() => {
     <section class="section-card overflow-hidden">
       <div class="space-y-6">
         <div class="space-y-5 sm:space-y-6">
-          <div class="inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">
+          <div class="inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">
             {{ roleLabel }}
           </div>
 
@@ -241,7 +241,7 @@ const openJobsEmptyText = computed(() => {
       <div class="flex flex-col gap-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Driver workspace</p>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Driver workspace</p>
             <h2 class="mt-1 text-xl font-bold text-emerald-300">
               {{ hasDriverCurrentJob ? 'Current run' : 'Run opportunities' }}
             </h2>
@@ -255,7 +255,7 @@ const openJobsEmptyText = computed(() => {
           <p class="text-sm font-bold text-white">Find a run</p>
           <div class="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
             <label class="block min-w-0">
-              <span class="text-xs font-bold uppercase tracking-wide text-slate-400">Postcode or route</span>
+              <span class="text-xs font-black uppercase tracking-wide text-slate-400">Postcode or route</span>
               <input
                 v-model="driverSearchPostcode"
                 type="search"
@@ -264,7 +264,7 @@ const openJobsEmptyText = computed(() => {
               >
             </label>
             <label class="block min-w-0">
-              <span class="text-xs font-bold uppercase tracking-wide text-slate-400">Transport</span>
+              <span class="text-xs font-black uppercase tracking-wide text-slate-400">Transport</span>
               <select
                 v-model="driverSearchTransport"
                 class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-emerald-100 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20"
@@ -310,7 +310,7 @@ const openJobsEmptyText = computed(() => {
       <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
               {{ auth.role === 'dealer' ? 'Dealer workspace' : 'Live board' }}
             </p>
             <h2 class="mt-1 text-xl font-bold text-emerald-300">{{ liveBoardTitle }}</h2>

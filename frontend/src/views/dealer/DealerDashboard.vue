@@ -78,7 +78,7 @@ function formatDate(value) {
       <section class="section-card">
         <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer workspace</p>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Dealer workspace</p>
             <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-950">Dealer dashboard</h1>
             <p class="mt-1 text-sm text-slate-600">
               Overview of your MotorRelay runs, driver activity, and paperwork.
@@ -99,22 +99,22 @@ function formatDate(value) {
 
         <div class="mt-6 grid gap-4 sm:grid-cols-2">
           <div class="rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
-            <h2 class="text-xs font-bold uppercase tracking-wide text-emerald-700">Open marketplace runs</h2>
+            <h2 class="text-xs font-black uppercase tracking-wide text-emerald-700">Open marketplace runs</h2>
             <p class="mt-3 text-4xl font-black text-emerald-950">{{ openJobs.length }}</p>
             <p class="mt-1 text-sm text-emerald-800">Runs still waiting for driver applications.</p>
           </div>
           <div class="rounded-3xl border border-sky-100 bg-sky-50 p-5">
-            <h2 class="text-xs font-bold uppercase tracking-wide text-sky-700">Need payment</h2>
+            <h2 class="text-xs font-black uppercase tracking-wide text-sky-700">Need payment</h2>
             <p class="mt-3 text-4xl font-black text-sky-950">{{ paymentDueJobs.length }}</p>
             <p class="mt-1 text-sm text-sky-800">Assigned runs waiting for dealer payment.</p>
           </div>
           <div class="rounded-3xl border border-amber-100 bg-amber-50 p-5">
-            <h2 class="text-xs font-bold uppercase tracking-wide text-amber-700">Proof to review</h2>
+            <h2 class="text-xs font-black uppercase tracking-wide text-amber-700">Proof to review</h2>
             <p class="mt-3 text-4xl font-black text-amber-950">{{ proofReviewJobs.length }}</p>
             <p class="mt-1 text-sm text-amber-800">Drivers have uploaded pre-delivery inspection photos.</p>
           </div>
           <div class="rounded-3xl border border-violet-100 bg-violet-50 p-5">
-            <h2 class="text-xs font-bold uppercase tracking-wide text-violet-700">Payout ready</h2>
+            <h2 class="text-xs font-black uppercase tracking-wide text-violet-700">Payout ready</h2>
             <p class="mt-3 text-4xl font-black text-violet-950">{{ payoutReadyJobs.length }}</p>
             <p class="mt-1 text-sm text-violet-800">Approved runs ready to pay drivers.</p>
           </div>

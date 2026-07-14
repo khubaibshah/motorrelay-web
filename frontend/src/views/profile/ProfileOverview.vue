@@ -138,7 +138,7 @@ async function handleLogout() {
       >
         <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div class="min-w-0 flex-1">
-            <p class="text-xs font-bold uppercase tracking-wide" :class="payoutsEnabled ? 'text-emerald-700' : 'text-amber-700'">Driver payouts</p>
+            <p class="text-xs font-black uppercase tracking-wide" :class="payoutsEnabled ? 'text-emerald-700' : 'text-amber-700'">Driver payouts</p>
             <h2 class="mt-1 text-xl font-black" :class="payoutsEnabled ? 'text-emerald-950' : 'text-amber-950'">{{ payoutCardTitle }}</h2>
             <p class="mt-2 text-sm leading-6" :class="payoutsEnabled ? 'text-emerald-800' : 'text-amber-800'">
               {{ payoutCardText }}

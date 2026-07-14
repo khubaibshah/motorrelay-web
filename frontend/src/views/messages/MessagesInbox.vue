@@ -290,7 +290,7 @@ function scrollMessagesToBottom() {
           <header class="space-y-2">
             <div class="flex items-center justify-between gap-3">
               <div>
-                <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Conversation list</p>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Conversation list</p>
                 <h2 class="mt-1 text-xl font-black text-slate-950">Threads</h2>
               </div>
               <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-emerald-400 dark:text-slate-950">
@@ -378,7 +378,7 @@ function scrollMessagesToBottom() {
         <template v-else>
           <header class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-white/10">
             <div class="min-w-0">
-              <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Active thread</p>
+              <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Active thread</p>
               <h2 class="mt-1 truncate text-2xl font-black text-slate-950 dark:text-emerald-300">
                 {{ selectedThread.subject || selectedThread.job?.title || 'Conversation' }}
               </h2>
@@ -481,7 +481,7 @@ function scrollMessagesToBottom() {
           </div>
 
           <form class="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]" @submit.prevent="sendCurrentMessage">
-            <label class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100" for="message-body">
+            <label class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100" for="message-body">
               Message
             </label>
             <textarea

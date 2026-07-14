@@ -61,15 +61,15 @@ defineEmits(['lookup-vehicle', 'change-vehicle', 'next']);
       class="grid gap-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 sm:grid-cols-3 dark:border-emerald-400/30 dark:bg-emerald-400/10"
     >
       <div>
-        <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Verified plate</p>
+        <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Verified plate</p>
         <p class="mt-1 text-lg font-black text-slate-950 dark:text-emerald-300">{{ verifiedVehicle.registration }}</p>
       </div>
       <div>
-        <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Vehicle</p>
+        <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Vehicle</p>
         <p class="mt-1 text-lg font-black text-slate-950 dark:text-emerald-300">{{ form.vehicle_make || '--' }}</p>
       </div>
       <div>
-        <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Details</p>
+        <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Details</p>
         <p class="mt-1 text-lg font-black text-slate-950 dark:text-emerald-300">{{ verifiedVehicle.vehicle_type || '--' }}</p>
       </div>
     </div>

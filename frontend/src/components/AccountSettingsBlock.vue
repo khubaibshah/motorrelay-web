@@ -237,7 +237,7 @@ watch(
     <header class="space-y-4">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Account settings</p>
+          <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Account settings</p>
           <h2 class="mt-1 text-xl font-black text-slate-950">Your details</h2>
           <p class="mt-1 text-sm text-slate-600">
             Review your account details or send an update for approval.
@@ -262,7 +262,7 @@ watch(
           :key="item.label"
           class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.06]"
         >
-          <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-emerald-100">{{ item.label }}</p>
+          <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:text-emerald-100">{{ item.label }}</p>
           <p class="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-white">{{ item.value }}</p>
         </div>
       </div>

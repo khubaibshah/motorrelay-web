@@ -43,13 +43,27 @@ const postedJobs = computed(() => {
   return Array.isArray(list) ? [...list] : [];
 });
 
-const sortedPostedJobs = computed(() =>
-  [...postedJobs.value].sort((a, b) => {
+const completedJobs = computed(() => {
+  const list = Array.isArray(auth.completedJobs) ? auth.completedJobs : auth.jobs?.completed;
+  return Array.isArray(list) ? [...list] : [];
+});
+
+const openStatuses = ['open', 'pending'];
+const activeStatuses = ['accepted', 'in_progress', 'collected', 'in_transit', 'completion_pending', 'delivered'];
+const sortByRecentActivity = (items) =>
+  [...items].sort((a, b) => {
     const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
     const bTime = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime();
     return bTime - aTime;
-  })
+  });
+
+const dealerOpenJobs = computed(() =>
+  sortByRecentActivity(postedJobs.value.filter((job) => openStatuses.includes(String(job?.status || '').toLowerCase())))
 );
+const dealerActiveJobs = computed(() =>
+  sortByRecentActivity(postedJobs.value.filter((job) => activeStatuses.includes(String(job?.status || '').toLowerCase())))
+);
+const dealerCompletedJobs = computed(() => sortByRecentActivity(completedJobs.value));
 
 const primaryAction = computed(() => {
   if (auth.role === 'driver') return { to: '/jobs', label: 'Browse runs' };
@@ -86,35 +100,27 @@ const quickLinks = computed(() => {
   ];
 });
 
-const dealerJobsProgress = computed(() => {
-  if (auth.role !== 'dealer') return [];
-
-  const byId = new Map();
-  [...postedJobs.value, ...Array.isArray(auth.completedJobs) ? auth.completedJobs : []].forEach((job) => {
-    if (job?.id) byId.set(job.id, job);
-  });
-
-  return [...byId.values()].sort((a, b) => {
-    const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
-    const bTime = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime();
-    return bTime - aTime;
-  });
-});
-
 const liveBoardMode = ref('open');
 const liveBoardJobs = computed(() => {
-  if (liveBoardMode.value === 'posted') return sortedPostedJobs.value;
-  if (liveBoardMode.value === 'progress') return dealerJobsProgress.value;
+  if (auth.role === 'dealer') {
+    if (liveBoardMode.value === 'active') return dealerActiveJobs.value;
+    if (liveBoardMode.value === 'completed') return dealerCompletedJobs.value;
+    return dealerOpenJobs.value;
+  }
+
   return jobsToDisplay.value;
 });
 const liveBoardTitle = computed(() => {
-  if (liveBoardMode.value === 'posted') return 'Your posted runs';
-  if (liveBoardMode.value === 'progress') return 'Runs in progress';
+  if (auth.role === 'dealer') return 'Your runs';
   return 'Open runs';
 });
 const liveBoardEmptyText = computed(() => {
-  if (liveBoardMode.value === 'posted') return 'You have not posted any runs yet. Create a run when you are ready.';
-  if (liveBoardMode.value === 'progress') return 'No runs in progress yet.';
+  if (auth.role === 'dealer') {
+    if (liveBoardMode.value === 'active') return 'No active runs yet.';
+    if (liveBoardMode.value === 'completed') return 'No completed runs yet.';
+    return 'No open runs yet. Create your first run to start receiving driver requests.';
+  }
+
   return openJobsEmptyText.value;
 });
 const liveBoardCountText = computed(() => {
@@ -185,7 +191,9 @@ const openJobsEmptyText = computed(() => {
       <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Live board</p>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+              {{ auth.role === 'dealer' ? 'Dealer workspace' : 'Live board' }}
+            </p>
             <h2 class="mt-1 text-xl font-bold">{{ liveBoardTitle }}</h2>
           </div>
           <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
@@ -200,25 +208,25 @@ const openJobsEmptyText = computed(() => {
             :class="liveBoardMode === 'open' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
             @click="liveBoardMode = 'open'"
           >
-            Open runs
+            {{ auth.role === 'dealer' ? 'Open' : 'Open runs' }}
           </button>
           <button
             v-if="auth.role === 'dealer'"
             type="button"
             class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'progress' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
-            @click="liveBoardMode = 'progress'"
+            :class="liveBoardMode === 'active' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            @click="liveBoardMode = 'active'"
           >
-            Runs in progress
+            Active
           </button>
           <button
             v-if="auth.role === 'dealer'"
             type="button"
             class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'posted' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
-            @click="liveBoardMode = 'posted'"
+            :class="liveBoardMode === 'completed' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            @click="liveBoardMode = 'completed'"
           >
-            Your posted runs
+            Completed
           </button>
         </div>
       </div>

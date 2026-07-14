@@ -230,15 +230,16 @@ const dealerPreviewJobs = computed(() => dealerJobsProgress.value.slice(0, 2));
 const displayedDealerJobs = computed(() => (showAllDealerRuns.value ? filteredDealerJobs.value : dealerPreviewJobs.value));
 const dealerRunStats = computed(() => {
   const jobs = dealerJobsProgress.value;
+  const openStatuses = ['open', 'pending'];
   const inProgressStatuses = ['accepted', 'in_progress', 'collected', 'in_transit', 'completion_pending', 'delivered'];
 
   return [
     {
       label: 'Open',
-      value: jobs.filter((job) => String(job?.status || '').toLowerCase() === 'open').length
+      value: jobs.filter((job) => openStatuses.includes(String(job?.status || '').toLowerCase())).length
     },
     {
-      label: 'In progress',
+      label: 'Active',
       value: jobs.filter((job) => inProgressStatuses.includes(String(job?.status || '').toLowerCase())).length
     },
     {
@@ -551,9 +552,9 @@ onMounted(async () => {
 
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 class="text-xl font-black text-slate-950">Live runs</h2>
+            <h2 class="text-xl font-black text-slate-950">Your runs</h2>
             <p class="mt-2 text-sm text-slate-600">
-              Keep an eye on active jobs, then expand the table when you need the full view.
+              Keep an eye on your posted jobs, then expand the table when you need the full view.
             </p>
           </div>
           <div class="grid w-full grid-cols-3 gap-2 lg:w-auto">
@@ -625,11 +626,11 @@ onMounted(async () => {
       </div>
 
       <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading live runs...
+        Loading your runs...
       </div>
 
       <div v-else-if="!displayedDealerJobs.length" class="space-y-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-        <p>{{ showAllDealerRuns ? 'No live runs match your search.' : 'No live runs yet. Create a run to start receiving driver requests.' }}</p>
+        <p>{{ showAllDealerRuns ? 'No runs match your search.' : 'No runs yet. Create a run to start receiving driver requests.' }}</p>
         <button
           v-if="showAllDealerRuns"
           type="button"
@@ -671,14 +672,6 @@ onMounted(async () => {
               >
                 Invoice
               </a>
-              <RouterLink
-                v-else
-                :to="`/invoices`"
-                class="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700"
-                @click.stop
-              >
-                Invoice
-              </RouterLink>
             </div>
           </article>
         </div>
@@ -735,7 +728,7 @@ onMounted(async () => {
 
         <div class="flex flex-wrap items-center justify-between gap-3">
           <p v-if="!showAllDealerRuns && dealerJobsProgress.length > displayedDealerJobs.length" class="text-xs text-slate-500">
-            Showing {{ displayedDealerJobs.length }} of {{ dealerJobsProgress.length }} live runs.
+            Showing {{ displayedDealerJobs.length }} of {{ dealerJobsProgress.length }} runs.
           </p>
           <button
             v-if="showAllDealerRuns || dealerJobsProgress.length > displayedDealerJobs.length"
@@ -743,7 +736,7 @@ onMounted(async () => {
             class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
             @click="showAllDealerRuns = !showAllDealerRuns"
           >
-            {{ showAllDealerRuns ? 'Show less' : 'View all live runs' }}
+            {{ showAllDealerRuns ? 'Show less' : 'View all runs' }}
           </button>
         </div>
       </div>
@@ -805,7 +798,7 @@ onMounted(async () => {
     <section v-if="showActiveSection" class="section-card order-1 space-y-4">
       <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 class="text-lg font-black text-slate-950">
-          {{ isDriver ? 'Your active runs' : isDealer ? 'Your posted runs' : 'Active runs' }}
+          {{ isDriver ? 'Your active runs' : 'Active runs' }}
         </h2>
         <span v-if="isDealer" class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
           {{ mainJobs.length }} active
@@ -1129,10 +1122,6 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-
-
-
 
 
 

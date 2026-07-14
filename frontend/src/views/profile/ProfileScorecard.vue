@@ -87,7 +87,6 @@ const metricCards = computed(() => [
 
 const updates = [
   'Improved run matching accuracy',
-  'Urgent run boost helps dealers get faster driver attention',
   'Live tracking accuracy upgrades',
   'Tip: use run numbers when messaging support',
   'New fraud checks protect payouts and invoices'

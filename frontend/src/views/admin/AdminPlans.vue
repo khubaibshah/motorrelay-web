@@ -22,11 +22,6 @@ const revenueLevers = [
     note: 'Deducted from each completed run once payment processing is connected.'
   },
   {
-    label: 'Urgent boost',
-    value: '£25',
-    note: 'Dealer pays extra to promote time-sensitive vehicle movements.'
-  },
-  {
     label: 'Dealer plans',
     value: 'Monthly',
     note: 'Paid tiers can unlock more run posts, team tools, and reporting.'

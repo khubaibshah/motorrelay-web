@@ -39,7 +39,6 @@ const plans = [
     ],
     dealers: [
       'Post up to 40 runs per month',
-      '2 urgent boosts included monthly',
       'Shared inbox for team co-ordination',
       'Automated invoice exports'
     ]

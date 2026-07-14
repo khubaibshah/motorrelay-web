@@ -151,8 +151,6 @@ class JobController extends Controller
             'transport_type' => ['required', Rule::in(['drive_away', 'trailer'])],
             'pickup_ready_at' => ['nullable', 'date'],
             'delivery_due_at' => ['nullable', 'date'],
-            'is_urgent' => ['nullable', 'boolean'],
-            'urgent_accept_fee' => ['nullable', 'boolean'],
         ]);
 
         $vehicle = $vehicles->lookup($data['title']);
@@ -186,38 +184,6 @@ class JobController extends Controller
             }
         }
 
-        $isUrgent = (bool) ($data['is_urgent'] ?? false);
-        $urgentFee = 0.0;
-
-        if ($isUrgent) {
-            if ($user->hasPaidSubscription()) {
-                $urgentFee = 0.0;
-            } else {
-                if (!empty($planLimits)) {
-                    $startOfMonth = isset($startOfMonth) ? $startOfMonth : Carbon::now()->startOfMonth();
-                    $urgentLimit = $planLimits['urgent_boost_per_month'] ?? null;
-                    if ($urgentLimit) {
-                        $urgentCount = Job::where('posted_by_id', $user->id)
-                            ->where('is_urgent', true)
-                            ->where('created_at', '>=', $startOfMonth)
-                            ->count();
-
-                        if ($urgentCount >= $urgentLimit) {
-                            abort(422, sprintf(
-                                'Starter plan includes %d urgent boost per month. Upgrade to unlock more boosts.',
-                                $urgentLimit
-                            ));
-                        }
-                    }
-                }
-
-                if (!$request->boolean('urgent_accept_fee')) {
-                    abort(422, 'You must acknowledge the urgent boost fee before posting this job.');
-                }
-                $urgentFee = (float) config('jobs.urgent_boost_fee', 25.0);
-            }
-        }
-
         $pickupReadyAt = !empty($data['pickup_ready_at']) ? Carbon::parse($data['pickup_ready_at']) : null;
         $deliveryDueAt = !empty($data['delivery_due_at']) ? Carbon::parse($data['delivery_due_at']) : null;
 
@@ -236,8 +202,6 @@ class JobController extends Controller
             'pickup_ready_at' => $pickupReadyAt,
             'delivery_due_at' => $deliveryDueAt,
             'goes_live_at' => null,
-            'is_urgent' => $isUrgent,
-            'urgent_fee_amount' => $urgentFee,
         ]);
 
         return response()->json($job, 201);
@@ -331,8 +295,6 @@ class JobController extends Controller
             'transport_type' => ['sometimes', Rule::in(['drive_away', 'trailer'])],
             'pickup_ready_at' => ['sometimes', 'nullable', 'date'],
             'delivery_due_at' => ['sometimes', 'nullable', 'date'],
-            'is_urgent' => ['sometimes', 'boolean'],
-            'urgent_accept_fee' => ['nullable', 'boolean'],
         ]);
 
         if (array_key_exists('pickup_ready_at', $data) && array_key_exists('delivery_due_at', $data)
@@ -370,42 +332,6 @@ class JobController extends Controller
 
         if (array_key_exists('delivery_due_at', $updates)) {
             $updates['delivery_due_at'] = $updates['delivery_due_at'] ? Carbon::parse($updates['delivery_due_at']) : null;
-        }
-
-        if (array_key_exists('is_urgent', $updates)) {
-            $isUrgent = (bool) $updates['is_urgent'];
-            $updates['is_urgent'] = $isUrgent;
-
-            if ($isUrgent) {
-                if ($user->hasPaidSubscription()) {
-                    $updates['urgent_fee_amount'] = 0.0;
-                } else {
-                    if (!empty($planLimits) && !$job->is_urgent) {
-                        $urgentLimit = $planLimits['urgent_boost_per_month'] ?? null;
-                        if ($urgentLimit) {
-                            $startOfMonth = Carbon::now()->startOfMonth();
-                            $urgentCount = Job::where('posted_by_id', $user->id)
-                                ->where('is_urgent', true)
-                                ->where('created_at', '>=', $startOfMonth)
-                                ->count();
-
-                            if ($urgentCount >= $urgentLimit) {
-                                abort(422, sprintf(
-                                    'Starter plan includes %d urgent boost per month. Upgrade to unlock more boosts.',
-                                    $urgentLimit
-                                ));
-                            }
-                        }
-                    }
-
-                    if (!$request->boolean('urgent_accept_fee')) {
-                        abort(422, 'You must acknowledge the urgent boost fee before marking this job urgent.');
-                    }
-                    $updates['urgent_fee_amount'] = (float) config('jobs.urgent_boost_fee', 25.0);
-                }
-            } else {
-                $updates['urgent_fee_amount'] = 0.0;
-            }
         }
 
         $job->update($updates);

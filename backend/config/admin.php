@@ -22,7 +22,6 @@ return [
             'features' => [
                 'Drivers: Planner dashboard, priority chat, instant payout eligibility',
                 'Drivers: Job search radius up to 100 miles',
-                'Dealers: Post up to 40 jobs monthly with 2 urgent boosts included',
                 'Dealers: Shared inbox for team coordination and invoice exports',
             ],
         ],

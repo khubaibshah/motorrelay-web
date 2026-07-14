@@ -8,9 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('jobs', function (Blueprint $table) {
-            $table->boolean('is_urgent')->default(false)->after('notes');
-            $table->decimal('urgent_fee_amount', 10, 2)->default(0)->after('is_urgent');
-            $table->decimal('platform_fee_amount', 10, 2)->default(0)->after('urgent_fee_amount');
+            $table->decimal('platform_fee_amount', 10, 2)->default(0)->after('notes');
             $table->string('platform_fee_reference')->nullable()->after('platform_fee_amount');
             $table->string('completion_status')->default('not_submitted')->after('platform_fee_reference');
             $table->timestamp('completion_submitted_at')->nullable()->after('completion_status');
@@ -29,8 +27,6 @@ return new class extends Migration {
         Schema::table('jobs', function (Blueprint $table) {
             $table->dropForeign(['finalized_invoice_id']);
             $table->dropColumn([
-                'is_urgent',
-                'urgent_fee_amount',
                 'platform_fee_amount',
                 'platform_fee_reference',
                 'completion_status',

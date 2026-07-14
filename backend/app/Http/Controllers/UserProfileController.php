@@ -85,15 +85,8 @@ class UserProfileController extends Controller
                     ->where('created_at', '>=', $startOfMonth)
                     ->count();
 
-                $urgentThisMonth = $user->postedJobs()
-                    ->where('created_at', '>=', $startOfMonth)
-                    ->where('is_urgent', true)
-                    ->count();
-
                 $usage['job_posts_this_month'] = $postsThisMonth;
                 $usage['job_posts_limit'] = $planLimits['monthly_job_posts'] ?? null;
-                $usage['urgent_boosts_used'] = $urgentThisMonth;
-                $usage['urgent_boosts_limit'] = $planLimits['urgent_boost_per_month'] ?? null;
             }
 
             if ($user->isDriver()) {

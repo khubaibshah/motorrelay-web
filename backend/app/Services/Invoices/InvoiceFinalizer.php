@@ -128,15 +128,6 @@ class InvoiceFinalizer
             Job::class
         ));
 
-        if ($job->is_urgent && (float) $job->urgent_fee_amount > 0) {
-            $items->push($this->makeItem(
-                'urgent_fee',
-                'Urgent boost fee',
-                (float) $job->urgent_fee_amount,
-                $defaultVat
-            ));
-        }
-
         if ((float) $job->platform_fee_amount > 0) {
             $label = $job->platform_fee_reference
                 ? sprintf('Platform fee — %s', $job->platform_fee_reference)

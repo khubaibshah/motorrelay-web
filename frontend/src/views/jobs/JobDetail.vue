@@ -552,7 +552,6 @@ const currentWorkflowStep = computed(() => {
 const paymentStatus = computed(() => job.value?.payment_status || 'unpaid');
 const canManagePayment = computed(() => Boolean(job.value) && (isDealerForJob.value || currentRole.value === 'admin'));
 const jobBasePrice = computed(() => Number(job.value?.price || 0));
-const urgentFeeAmount = computed(() => Number(job.value?.urgent_fee_amount || 0));
 const estimatedPlatformFee = computed(() => Math.round(jobBasePrice.value * 0.1 * 100) / 100);
 const platformFeeAmount = computed(() => {
   const stored = Number(job.value?.platform_fee_amount || 0);
@@ -562,7 +561,7 @@ const driverPayoutAmount = computed(() => {
   const stored = Number(job.value?.driver_payout_amount || 0);
   return stored > 0 ? stored : Math.max(jobBasePrice.value - platformFeeAmount.value, 0);
 });
-const dealerPaymentAmount = computed(() => jobBasePrice.value + urgentFeeAmount.value);
+const dealerPaymentAmount = computed(() => jobBasePrice.value);
 const headerDisplayAmount = computed(() => (currentRole.value === 'driver' ? driverPayoutAmount.value : jobBasePrice.value));
 const headerDisplayLabel = computed(() => (currentRole.value === 'driver' ? 'Driver payout' : 'Run value'));
 const canStartCheckout = computed(() => {

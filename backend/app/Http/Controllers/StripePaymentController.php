@@ -152,7 +152,7 @@ class StripePaymentController extends Controller
 
         $this->configureStripe();
 
-        $amount = $this->toPence((float) $job->price + (float) $job->urgent_fee_amount);
+        $amount = $this->toPence((float) $job->price);
         if ($amount <= 0) {
             abort(422, 'Job price must be greater than zero before payment.');
         }

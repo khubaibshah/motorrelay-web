@@ -60,6 +60,18 @@ function isActive(item) {
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 7.5V6A1.5 1.5 0 0 1 10.5 4.5h3A1.5 1.5 0 0 1 15 6v1.5M5.25 9h13.5a1.5 1.5 0 0 1 1.5 1.5v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V10.5a1.5 1.5 0 0 1 1.5-1.5Z" />
         </svg>
         <svg
+          v-else-if="item.icon === 'runs'"
+          viewBox="0 0 24 24"
+          class="h-6 w-6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 7.5h8.25l3.75 4.5-3.75 4.5H4.5" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 7.5h2.25L19.5 12l-3.75 4.5H13.5" />
+        </svg>
+        <svg
           v-else-if="item.icon === 'membership'"
           viewBox="0 0 24 24"
           class="h-6 w-6"

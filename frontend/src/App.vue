@@ -154,7 +154,19 @@
           >
             Login
           </RouterLink>
-          <div v-else class="h-10 w-10" aria-hidden="true"></div>
+          <RouterLink
+            v-else
+            to="/profile"
+            class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white shadow-sm transition hover:bg-white/15"
+            aria-label="Profile"
+            title="Profile"
+          >
+            <span class="sr-only">Profile</span>
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="12" cy="8.75" r="3.25" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5.75 19a6.25 6.25 0 0 1 12.5 0" />
+            </svg>
+          </RouterLink>
         </div>
 
         <RouterLink
@@ -201,7 +213,7 @@ const navLinks = [
   { to: '/', label: 'Home', exact: true, icon: 'home', showInBottomNav: true },
   { to: '/driver', label: 'Driver', roles: ['driver'], icon: 'jobs', showInBottomNav: true },
   { to: '/invoices', label: 'Invoices', roles: ['driver', 'dealer', 'admin'] },
-  { to: '/jobs', label: 'Runs', icon: 'jobs', showInBottomNav: true },
+  { to: '/jobs', label: 'Runs', icon: 'runs', showInBottomNav: true },
   { to: '/membership', label: 'Membership' },
   { to: '/messages', label: 'Chat', icon: 'messages', showInBottomNav: true },
   { to: '/notifications', label: 'Notifs', icon: 'notifications', showInBottomNav: true },
@@ -247,6 +259,7 @@ const bottomNavItems = computed(() => {
 
   return navLinks
     .filter((link) => link.showInBottomNav)
+    .filter((link) => link.icon !== 'profile')
     .filter((link) => canShowLink(link, role))
     .map((link) => ({
       to: link.to,

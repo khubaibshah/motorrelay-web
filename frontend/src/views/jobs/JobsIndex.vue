@@ -157,8 +157,34 @@ const visibleJobs = computed(() => availableJobs.value ?? []);
 const isDriver = computed(() => auth.role === 'driver');
 const isDealer = computed(() => auth.role === 'dealer');
 const isAdmin = computed(() => auth.role === 'admin');
+const driverRunsTab = ref('available');
 const showActiveSection = computed(() => isDriver.value || isAdmin.value);
 const showCompletedSection = computed(() => isDriver.value || isDealer.value);
+const driverRunTabs = computed(() => [
+  { key: 'available', label: 'Available', count: visibleJobs.value.length },
+  { key: 'active', label: 'Active', count: activeJobs.value.length },
+  { key: 'completed', label: 'Completed', count: completedJobs.value.length }
+]);
+const selectedDriverJobs = computed(() => {
+  if (driverRunsTab.value === 'active') return activeJobs.value;
+  if (driverRunsTab.value === 'completed') return completedJobs.value;
+  return visibleJobs.value;
+});
+const selectedDriverLoading = computed(() => {
+  if (driverRunsTab.value === 'active') return activeLoading.value;
+  if (driverRunsTab.value === 'completed') return completedLoading.value;
+  return availableLoading.value;
+});
+const selectedDriverError = computed(() => {
+  if (driverRunsTab.value === 'active') return activeErrorMessage.value;
+  if (driverRunsTab.value === 'completed') return completedErrorMessage.value;
+  return errorMessage.value;
+});
+const selectedDriverEmptyMessage = computed(() => {
+  if (driverRunsTab.value === 'active') return activeEmptyMessage.value;
+  if (driverRunsTab.value === 'completed') return 'You have no completed runs yet.';
+  return availableEmptyMessage.value;
+});
 const dealerPipelineJobs = computed(() => {
   const byId = new Map();
   [...availableJobs.value, ...activeJobs.value, ...completedJobs.value].forEach((job) => {
@@ -528,7 +554,7 @@ onMounted(async () => {
           </RouterLink>
 
           <RouterLink
-            v-if="auth.hasPlannerAccess"
+            v-if="auth.hasPlannerAccess && !isDriver"
             to="/planner"
             class="btn-secondary w-full sm:w-auto"
           >
@@ -764,7 +790,7 @@ onMounted(async () => {
     </section>
 
     <section
-      v-if="auth.hasPlannerAccess && !isDealer"
+      v-if="auth.hasPlannerAccess && !isDealer && !isDriver"
       class="section-card"
     >
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -791,11 +817,143 @@ onMounted(async () => {
       {{ successMessage }}
     </p>
 
-    <div v-if="availableLoading && !activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
+    <section v-if="isDriver" class="section-card order-1 space-y-4 dark:border-white/10 dark:bg-slate-950">
+      <header class="space-y-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Driver workspace</p>
+            <h2 class="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-emerald-300">Runs</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-emerald-100">
+              Browse open runs, manage assigned work, and review completed delivery history from one place.
+            </p>
+          </div>
+          <span class="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-emerald-100">
+            {{ selectedDriverJobs.length }} shown
+          </span>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="tab in driverRunTabs"
+            :key="tab.key"
+            type="button"
+            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
+            :class="driverRunsTab === tab.key ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-emerald-100 dark:hover:bg-white/15'"
+            @click="driverRunsTab = tab.key"
+          >
+            {{ tab.label }}
+            <span class="ml-1 opacity-80">({{ tab.count }})</span>
+          </button>
+        </div>
+      </header>
+
+      <p v-if="selectedDriverError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
+        {{ selectedDriverError }}
+      </p>
+
+      <div v-if="selectedDriverLoading && !selectedDriverJobs.length" class="rounded-2xl border bg-white p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+        Loading runs...
+      </div>
+
+      <div v-else-if="!selectedDriverJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+        {{ selectedDriverEmptyMessage }}
+      </div>
+
+      <div v-else class="space-y-3">
+        <article
+          v-for="job in selectedDriverJobs"
+          :key="`${driverRunsTab}-${job.id}`"
+          class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-xl sm:p-5 dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.09]"
+        >
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <button type="button" class="min-w-0 flex-1 text-left" @click="openJob(job)">
+              <div class="mb-3 flex flex-wrap gap-2">
+                <span class="badge" :class="statusClass(job)">{{ job.status || 'open' }}</span>
+                <span v-if="driverRunsTab !== 'available'" class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
+                <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">{{ formatTransportType(job.transport_type) }}</span>
+              </div>
+
+              <p class="text-xl font-black text-slate-950 dark:text-white">
+                <template v-if="driverRunsTab === 'available'">
+                  {{ priceFormatter.format(visibleAmountForJob(job)) }}
+                </template>
+                <template v-else>
+                  {{ job.title || `Run #${job.id}` }}
+                </template>
+              </p>
+
+              <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
+                <template v-if="driverRunsTab === 'available'">
+                  {{ job.company || 'Customer' }} - {{ job.vehicle_make || 'Vehicle' }}
+                </template>
+                <template v-else>
+                  {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
+                </template>
+              </p>
+              <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
+                {{ job.pickup_postcode || '--' }} to {{ job.dropoff_postcode || '--' }}
+              </p>
+            </button>
+
+            <div class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right dark:bg-emerald-400 dark:text-slate-950">
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver payout</p>
+              <div class="mt-1 text-2xl font-black">
+                {{ priceFormatter.format(visibleAmountForJob(job)) }}
+              </div>
+              <p v-if="driverRunsTab === 'completed'" class="mt-1 text-xs font-semibold text-slate-400 dark:text-slate-900">
+                Completed {{ formatDate(job.completed_at || job.updated_at || job.created_at) }}
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-4 grid gap-2 sm:flex sm:flex-wrap">
+            <button
+              v-if="driverRunsTab === 'available'"
+              type="button"
+              class="btn-primary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
+              :disabled="hasApplied(job.id)"
+              @click.stop="handleApply(job)"
+            >
+              <span v-if="hasApplied(job.id)">Application sent</span>
+              <span v-else>Request this run</span>
+            </button>
+            <button
+              type="button"
+              class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+              @click="openJob(job)"
+            >
+              View details
+            </button>
+            <button
+              v-if="driverRunsTab === 'active'"
+              type="button"
+              class="btn-primary w-full px-3 py-2 text-xs disabled:opacity-60 sm:w-auto"
+              :disabled="isActionPending(job.id, 'deliver')"
+              @click="handleMarkDelivered(job)"
+            >
+              <span v-if="isActionPending(job.id, 'deliver')">Updating...</span>
+              <span v-else>Mark as delivered</span>
+            </button>
+            <button
+              v-if="driverRunsTab === 'active'"
+              type="button"
+              class="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
+              :disabled="isActionPending(job.id, 'cancel')"
+              @click="handleCancelJob(job)"
+            >
+              <span v-if="isActionPending(job.id, 'cancel')">Cancelling...</span>
+              <span v-else>Cancel run</span>
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <div v-if="availableLoading && !activeLoading && !isDriver" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
       Loading runs&hellip;
     </div>
 
-    <section v-if="showActiveSection" class="section-card order-1 space-y-4">
+    <section v-if="showActiveSection && !isDriver" class="section-card order-1 space-y-4">
       <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 class="text-lg font-black text-slate-950">
           {{ isDriver ? 'Your active runs' : 'Active runs' }}
@@ -953,7 +1111,7 @@ onMounted(async () => {
       </div>
     </section>
 
-    <section v-if="isDriver" id="completed-jobs" class="section-card order-3 space-y-4">
+    <section v-if="false" id="completed-jobs" class="section-card order-3 space-y-4">
       <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-xl font-black tracking-tight text-slate-950">Completed runs</h2>
@@ -1004,7 +1162,7 @@ onMounted(async () => {
       </div>
     </section>
 
-    <section v-if="isDriver || isAdmin" class="section-card order-2 space-y-4">
+    <section v-if="isAdmin" class="section-card order-2 space-y-4">
       <header class="flex items-center justify-between gap-3" v-if="isDriver">
         <h2 class="text-xl font-black tracking-tight text-slate-950">Available runs</h2>
         <span class="text-xs font-semibold text-slate-500">
@@ -1122,8 +1280,6 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-
 
 
 

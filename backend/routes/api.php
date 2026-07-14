@@ -33,6 +33,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy']);
+    Route::delete('/notifications', [NotificationController::class, 'destroyAll']);
     Route::get('/vehicles/registration/{registration}', [VehicleLookupController::class, 'show']);
     Route::get('/postcodes/{postcode}/addresses', [PostcodeLookupController::class, 'show']);
     Route::get('/postcodes/places/{placeId}', [PostcodeLookupController::class, 'resolve']);

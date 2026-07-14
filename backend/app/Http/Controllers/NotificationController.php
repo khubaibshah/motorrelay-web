@@ -56,6 +56,35 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function destroy(Request $request, string $notificationId): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $notification = $user->notifications()->where('id', $notificationId)->first();
+        abort_unless($notification, 404);
+
+        $notification->delete();
+
+        return response()->json([
+            'message' => 'Notification cleared.',
+            'unread_count' => $user->unreadNotifications()->count(),
+        ]);
+    }
+
+    public function destroyAll(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $user->notifications()->delete();
+
+        return response()->json([
+            'message' => 'Notifications cleared.',
+            'unread_count' => 0,
+        ]);
+    }
+
     protected function presentNotification(object $notification): array
     {
         $data = (array) ($notification->data ?? []);

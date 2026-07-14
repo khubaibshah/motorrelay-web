@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia';
-import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from '@/services/notifications';
+import {
+  deleteAllNotifications,
+  deleteNotification,
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead
+} from '@/services/notifications';
 
 const SEEN_KEY = 'mr_seen_notification_ids';
 const TOAST_DURATION_MS = 6500;
@@ -110,6 +116,35 @@ export const useNotificationsStore = defineStore('notifications', {
       this.items = this.items.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() }));
       this.toasts.forEach((toast) => this.dismissToast(toast.id));
       this.toasts = [];
+    },
+    async clearNotification(notificationId) {
+      const existingItems = this.items;
+      const existingUnreadCount = this.unreadCount;
+      const removedItem = this.items.find((item) => item.id === notificationId);
+
+      this.items = this.items.filter((item) => item.id !== notificationId);
+      if (removedItem && !removedItem.read_at) {
+        this.unreadCount = Math.max(Number(this.unreadCount || 0) - 1, 0);
+      }
+      this.dismissToast(notificationId);
+
+      try {
+        const payload = await deleteNotification(notificationId);
+        this.unreadCount = Number(payload?.unread_count ?? this.items.filter((item) => !item.read_at).length) || 0;
+        return payload;
+      } catch (error) {
+        this.items = existingItems;
+        this.unreadCount = existingUnreadCount;
+        throw error;
+      }
+    },
+    async clearAll() {
+      const payload = await deleteAllNotifications();
+      this.items = [];
+      this.unreadCount = Number(payload?.unread_count ?? 0) || 0;
+      this.toasts.forEach((toast) => this.dismissToast(toast.id));
+      this.toasts = [];
+      return payload;
     },
     startPolling(intervalMs = 30000) {
       if (this.pollHandle || typeof window === 'undefined') return;

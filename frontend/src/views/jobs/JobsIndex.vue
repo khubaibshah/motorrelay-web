@@ -849,7 +849,7 @@ onMounted(async () => {
       <header class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Driver workspace</p>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run marketplace</p>
             <h2 class="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-emerald-300">Runs</h2>
             <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-emerald-100">
               Browse open runs, manage assigned work, and review completed delivery history from one place.

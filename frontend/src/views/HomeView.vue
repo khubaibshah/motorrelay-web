@@ -1,13 +1,16 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { fetchJobHighlights, fetchJobs } from '@/services/jobs';
 
 const auth = useAuthStore();
+const router = useRouter();
 const jobs = ref([]);
 const driverActiveJobs = ref([]);
 const loading = ref(false);
+const driverSearchPostcode = ref('');
+const driverSearchTransport = ref('all');
 
 const priceFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -77,7 +80,6 @@ const dealerActiveJobs = computed(() =>
 );
 const dealerCompletedJobs = computed(() => sortByRecentActivity(completedJobs.value));
 const driverCurrentJob = computed(() => sortByRecentActivity(driverActiveJobs.value)[0] || null);
-const driverOpportunityJobs = computed(() => jobs.value.slice(0, 2));
 const hasDriverCurrentJob = computed(() => Boolean(driverCurrentJob.value));
 
 const primaryAction = computed(() => {
@@ -166,6 +168,17 @@ function driverNextAction(job) {
   return 'Open run';
 }
 
+function submitDriverJobSearch() {
+  router.push({
+    name: 'jobs',
+    query: {
+      ...(driverSearchPostcode.value.trim() ? { search: driverSearchPostcode.value.trim() } : {}),
+      ...(driverSearchTransport.value !== 'all' ? { transport_type: driverSearchTransport.value } : {}),
+      tab: 'available'
+    }
+  });
+}
+
 function formatDate(value) {
   if (!value) return '--';
 
@@ -234,9 +247,38 @@ const openJobsEmptyText = computed(() => {
             </h2>
           </div>
           <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
-            {{ loading ? 'Syncing' : hasDriverCurrentJob ? '1 active' : `${driverOpportunityJobs.length} shown` }}
+            {{ loading ? 'Syncing' : hasDriverCurrentJob ? '1 active' : 'Search runs' }}
           </span>
         </div>
+
+        <form class="rounded-2xl border border-white/10 bg-white/[0.06] p-4" @submit.prevent="submitDriverJobSearch">
+          <p class="text-sm font-bold text-white">Find a run</p>
+          <div class="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
+            <label class="block min-w-0">
+              <span class="text-xs font-bold uppercase tracking-wide text-slate-400">Postcode or route</span>
+              <input
+                v-model="driverSearchPostcode"
+                type="search"
+                placeholder="e.g. M1, LS1, London"
+                class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-emerald-100 outline-none transition placeholder:text-emerald-100/40 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20"
+              >
+            </label>
+            <label class="block min-w-0">
+              <span class="text-xs font-bold uppercase tracking-wide text-slate-400">Transport</span>
+              <select
+                v-model="driverSearchTransport"
+                class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-emerald-100 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20"
+              >
+                <option value="all">Any transport</option>
+                <option value="drive_away">Drive-away</option>
+                <option value="trailer">Trailer</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit" class="btn-primary mt-3 w-full">
+            Search available runs
+          </button>
+        </form>
 
         <RouterLink
           v-if="driverCurrentJob"
@@ -257,36 +299,6 @@ const openJobsEmptyText = computed(() => {
             </span>
           </div>
         </RouterLink>
-
-        <div v-else class="space-y-3">
-          <RouterLink
-            v-for="job in driverOpportunityJobs"
-            :key="job.id"
-            :to="`/jobs/${job.id}`"
-            class="block rounded-2xl border border-white/10 bg-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
-          >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div class="min-w-0">
-                <p class="font-semibold text-white">
-                  {{ job.pickup_label || job.pickup_postcode || 'Pickup' }}
-                  <span class="text-slate-500">to</span>
-                  {{ job.dropoff_label || job.dropoff_postcode || 'Drop-off' }}
-                </p>
-                <p class="mt-1 text-xs text-slate-400">{{ job.status || 'open' }}</p>
-              </div>
-              <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
-                {{ priceFormatter.format(Number(job.price || 0)) }}
-              </span>
-            </div>
-          </RouterLink>
-
-          <div
-            v-if="!loading && !driverOpportunityJobs.length"
-            class="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-300"
-          >
-            No open runs right now. Check the Runs page again soon.
-          </div>
-        </div>
 
         <RouterLink to="/jobs" class="btn-primary w-full">
           {{ hasDriverCurrentJob ? 'Open all runs' : 'Browse all available runs' }}

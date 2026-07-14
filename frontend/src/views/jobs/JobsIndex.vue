@@ -1,11 +1,12 @@
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { fetchJobs, applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 
 const availableJobs = ref([]);
 const activeJobs = ref([]);
@@ -71,7 +72,12 @@ async function loadJobs() {
   activeErrorMessage.value = '';
   completedErrorMessage.value = '';
   try {
-    const payload = await fetchJobs({ scope: 'available' });
+    const availableParams = { scope: 'available' };
+    const search = driverSearch.value.trim();
+    if (isDriver.value && search) {
+      availableParams.search = search;
+    }
+    const payload = await fetchJobs(availableParams);
     const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
     const openJobs = rawJobs.filter((job) => String(job.status || '').toLowerCase() === 'open');
     availableJobs.value = openJobs;
@@ -137,6 +143,27 @@ function openJob(job) {
   router.push({ name: 'job-detail', params: { id: job.id } });
 }
 
+async function submitDriverSearch() {
+  driverRunsTab.value = 'available';
+  await router.replace({
+    name: 'jobs',
+    query: {
+      ...(driverSearch.value.trim() ? { search: driverSearch.value.trim() } : {}),
+      ...(driverTransportFilter.value !== 'all' ? { transport_type: driverTransportFilter.value } : {}),
+      tab: 'available'
+    }
+  });
+  await loadJobs();
+}
+
+async function clearDriverSearch() {
+  driverSearch.value = '';
+  driverTransportFilter.value = 'all';
+  driverRunsTab.value = 'available';
+  await router.replace({ name: 'jobs', query: { tab: 'available' } });
+  await loadJobs();
+}
+
 function jobIsAwaitingLive(job) {
   if (!job?.goes_live_at) return false;
   const date = new Date(job.goes_live_at);
@@ -153,36 +180,37 @@ function formatGoLive(job) {
   }).format(new Date(job.goes_live_at));
 }
 
-const visibleJobs = computed(() => availableJobs.value ?? []);
+const driverSearch = ref(typeof route.query.search === 'string' ? route.query.search : '');
+const driverTransportFilter = ref(typeof route.query.transport_type === 'string' ? route.query.transport_type : 'all');
+const visibleJobs = computed(() => {
+  const transport = driverTransportFilter.value;
+  if (!isDriver.value || !transport || transport === 'all') return availableJobs.value ?? [];
+  return (availableJobs.value ?? []).filter((job) => String(job?.transport_type || '').toLowerCase() === transport);
+});
 const isDriver = computed(() => auth.role === 'driver');
 const isDealer = computed(() => auth.role === 'dealer');
 const isAdmin = computed(() => auth.role === 'admin');
-const driverRunsTab = ref('available');
+const driverRunsTab = ref(route.query.tab === 'active' ? 'active' : 'available');
 const showActiveSection = computed(() => isDriver.value || isAdmin.value);
-const showCompletedSection = computed(() => isDriver.value || isDealer.value);
+const showCompletedSection = computed(() => isDealer.value);
 const driverRunTabs = computed(() => [
   { key: 'available', label: 'Available', count: visibleJobs.value.length },
-  { key: 'active', label: 'Active', count: activeJobs.value.length },
-  { key: 'completed', label: 'Completed', count: completedJobs.value.length }
+  { key: 'active', label: 'Active', count: activeJobs.value.length }
 ]);
 const selectedDriverJobs = computed(() => {
   if (driverRunsTab.value === 'active') return activeJobs.value;
-  if (driverRunsTab.value === 'completed') return completedJobs.value;
   return visibleJobs.value;
 });
 const selectedDriverLoading = computed(() => {
   if (driverRunsTab.value === 'active') return activeLoading.value;
-  if (driverRunsTab.value === 'completed') return completedLoading.value;
   return availableLoading.value;
 });
 const selectedDriverError = computed(() => {
   if (driverRunsTab.value === 'active') return activeErrorMessage.value;
-  if (driverRunsTab.value === 'completed') return completedErrorMessage.value;
   return errorMessage.value;
 });
 const selectedDriverEmptyMessage = computed(() => {
   if (driverRunsTab.value === 'active') return activeEmptyMessage.value;
-  if (driverRunsTab.value === 'completed') return 'You have no completed runs yet.';
   return availableEmptyMessage.value;
 });
 const dealerPipelineJobs = computed(() => {
@@ -832,7 +860,38 @@ onMounted(async () => {
           </span>
         </div>
 
-        <div class="grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.06]">
+        <form class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.06] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_auto]" @submit.prevent="submitDriverSearch">
+          <label class="block min-w-0">
+            <span class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Search</span>
+            <input
+              v-model="driverSearch"
+              type="search"
+              placeholder="Postcode, route, vehicle..."
+              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
+            >
+          </label>
+          <label class="block min-w-0">
+            <span class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Transport</span>
+            <select
+              v-model="driverTransportFilter"
+              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
+            >
+              <option value="all">Any transport</option>
+              <option value="drive_away">Drive-away</option>
+              <option value="trailer">Trailer</option>
+            </select>
+          </label>
+          <div class="grid gap-2 sm:self-end">
+            <button type="submit" class="btn-primary px-4 py-3 text-sm">
+              Search
+            </button>
+            <button type="button" class="text-xs font-bold text-slate-500 hover:text-emerald-700 dark:text-emerald-100 dark:hover:text-emerald-300" @click="clearDriverSearch">
+              Clear
+            </button>
+          </div>
+        </form>
+
+        <div class="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.06]">
           <button
             v-for="tab in driverRunTabs"
             :key="tab.key"

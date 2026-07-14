@@ -137,7 +137,7 @@ onMounted(async () => {
                 Everything you need to track work, applications, and completed deliveries.
               </p>
             </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right dark:border-white/10 dark:bg-white/[0.06]">
+            <div class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right sm:ml-auto sm:w-auto dark:border-white/10 dark:bg-white/[0.06]">
               <p class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Total earnings</p>
               <p class="mt-1 text-xl font-black text-slate-950 dark:text-emerald-300">{{ formatPrice(stats.total_earnings ?? 0) }}</p>
             </div>

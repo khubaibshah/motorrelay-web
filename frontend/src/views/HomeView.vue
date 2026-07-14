@@ -205,7 +205,7 @@ const openJobsEmptyText = computed(() => {
           <button
             type="button"
             class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'open' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            :class="liveBoardMode === 'open' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
             @click="liveBoardMode = 'open'"
           >
             {{ auth.role === 'dealer' ? 'Open' : 'Open runs' }}
@@ -214,7 +214,7 @@ const openJobsEmptyText = computed(() => {
             v-if="auth.role === 'dealer'"
             type="button"
             class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'active' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            :class="liveBoardMode === 'active' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
             @click="liveBoardMode = 'active'"
           >
             Active
@@ -223,7 +223,7 @@ const openJobsEmptyText = computed(() => {
             v-if="auth.role === 'dealer'"
             type="button"
             class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'completed' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            :class="liveBoardMode === 'completed' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
             @click="liveBoardMode = 'completed'"
           >
             Completed
@@ -247,7 +247,7 @@ const openJobsEmptyText = computed(() => {
               </p>
               <p class="mt-1 text-xs text-slate-400">{{ job.status || 'open' }}</p>
             </div>
-            <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950">
+            <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
               {{ priceFormatter.format(Number(job.price || 0)) }}
             </span>
           </div>

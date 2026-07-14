@@ -293,7 +293,7 @@ function scrollMessagesToBottom() {
                 <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Conversation list</p>
                 <h2 class="mt-1 text-xl font-black text-slate-950">Threads</h2>
               </div>
-              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-emerald-400 dark:text-slate-950">
                 {{ filteredThreads.length }}
               </span>
             </div>

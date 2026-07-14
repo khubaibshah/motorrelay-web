@@ -157,7 +157,7 @@ const visibleJobs = computed(() => availableJobs.value ?? []);
 const isDriver = computed(() => auth.role === 'driver');
 const isDealer = computed(() => auth.role === 'dealer');
 const isAdmin = computed(() => auth.role === 'admin');
-const showActiveSection = computed(() => isDriver.value || isDealer.value || isAdmin.value);
+const showActiveSection = computed(() => isDriver.value || isAdmin.value);
 const showCompletedSection = computed(() => isDriver.value || isDealer.value);
 const dealerPipelineJobs = computed(() => {
   const byId = new Map();
@@ -1064,7 +1064,6 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
 
 
 

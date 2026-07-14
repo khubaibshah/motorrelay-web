@@ -43,6 +43,14 @@ const postedJobs = computed(() => {
   return Array.isArray(list) ? [...list] : [];
 });
 
+const sortedPostedJobs = computed(() =>
+  [...postedJobs.value].sort((a, b) => {
+    const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
+    const bTime = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime();
+    return bTime - aTime;
+  })
+);
+
 const primaryAction = computed(() => {
   if (auth.role === 'driver') return { to: '/jobs', label: 'Browse runs' };
   if (auth.role === 'dealer') return { to: '/jobs/new', label: 'Create run' };
@@ -94,9 +102,21 @@ const dealerJobsProgress = computed(() => {
 });
 
 const liveBoardMode = ref('open');
-const liveBoardJobs = computed(() => (liveBoardMode.value === 'progress' ? dealerJobsProgress.value : jobsToDisplay.value));
-const liveBoardTitle = computed(() => (liveBoardMode.value === 'progress' ? 'Runs in progress' : 'Open runs'));
-const liveBoardEmptyText = computed(() => (liveBoardMode.value === 'progress' ? 'No runs in progress yet.' : openJobsEmptyText.value));
+const liveBoardJobs = computed(() => {
+  if (liveBoardMode.value === 'posted') return sortedPostedJobs.value;
+  if (liveBoardMode.value === 'progress') return dealerJobsProgress.value;
+  return jobsToDisplay.value;
+});
+const liveBoardTitle = computed(() => {
+  if (liveBoardMode.value === 'posted') return 'Your posted runs';
+  if (liveBoardMode.value === 'progress') return 'Runs in progress';
+  return 'Open runs';
+});
+const liveBoardEmptyText = computed(() => {
+  if (liveBoardMode.value === 'posted') return 'You have not posted any runs yet. Create a run when you are ready.';
+  if (liveBoardMode.value === 'progress') return 'No runs in progress yet.';
+  return openJobsEmptyText.value;
+});
 const liveBoardCountText = computed(() => {
   if (loading.value) return 'Syncing';
   return `${liveBoardJobs.value.length} shown`;
@@ -190,6 +210,15 @@ const openJobsEmptyText = computed(() => {
             @click="liveBoardMode = 'progress'"
           >
             Runs in progress
+          </button>
+          <button
+            v-if="auth.role === 'dealer'"
+            type="button"
+            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
+            :class="liveBoardMode === 'posted' ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            @click="liveBoardMode = 'posted'"
+          >
+            Your posted runs
           </button>
         </div>
       </div>

@@ -25,9 +25,29 @@ const successMessage = ref('');
 const errorMessage = ref('');
 const requests = ref([]);
 const loadingRequests = ref(false);
+const showDetails = ref(false);
 
 const user = computed(() => auth.user || {});
 const hydrated = ref(false);
+const accountSummary = computed(() => {
+  const items = [
+    { label: 'Phone', value: user.value.phone || 'Not added' },
+    { label: 'Company', value: user.value.company || 'Not added' },
+    { label: 'Postcode', value: user.value.postcode || 'Not added' }
+  ];
+
+  if (auth.role === 'dealer') {
+    items.push({ label: 'Company no.', value: user.value.company_number || 'Not added' });
+  } else if (auth.role === 'driver') {
+    items.push({ label: 'DVLA code', value: user.value.driver_dvla_code || 'Not added' });
+  }
+
+  return items;
+});
+const pendingRequests = computed(() =>
+  requests.value.filter((request) => String(request?.status || '').toLowerCase() === 'pending')
+);
+const visibleRequests = computed(() => (showDetails.value ? requests.value : requests.value.slice(0, 2)));
 
 function hydrateForm() {
   if (!user.value) return;
@@ -168,6 +188,32 @@ async function handleSubmit() {
   }
 }
 
+function formatDateTime(value) {
+  if (!value) return '--';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function requestFieldSummary(request) {
+  const payload = request?.payload && typeof request.payload === 'object' ? request.payload : {};
+  const labels = Object.keys(payload)
+    .filter((key) => payload[key] !== null && payload[key] !== undefined && payload[key] !== '')
+    .filter((key) => key !== 'notes')
+    .map((key) => key.replace(/_/g, ' '));
+
+  if (!labels.length) return 'General account update';
+  if (labels.length <= 3) return labels.join(', ');
+  return `${labels.slice(0, 3).join(', ')} +${labels.length - 3} more`;
+}
+
 onMounted(async () => {
   if (!auth.user && auth.token) {
     await auth.fetchMe().catch(() => null);
@@ -187,23 +233,55 @@ watch(
 </script>
 
 <template>
-  <section id="account-settings" class="tile space-y-6 p-6">
-    <header class="space-y-2">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Account settings</p>
-        <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          Plan: {{ auth.planDisplayLabel || 'Free' }}
-        </span>
+  <section id="account-settings" class="tile space-y-4 p-4 md:p-5">
+    <header class="space-y-4">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Account settings</p>
+          <h2 class="mt-1 text-xl font-black text-slate-950">Your details</h2>
+          <p class="mt-1 text-sm text-slate-600">
+            Review your account details or send an update for approval.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            v-if="pendingRequests.length"
+            class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700"
+          >
+            {{ pendingRequests.length }} pending
+          </span>
+          <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Plan: {{ auth.planDisplayLabel || 'Free' }}
+          </span>
+        </div>
       </div>
-      <div>
-        <h2 class="text-2xl font-black text-slate-950">Update your details</h2>
-        <p class="text-sm text-slate-600">
-          Changes stay pending until a MotorRelay admin approves them.
+
+      <div class="grid gap-2 sm:grid-cols-2">
+        <div
+          v-for="item in accountSummary"
+          :key="item.label"
+          class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+        >
+          <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ item.label }}</p>
+          <p class="mt-0.5 truncate text-sm font-semibold text-slate-900">{{ item.value }}</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+          @click="showDetails = !showDetails"
+        >
+          {{ showDetails ? 'Hide update details' : 'Update details' }}
+        </button>
+        <p class="text-xs text-slate-500">
+          Changes are reviewed before they update your account.
         </p>
       </div>
     </header>
 
-    <form class="space-y-4" @submit.prevent="handleSubmit">
+    <form v-if="showDetails" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4" @submit.prevent="handleSubmit">
       <div class="grid gap-4 md:grid-cols-2">
         <div>
           <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Full name</label>
@@ -330,7 +408,7 @@ watch(
     </form>
 
     <div
-      v-if="dealerDocuments.length"
+      v-if="showDetails && dealerDocuments.length"
       class="rounded-2xl border border-slate-200 bg-slate-50 p-4"
     >
       <h3 class="text-sm font-semibold text-slate-900">Dealer documents on file</h3>
@@ -366,7 +444,7 @@ watch(
     </div>
 
     <div
-      v-if="driverDocuments.length"
+      v-if="showDetails && driverDocuments.length"
       class="rounded-2xl border border-slate-200 bg-slate-50 p-4"
     >
       <h3 class="text-sm font-semibold text-slate-900">Driver verification documents</h3>
@@ -401,12 +479,12 @@ watch(
       </ul>
     </div>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section v-if="showDetails || requests.length" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <header class="mb-4 flex items-center justify-between gap-2">
         <div>
-          <h3 class="text-lg font-semibold text-slate-900">Change history</h3>
+          <h3 class="text-base font-black text-slate-900">Change history</h3>
           <p class="text-xs text-slate-500">
-            Track pending and recently reviewed account updates.
+            Pending and recently reviewed account updates.
           </p>
         </div>
       </header>
@@ -427,40 +505,40 @@ watch(
 
       <div v-else class="space-y-3">
         <article
-          v-for="request in requests"
+          v-for="request in visibleRequests"
           :key="request.id"
-          class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          class="rounded-xl border border-slate-200 bg-slate-50 p-3"
         >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p class="text-sm font-semibold text-slate-900">
-                Submitted {{ request.created_at ? new Date(request.created_at).toLocaleString() : '--' }}
-              </p>
-              <p class="text-xs text-slate-500">
-                Status:
-                <span
-                  class="font-semibold"
-                  :class="{
-                    'text-emerald-600': request.status === 'approved',
-                    'text-amber-600': request.status === 'pending',
-                    'text-rose-600': request.status === 'rejected'
-                  }"
-                >
-                  {{ request.status }}
-                </span>
-              </p>
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-slate-900">{{ requestFieldSummary(request) }}</p>
+              <p class="mt-1 text-xs text-slate-500">Submitted {{ formatDateTime(request.created_at) }}</p>
             </div>
-            <p v-if="request.reviewed_at" class="text-xs text-slate-500">
-              Reviewed {{ new Date(request.reviewed_at).toLocaleString() }}
-            </p>
+            <span
+              class="rounded-full px-2.5 py-1 text-[11px] font-bold capitalize"
+              :class="{
+                'bg-emerald-100 text-emerald-700': request.status === 'approved',
+                'bg-amber-100 text-amber-700': request.status === 'pending',
+                'bg-rose-100 text-rose-700': request.status === 'rejected'
+              }"
+            >
+              {{ request.status }}
+            </span>
           </div>
-
-          <pre class="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">{{ JSON.stringify(request.payload, null, 2) }}</pre>
 
           <p v-if="request.admin_notes" class="mt-2 rounded-xl bg-emerald-50 p-2 text-xs text-emerald-700">
             Admin note: {{ request.admin_notes }}
           </p>
         </article>
+
+        <button
+          v-if="!showDetails && requests.length > visibleRequests.length"
+          type="button"
+          class="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+          @click="showDetails = true"
+        >
+          View all {{ requests.length }} updates
+        </button>
       </div>
     </section>
   </section>

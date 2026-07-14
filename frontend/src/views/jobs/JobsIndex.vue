@@ -188,6 +188,7 @@ const dealerJobsProgress = computed(() => {
 const dealerJobsSearch = ref('');
 const dealerJobsStatusFilter = ref('all');
 const dealerJobsPaymentFilter = ref('all');
+const showAllDealerRuns = ref(false);
 const filteredDealerJobs = computed(() => {
   const query = dealerJobsSearch.value.trim().toLowerCase();
   return dealerJobsProgress.value.filter((job) => {
@@ -224,6 +225,27 @@ const filteredDealerJobs = computed(() => {
 
     return haystack.includes(query);
   });
+});
+const dealerPreviewJobs = computed(() => dealerJobsProgress.value.slice(0, 2));
+const displayedDealerJobs = computed(() => (showAllDealerRuns.value ? filteredDealerJobs.value : dealerPreviewJobs.value));
+const dealerRunStats = computed(() => {
+  const jobs = dealerJobsProgress.value;
+  const inProgressStatuses = ['accepted', 'in_progress', 'collected', 'in_transit', 'completion_pending', 'delivered'];
+
+  return [
+    {
+      label: 'Open',
+      value: jobs.filter((job) => String(job?.status || '').toLowerCase() === 'open').length
+    },
+    {
+      label: 'In progress',
+      value: jobs.filter((job) => inProgressStatuses.includes(String(job?.status || '').toLowerCase())).length
+    },
+    {
+      label: 'Needs payment',
+      value: jobs.filter((job) => ['unpaid', 'checkout_pending'].includes(String(job?.payment_status || 'unpaid').toLowerCase())).length
+    }
+  ];
 });
 const mainJobs = computed(() => {
   if (isDealer.value) return [...availableJobs.value, ...activeJobs.value];
@@ -485,8 +507,8 @@ onMounted(async () => {
 <template>
   <div class="space-y-5">
     <div
+      v-if="!isDealer"
       class="section-card overflow-hidden"
-      :class="isDealer ? 'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/60 to-sky-50' : ''"
     >
       <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
@@ -516,15 +538,38 @@ onMounted(async () => {
     </div>
 
     <section v-if="isDealer" class="section-card space-y-4">
-      <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
+      <header class="space-y-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer operations</p>
-          <h2 class="mt-1 text-xl font-black text-slate-950">Live runs table</h2>
-          <p class="mt-2 text-sm text-slate-600">
-            Same runs as the home page, shown in a searchable table. Click a row to open the run.
-          </p>
+          <RouterLink
+            to="/jobs/new"
+            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+          >
+            Create run
+          </RouterLink>
         </div>
-        <div class="grid w-full gap-3 sm:grid-cols-3">
+
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-xl font-black text-slate-950">Live runs</h2>
+            <p class="mt-2 text-sm text-slate-600">
+              Keep an eye on active jobs, then expand the table when you need the full view.
+            </p>
+          </div>
+          <div class="grid w-full grid-cols-3 gap-2 lg:w-auto">
+            <div
+              v-for="stat in dealerRunStats"
+              :key="stat.label"
+              class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center"
+            >
+              <p class="text-base font-black text-slate-950">{{ stat.value }}</p>
+              <p class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{{ stat.label }}</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div v-if="showAllDealerRuns" class="grid w-full gap-3 sm:grid-cols-3">
           <div class="flex flex-col gap-2">
             <label for="dealer-jobs-search" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
               Search
@@ -577,21 +622,28 @@ onMounted(async () => {
               <option value="payout_released">Payout released</option>
             </select>
           </div>
-        </div>
-      </header>
+      </div>
 
       <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
         Loading live runs...
       </div>
 
-      <div v-else-if="!filteredDealerJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-        No live runs match your search.
+      <div v-else-if="!displayedDealerJobs.length" class="space-y-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+        <p>{{ showAllDealerRuns ? 'No live runs match your search.' : 'No live runs yet. Create a run to start receiving driver requests.' }}</p>
+        <button
+          v-if="showAllDealerRuns"
+          type="button"
+          class="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+          @click="showAllDealerRuns = false"
+        >
+          Show preview
+        </button>
       </div>
 
       <div v-else class="space-y-4">
         <div class="space-y-3 md:hidden">
           <article
-            v-for="job in filteredDealerJobs"
+            v-for="job in displayedDealerJobs"
             :key="`mobile-job-${job.id}`"
             class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
           >
@@ -599,7 +651,7 @@ onMounted(async () => {
               <div class="min-w-0">
                 <p class="text-base font-black text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
                 <p class="mt-1 text-xs text-slate-500">
-                  {{ job.pickup_label || job.pickup_postcode || '--' }} ? {{ job.dropoff_label || job.dropoff_postcode || '--' }}
+                  {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
                 </p>
               </div>
               <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
@@ -631,13 +683,12 @@ onMounted(async () => {
           </article>
         </div>
 
-        <div class="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm md:block">
-        <div class="max-h-[34rem] overflow-auto">
+        <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+        <div :class="showAllDealerRuns ? 'max-h-[34rem] overflow-auto' : ''">
           <table class="min-w-full divide-y divide-slate-200 text-left">
             <thead class="sticky top-0 z-10 bg-slate-50">
               <tr class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
                 <th class="px-4 py-3">Run</th>
-                <th class="px-4 py-3">Route</th>
                 <th class="px-4 py-3">Now</th>
                 <th class="px-4 py-3">Payment</th>
                 <th class="px-4 py-3">Updated</th>
@@ -646,17 +697,17 @@ onMounted(async () => {
             </thead>
             <tbody class="divide-y divide-slate-100">
               <tr
-                v-for="job in filteredDealerJobs"
+                v-for="job in displayedDealerJobs"
                 :key="job.id"
                 class="cursor-pointer transition hover:bg-slate-50"
                 @click="openJob(job)"
               >
                 <td class="px-4 py-4 align-top">
                 <p class="font-black text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
+                  <p class="mt-1 text-xs text-slate-500">
+                    {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
+                  </p>
                   <p class="mt-1 text-xs text-slate-500">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
-                </td>
-                <td class="px-4 py-4 align-top text-sm text-slate-600">
-                  {{ job.pickup_label || job.pickup_postcode || '--' }} ? {{ job.dropoff_label || job.dropoff_postcode || '--' }}
                 </td>
                 <td class="px-4 py-4 align-top">
                   <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
@@ -681,6 +732,20 @@ onMounted(async () => {
           </table>
         </div>
       </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p v-if="!showAllDealerRuns && dealerJobsProgress.length > displayedDealerJobs.length" class="text-xs text-slate-500">
+            Showing {{ displayedDealerJobs.length }} of {{ dealerJobsProgress.length }} live runs.
+          </p>
+          <button
+            v-if="showAllDealerRuns || dealerJobsProgress.length > displayedDealerJobs.length"
+            type="button"
+            class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+            @click="showAllDealerRuns = !showAllDealerRuns"
+          >
+            {{ showAllDealerRuns ? 'Show less' : 'View all live runs' }}
+          </button>
+        </div>
       </div>
     </section>
     <div class="flex flex-col gap-4">
@@ -1064,10 +1129,6 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-
-
-
 
 
 

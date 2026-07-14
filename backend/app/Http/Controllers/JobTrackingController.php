@@ -130,7 +130,7 @@ class JobTrackingController extends Controller
         }
 
         $thread = MessageThread::create([
-            'subject' => sprintf('Job #%d updates', $job->id),
+            'subject' => $job->title ?: sprintf('Run #%d updates', $job->id),
             'job_id' => $job->id,
         ]);
 

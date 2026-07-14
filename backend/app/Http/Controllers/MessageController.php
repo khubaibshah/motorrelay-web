@@ -22,6 +22,7 @@ class MessageController extends Controller
 
         $threads = MessageThread::query()
             ->with([
+                'job:id,title,vehicle_make',
                 'participants:id,name',
                 'messages' => fn ($query) => $query->latest()->limit(1)->with(['receipts', 'attachments']),
             ])
@@ -49,8 +50,9 @@ class MessageController extends Controller
 
                 return [
                     'id' => $thread->id,
-                    'subject' => $thread->subject,
+                    'subject' => $this->threadSubject($thread),
                     'job_id' => $thread->job_id,
+                    'job' => $this->threadJobPayload($thread),
                     'participants' => $thread->participants->map(fn (User $participant) => [
                         'id' => $participant->id,
                         'name' => $participant->name,
@@ -183,6 +185,7 @@ class MessageController extends Controller
 
             return [
                 $thread->fresh([
+                    'job:id,title,vehicle_make',
                     'participants:id,name',
                     'messages' => fn ($query) => $query->latest()->limit(1)->with('attachments'),
                 ]),
@@ -204,8 +207,9 @@ class MessageController extends Controller
 
         $threadSummary = [
             'id' => $thread->id,
-            'subject' => $thread->subject,
+            'subject' => $this->threadSubject($thread),
             'job_id' => $thread->job_id,
+            'job' => $this->threadJobPayload($thread),
             'participants' => $thread->participants->map(fn (User $participant) => [
                 'id' => $participant->id,
                 'name' => $participant->name,
@@ -242,6 +246,28 @@ class MessageController extends Controller
             'thread' => $threadSummary,
             'message' => $messagePayload,
         ], 201);
+    }
+
+    protected function threadSubject(MessageThread $thread): string
+    {
+        if ($thread->job) {
+            return $thread->job->title ?: sprintf('Run #%d', $thread->job->id);
+        }
+
+        return $thread->subject ?: 'Conversation';
+    }
+
+    protected function threadJobPayload(MessageThread $thread): ?array
+    {
+        if (!$thread->job) {
+            return null;
+        }
+
+        return [
+            'id' => $thread->job->id,
+            'title' => $thread->job->title,
+            'vehicle_make' => $thread->job->vehicle_make,
+        ];
     }
 
     public function markAsViewed(Request $request, Message $message): JsonResponse

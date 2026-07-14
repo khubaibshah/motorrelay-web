@@ -184,7 +184,7 @@ class JobApplicationController extends Controller
 
         $thread = MessageThread::create([
             'job_id' => $job->id,
-            'subject' => sprintf('Job #%s conversation', $job->id),
+            'subject' => $job->title ?: sprintf('Run #%s', $job->id),
         ]);
 
         $thread->participants()->attach([$dealerId, $driverId]);

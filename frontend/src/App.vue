@@ -204,7 +204,7 @@ const navLinks = [
   { to: '/jobs', label: 'Runs', icon: 'jobs', showInBottomNav: true },
   { to: '/membership', label: 'Membership' },
   { to: '/messages', label: 'Chat', icon: 'messages', showInBottomNav: true },
-  { to: '/notifications', label: 'Notifications', icon: 'notifications', showInBottomNav: true },
+  { to: '/notifications', label: 'Notifs', icon: 'notifications', showInBottomNav: true },
   { to: '/admin', label: 'Admin', roles: ['admin'], icon: 'admin', showInBottomNav: true },
   { to: '/planner', label: 'Planner', condition: () => auth.hasPlannerAccess },
   { to: '/profile', label: 'Profile', icon: 'profile', showInBottomNav: true }

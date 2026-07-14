@@ -436,6 +436,12 @@ const canApproveCompletion = computed(() => {
 const hasDeliveryProof = computed(() => Boolean(job.value?.delivery_proof_path));
 
 const invoiceFinalized = computed(() => Boolean(job.value?.finalized_invoice_id));
+const isCompletedJob = computed(() => ['completed', 'closed'].includes(String(job.value?.status || '').toLowerCase()));
+const shouldShowCompletionPanel = computed(() => {
+  return canSubmitCompletion.value || canApproveCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
+});
+const showCompactCompletionPanel = computed(() => shouldShowCompletionPanel.value && isCompletedJob.value);
+const showFullCompletionPanel = computed(() => shouldShowCompletionPanel.value && !showCompactCompletionPanel.value);
 const workflowSteps = computed(() => {
   if (!job.value) return [];
   const status = String(job.value.status || '').toLowerCase();
@@ -551,6 +557,7 @@ const currentWorkflowStep = computed(() => {
 });
 const showRunProgress = computed(() => {
   if (!job.value?.assigned_to_id) return false;
+  if (isCompletedJob.value) return false;
   return ['accepted', 'in_progress', 'collected', 'in_transit', 'delivered', 'completion_pending', 'completed', 'closed'].includes(
     String(job.value.status || '').toLowerCase()
   );
@@ -1277,11 +1284,65 @@ watch(
           </div>
       </section>
 
+      <section v-if="showCompactCompletionPanel" class="tile space-y-3 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Completion</p>
+            <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Run completed</h2>
+            <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
+              {{ statusDescription }}
+            </p>
+          </div>
+          <span class="badge bg-emerald-100 text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
+            {{ completionStatus }}
+          </span>
+        </div>
+
+        <div class="grid gap-2 text-xs sm:grid-cols-3">
+          <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
+            <span class="font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Submitted</span>
+            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ formatDateTime(job?.completion_submitted_at) }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
+            <span class="font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Approved</span>
+            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ formatDateTime(job?.completion_approved_at) }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
+            <span class="font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Inspection</span>
+            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ hasDeliveryProof ? 'Uploaded' : 'Not uploaded' }}</p>
+          </div>
+        </div>
+
+        <p v-if="job?.completion_notes" class="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-emerald-100">
+          {{ job.completion_notes }}
+        </p>
+
+        <div class="grid gap-2 sm:flex sm:flex-wrap">
+          <button
+            v-if="hasDeliveryProof"
+            type="button"
+            class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+            :disabled="proofDownloading"
+            @click="handleDownloadProof"
+          >
+            <span v-if="proofDownloading">Downloading...</span>
+            <span v-else>Download inspection</span>
+          </button>
+          <RouterLink
+            v-if="invoiceFinalized"
+            to="/invoices"
+            class="btn-secondary w-full px-4 py-2 text-center text-sm sm:w-auto"
+          >
+            View invoices
+          </RouterLink>
+        </div>
+      </section>
+
       <section v-if="showRunProgress" class="tile space-y-4 p-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Run progress</h2>
-            <p class="mt-1 text-xs text-slate-500">
+            <h2 class="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Run progress</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
               Next: {{ currentWorkflowStep?.label || 'Complete' }}
             </p>
           </div>
@@ -1315,6 +1376,43 @@ watch(
             <span class="font-bold">{{ step.label }}</span>
           </li>
         </ol>
+
+        <div
+          v-if="showDriverNextAction"
+          class="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p class="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Next driver action</p>
+            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ currentWorkflowStep?.label || 'Complete' }}</p>
+            <p class="mt-1 text-xs text-slate-600 dark:text-emerald-100">{{ driverNextActionText }}</p>
+          </div>
+          <div class="grid gap-2 sm:flex sm:flex-wrap">
+            <button
+              v-if="canMarkCollected"
+              type="button"
+              class="btn-primary w-full sm:w-auto"
+              :disabled="driverActionLoading === 'collected'"
+              @click="handleDriverCollected"
+            >
+              <span v-if="driverActionLoading === 'collected'">Updating...</span>
+              <span v-else>Mark collected</span>
+            </button>
+            <button
+              v-if="canMarkDeliveredFromDetail"
+              type="button"
+              class="btn-primary w-full sm:w-auto"
+              :disabled="driverActionLoading === 'delivered'"
+              @click="handleDriverDelivered"
+            >
+              <span v-if="driverActionLoading === 'delivered'">Updating...</span>
+              <span v-else>Mark delivered</span>
+            </button>
+          </div>
+        </div>
+
+        <p v-if="driverActionError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+          {{ driverActionError }}
+        </p>
       </section>
 
       <section v-if="showApplicationsAtTop" class="tile space-y-4 border-emerald-200 bg-emerald-50/40 p-4">
@@ -1539,41 +1637,6 @@ watch(
             <span class="font-bold">{{ step.label }}</span>
           </li>
         </ol>
-      </section>
-
-      <section v-if="showDriverNextAction" class="tile space-y-3 border-emerald-200 bg-emerald-50/40 p-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Next driver action</p>
-            <h2 class="mt-1 text-lg font-black text-slate-950">{{ currentWorkflowStep?.label || 'Complete' }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ driverNextActionText }}</p>
-          </div>
-          <div class="grid gap-2 sm:flex sm:flex-wrap">
-            <button
-              v-if="canMarkCollected"
-              type="button"
-              class="btn-primary w-full sm:w-auto"
-              :disabled="driverActionLoading === 'collected'"
-              @click="handleDriverCollected"
-            >
-              <span v-if="driverActionLoading === 'collected'">Updating...</span>
-              <span v-else>Mark collected</span>
-            </button>
-            <button
-              v-if="canMarkDeliveredFromDetail"
-              type="button"
-              class="btn-primary w-full sm:w-auto"
-              :disabled="driverActionLoading === 'delivered'"
-              @click="handleDriverDelivered"
-            >
-              <span v-if="driverActionLoading === 'delivered'">Updating...</span>
-              <span v-else>Mark delivered</span>
-            </button>
-          </div>
-        </div>
-        <p v-if="driverActionError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-          {{ driverActionError }}
-        </p>
       </section>
 
       <section v-if="false" class="tile p-4">
@@ -1966,7 +2029,7 @@ watch(
       </section>
 
       <section
-        v-if="canSubmitCompletion || canApproveCompletion || completionStatus !== 'not_submitted' || hasDeliveryProof || invoiceFinalized"
+        v-if="showFullCompletionPanel"
         class="tile space-y-4 p-4"
       >
         <header class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">

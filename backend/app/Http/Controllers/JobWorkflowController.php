@@ -98,6 +98,45 @@ class JobWorkflowController extends Controller
         return response()->json($job);
     }
 
+    public function inspection(Request $request, Job $job): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || (!$user->isAdmin() && $job->assigned_to_id !== $user->id)) {
+            abort(403, 'Only the assigned driver can upload inspection photos.');
+        }
+
+        if ($job->finalized_invoice_id) {
+            abort(422, 'This job has already been finalized.');
+        }
+
+        $this->ensureDealerPaymentHeld($job);
+
+        if (!in_array(strtolower((string) $job->status), ['accepted', 'in_progress'], true)) {
+            abort(422, 'Inspection photos should be uploaded before collection starts.');
+        }
+
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'proof' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
+        ]);
+
+        $path = $this->storeProofFile($request, $job);
+
+        $job->update([
+            'completion_notes' => $validated['notes'] ?? $job->completion_notes,
+            'completion_status' => $job->completion_status === 'rejected' ? 'not_submitted' : $job->completion_status,
+            'completion_rejected_at' => null,
+            'delivery_proof_path' => $path,
+            'delivery_proof_disk' => config('invoices.proof_disk'),
+        ]);
+
+        $this->notifyDealer($job->fresh(), 'driver_uploaded_inspection', [
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        return response()->json($job->fresh());
+    }
+
     public function cancel(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
@@ -180,28 +219,30 @@ class JobWorkflowController extends Controller
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:2000'],
-            'proof' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
+            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
         ]);
 
-        $proofDisk = config('invoices.proof_disk');
-        $file = $request->file('proof');
-        $directory = sprintf('jobs/%d/inspection', $job->id);
-        $extension = $file->getClientOriginalExtension() ?: 'pdf';
-        $filename = sprintf('%s-%s.%s', now()->format('YmdHis'), Str::ulid(), $extension);
-        $path = $file->storeAs($directory, $filename, $proofDisk);
-
-        if ($job->delivery_proof_path) {
-            $this->deleteProof($job);
+        if (!in_array(strtolower((string) $job->status), ['delivered'], true)) {
+            abort(422, 'Mark the run as delivered before submitting completion.');
         }
 
-        $job->update([
+        if (!$job->delivery_proof_path && !$request->hasFile('proof')) {
+            abort(422, 'Upload the pre-delivery inspection photos before submitting completion.');
+        }
+
+        $updates = [
             'status' => 'completion_pending',
             'completion_status' => 'submitted',
             'completion_submitted_at' => now(),
             'completion_notes' => $validated['notes'] ?? null,
-            'delivery_proof_path' => $path,
-            'delivery_proof_disk' => $proofDisk,
-        ]);
+        ];
+
+        if ($request->hasFile('proof')) {
+            $updates['delivery_proof_path'] = $this->storeProofFile($request, $job);
+            $updates['delivery_proof_disk'] = config('invoices.proof_disk');
+        }
+
+        $job->update($updates);
 
         $this->notifyDealer($job->fresh(), 'driver_submitted_completion', [
             'notes' => $validated['notes'] ?? null,
@@ -294,12 +335,16 @@ class JobWorkflowController extends Controller
             ]);
         }
 
+        if (!$job->delivery_proof_path) {
+            abort(422, 'Pre-delivery inspection photos are required before completing the job.');
+        }
+
+        if (!in_array(strtolower((string) $job->status), ['delivered', 'completion_pending'], true)) {
+            abort(422, 'The driver must mark the run delivered before completion can be approved.');
+        }
+
         if ($job->completion_status !== 'submitted') {
-            $job->update([
-                'completion_status' => 'submitted',
-                'completion_submitted_at' => now(),
-                'completion_notes' => $request->input('notes', $job->completion_notes),
-            ]);
+            abort(422, 'The driver must submit completion before the dealer can approve it.');
         }
 
         $invoice = $finalizer->finalize($job->fresh(), $user);
@@ -352,6 +397,22 @@ class JobWorkflowController extends Controller
         if ($storage->exists($job->delivery_proof_path)) {
             $storage->delete($job->delivery_proof_path);
         }
+    }
+
+    protected function storeProofFile(Request $request, Job $job): string
+    {
+        $proofDisk = config('invoices.proof_disk');
+        $file = $request->file('proof');
+        $directory = sprintf('jobs/%d/inspection', $job->id);
+        $extension = $file->getClientOriginalExtension() ?: 'pdf';
+        $filename = sprintf('%s-%s.%s', now()->format('YmdHis'), Str::ulid(), $extension);
+        $path = $file->storeAs($directory, $filename, $proofDisk);
+
+        if ($job->delivery_proof_path) {
+            $this->deleteProof($job);
+        }
+
+        return $path;
     }
 
     protected function notifyDealer(Job $job, string $event, ?array $meta = null): void

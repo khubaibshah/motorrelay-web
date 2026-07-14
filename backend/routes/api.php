@@ -70,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/collected', [JobWorkflowController::class, 'collected']);
     Route::post('/jobs/{job}/delivered', [JobWorkflowController::class, 'delivered']);
     Route::post('/jobs/{job}/cancel', [JobWorkflowController::class, 'cancel']);
+    Route::post('/jobs/{job}/inspection', [JobWorkflowController::class, 'inspection']);
     Route::post('/jobs/{job}/complete', [JobWorkflowController::class, 'complete']);
     Route::post('/jobs/{job}/completion/approve', [JobWorkflowController::class, 'approveCompletion']);
     Route::post('/jobs/{job}/completion/reject', [JobWorkflowController::class, 'rejectCompletion']);

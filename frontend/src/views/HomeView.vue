@@ -162,9 +162,11 @@ const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
 function driverNextAction(job) {
   const status = String(job?.status || '').toLowerCase();
+  if (['accepted', 'in_progress'].includes(status) && !job?.delivery_proof_path) return 'Upload inspection';
   if (['accepted', 'in_progress'].includes(status)) return 'Collect vehicle';
   if (['collected', 'in_transit'].includes(status)) return 'Continue delivery';
-  if (['completion_pending', 'delivered'].includes(status)) return 'Await dealer approval';
+  if (status === 'delivered') return 'Submit completion';
+  if (status === 'completion_pending') return 'Await dealer approval';
   return 'Open run';
 }
 

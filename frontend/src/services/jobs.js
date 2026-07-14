@@ -96,6 +96,14 @@ export async function submitJobCompletion(jobId, payload) {
   return data;
 }
 
+export async function uploadJobInspection(jobId, payload) {
+  const formData = toFormData(payload);
+  const { data } = await api.post(`/jobs/${jobId}/inspection`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return data;
+}
+
 export async function approveJobCompletion(jobId) {
   const { data } = await api.post(`/jobs/${jobId}/completion/approve`);
   return data;

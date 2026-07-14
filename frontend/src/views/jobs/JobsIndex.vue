@@ -363,7 +363,7 @@ function dealerNextAction(job) {
   if (paymentStatus === 'unpaid') return 'Take payment';
   if (paymentStatus === 'checkout_pending') return 'Refresh payment';
   if (!job?.assigned_to_id) return 'Review driver requests';
-  if (completionStatus === 'submitted') return 'Approve inspection';
+  if (completionStatus === 'submitted') return 'Approve completion';
   if (paymentStatus === 'paid' && completionStatus === 'approved' && !job?.stripe_transfer_id) return 'Release driver payout';
   if (paymentStatus === 'payout_released') return 'Paid out';
   if (['in_progress', 'accepted', 'collected', 'in_transit'].includes(status)) return 'Track delivery';
@@ -377,7 +377,7 @@ function dealerCurrentStage(job) {
 
   if (paymentStatus === 'payout_released') return 'Payout released';
   if (completionStatus === 'approved' || status === 'completed') return 'Approved';
-  if (completionStatus === 'submitted') return 'Inspection uploaded';
+  if (completionStatus === 'submitted') return 'Completion submitted';
   if (['delivered', 'completion_pending'].includes(status)) return 'Delivered';
   if (paymentStatus === 'paid') return 'Payment held';
   if (paymentStatus === 'checkout_pending') return 'Payment pending';
@@ -387,16 +387,18 @@ function dealerCurrentStage(job) {
 }
 
 function dealerMovingTo(job) {
+  const status = String(job?.status || '').toLowerCase();
   const paymentStatus = String(job?.payment_status || 'unpaid').toLowerCase();
   const completionStatus = String(job?.completion_status || 'not_submitted').toLowerCase();
 
   if (paymentStatus === 'payout_released') return 'Complete';
   if (completionStatus === 'approved') return job?.stripe_transfer_id ? 'Complete' : 'Release payout';
-  if (completionStatus === 'submitted') return 'Approve inspection';
+  if (completionStatus === 'submitted') return 'Approve completion';
   if (paymentStatus === 'unpaid') return 'Take payment';
   if (paymentStatus === 'checkout_pending') return 'Confirm payment';
   if (!job?.assigned_to_id) return 'Choose driver';
-  return 'Inspection photos';
+  if (['accepted', 'in_progress'].includes(status) && !job?.delivery_proof_path) return 'Upload inspection';
+  return 'Track delivery';
 }
 
 function paymentLabel(job) {

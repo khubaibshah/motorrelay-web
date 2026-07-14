@@ -89,6 +89,10 @@ function currentJobAction(job) {
   const status = String(job?.status || '').toLowerCase();
   const completionStatus = String(job?.completion_status || '').toLowerCase();
 
+  if ((status === 'in_progress' || status === 'accepted' || status === 'pending') && !job?.delivery_proof_path) {
+    return 'Open this run and upload inspection photos before collection.';
+  }
+
   if (status === 'in_progress' || status === 'accepted' || status === 'pending') {
     return 'Open this run and mark the vehicle collected.';
   }
@@ -98,7 +102,7 @@ function currentJobAction(job) {
   }
 
   if (status === 'delivered' && completionStatus !== 'submitted') {
-    return 'Open this run and upload inspection photos.';
+    return 'Open this run and submit completion.';
   }
 
   if (completionStatus === 'submitted' || status === 'completion_pending') {

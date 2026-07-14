@@ -11,6 +11,7 @@ import {
   deleteJobExpense,
   reviewJobExpense,
   submitJobCompletion,
+  uploadJobInspection,
   approveJobCompletion,
   rejectJobCompletion,
   downloadExpenseReceipt,
@@ -396,9 +397,19 @@ const shouldShowGoLiveBanner = computed(
 );
 const completionStatus = computed(() => job.value?.completion_status ?? "not_submitted");
 
+const canUploadInspection = computed(() => {
+  if (!isAssignedDriver.value) return false;
+  if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
+  if (hasDeliveryProof.value) return false;
+  if (job.value?.finalized_invoice_id) return false;
+  return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
+});
 const canSubmitCompletion = computed(() => {
   if (!isAssignedDriver.value) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
+  if (!hasDeliveryProof.value) return false;
+  if (['submitted', 'approved'].includes(String(completionStatus.value || '').toLowerCase())) return false;
+  if (String(job.value?.status || '').toLowerCase() !== 'delivered') return false;
   return !job.value?.finalized_invoice_id;
 });
 const canMarkCollected = computed(() => {
@@ -416,9 +427,10 @@ const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
   if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
   if (paymentStatus.value === 'checkout_pending') return 'Waiting for the dealer to finish confirming this run.';
+  if (canUploadInspection.value) return 'Upload inspection photos before you collect the vehicle.';
   if (canMarkCollected.value) return 'Collect the vehicle, then tap Mark collected.';
   if (canMarkDeliveredFromDetail.value) return 'Deliver the vehicle, then tap “Mark delivered”.';
-  if (canSubmitCompletion.value && !hasDeliveryProof.value) return 'Upload inspection photos so the dealer can review the run.';
+  if (canSubmitCompletion.value) return 'Submit completion so the dealer can review and approve the run.';
   if (completionStatus.value === 'submitted') return 'Wait for the dealer to review your inspection photos.';
   if (completionStatus.value === 'approved' && paymentStatus.value !== 'payout_released') return 'Delivery is approved. Waiting for payout release.';
   if (paymentStatus.value === 'payout_released') return 'Payout has been released.';
@@ -438,7 +450,7 @@ const hasDeliveryProof = computed(() => Boolean(job.value?.delivery_proof_path))
 const invoiceFinalized = computed(() => Boolean(job.value?.finalized_invoice_id));
 const isCompletedJob = computed(() => ['completed', 'closed'].includes(String(job.value?.status || '').toLowerCase()));
 const shouldShowCompletionPanel = computed(() => {
-  return canSubmitCompletion.value || canApproveCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
+  return canUploadInspection.value || canSubmitCompletion.value || canApproveCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
 });
 const showCompactCompletionPanel = computed(() => shouldShowCompletionPanel.value && isCompletedJob.value);
 const showFullCompletionPanel = computed(() => shouldShowCompletionPanel.value && !showCompactCompletionPanel.value);
@@ -915,23 +927,29 @@ function onCompletionProofChange(event) {
 
 async function handleCompletionSubmit() {
   if (!job.value) return;
-  if (!completionForm.proof) {
-    completionError.value = "Please upload inspection photos before submitting.";
+  if (canUploadInspection.value && !completionForm.proof) {
+    completionError.value = "Please upload inspection photos before collection.";
     return;
   }
 
   completionSubmitting.value = true;
   completionError.value = "";
   try {
-    await submitJobCompletion(job.value.id, {
-      notes: completionForm.notes,
-      proof: completionForm.proof
-    });
+    if (canUploadInspection.value) {
+      await uploadJobInspection(job.value.id, {
+        notes: completionForm.notes,
+        proof: completionForm.proof
+      });
+    } else {
+      await submitJobCompletion(job.value.id, {
+        notes: completionForm.notes
+      });
+    }
     resetCompletionForm();
     await loadJob();
   } catch (error) {
     console.error("Failed to submit completion", error);
-    completionError.value = error.response?.data?.message || "Unable to submit completion.";
+    completionError.value = error.response?.data?.message || "Unable to update this run.";
   } finally {
     completionSubmitting.value = false;
   }
@@ -2074,20 +2092,22 @@ watch(
         </p>
 
         <form
-          v-if="canSubmitCompletion"
+          v-if="canUploadInspection || canSubmitCompletion"
           class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2"
           @submit.prevent="handleCompletionSubmit"
         >
           <div class="md:col-span-2">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Notes for dealer</label>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {{ canUploadInspection ? 'Inspection notes' : 'Completion notes' }}
+            </label>
             <textarea
               v-model="completionForm.notes"
               rows="2"
               class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Delivered at 17:45, keys left with reception"
+              :placeholder="canUploadInspection ? 'Photo notes, vehicle condition, or collection details' : 'Delivered at 17:45, keys left with reception'"
             ></textarea>
           </div>
-          <div class="md:col-span-2">
+          <div v-if="canUploadInspection" class="md:col-span-2">
             <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Inspection photos</label>
             <input
               :key="completionFormKey"
@@ -2098,7 +2118,10 @@ watch(
               required
               @change="onCompletionProofChange"
             />
-            <p class="mt-1 text-xs text-slate-500">Upload inspection images or a signed PDF up to 8 MB.</p>
+            <p class="mt-1 text-xs text-slate-500">Upload inspection images or a signed PDF before collecting the vehicle.</p>
+          </div>
+          <div v-else class="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+            Inspection is uploaded. Submit completion after delivery so the dealer can approve and generate the invoice.
           </div>
           <div class="md:col-span-2 flex justify-end">
             <button
@@ -2106,8 +2129,8 @@ watch(
               class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
               :disabled="completionSubmitting"
             >
-              <span v-if="completionSubmitting">Uploading...</span>
-              <span v-else>Upload inspection</span>
+              <span v-if="completionSubmitting">{{ canUploadInspection ? 'Uploading...' : 'Submitting...' }}</span>
+              <span v-else>{{ canUploadInspection ? 'Upload inspection' : 'Submit completion' }}</span>
             </button>
           </div>
         </form>
@@ -2119,7 +2142,7 @@ watch(
           <div>
             <span class="font-semibold text-slate-500 uppercase tracking-wide">Inspection photos</span>
             <p class="text-sm text-slate-900">
-              Uploaded {{ formatDateTime(job?.completion_submitted_at) }}
+              {{ completionStatus === 'submitted' ? `Completion submitted ${formatDateTime(job?.completion_submitted_at)}` : 'Uploaded before collection' }}
             </p>
           </div>
           <button

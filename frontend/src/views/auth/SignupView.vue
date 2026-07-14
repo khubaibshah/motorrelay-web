@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
@@ -18,6 +18,10 @@ const form = reactive({
 const submitting = ref(false);
 const errorMessage = ref('');
 
+async function redirectAfterSignup() {
+  await router.replace({ name: 'home' });
+}
+
 async function submit() {
   submitting.value = true;
   errorMessage.value = '';
@@ -30,7 +34,7 @@ async function submit() {
       plan: data?.plan || null
     });
     await auth.fetchMe().catch(() => null);
-    await router.replace('/');
+    await redirectAfterSignup();
   } catch (error) {
     console.error('Signup failed', error);
     errorMessage.value = error.response?.data?.message || 'Sign up failed. Try again later.';
@@ -38,6 +42,25 @@ async function submit() {
     submitting.value = false;
   }
 }
+
+onMounted(() => {
+  if (auth.isAuthenticated) {
+    redirectAfterSignup().catch((error) => {
+      console.error('Signup redirect failed', error);
+    });
+  }
+});
+
+watch(
+  () => auth.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      redirectAfterSignup().catch((error) => {
+        console.error('Signup redirect failed', error);
+      });
+    }
+  }
+);
 </script>
 
 <template>

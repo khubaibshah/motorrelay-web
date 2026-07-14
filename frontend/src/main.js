@@ -35,7 +35,7 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  if (auth.isAuthenticated && to.name === 'login') {
+  if (auth.isAuthenticated && isPublic) {
     next({ name: 'home' });
     return;
   }

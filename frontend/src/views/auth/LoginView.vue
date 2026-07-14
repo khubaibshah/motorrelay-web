@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
@@ -16,6 +16,15 @@ const form = reactive({
 const submitting = ref(false);
 const errorMessage = ref('');
 
+async function redirectAfterLogin() {
+  const redirectTarget =
+    typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+      ? route.query.redirect
+      : null;
+
+  await router.replace(redirectTarget || { name: 'home' });
+}
+
 async function submit() {
   submitting.value = true;
   errorMessage.value = '';
@@ -28,11 +37,7 @@ async function submit() {
       jobs: data?.jobs ?? undefined
     });
     await auth.fetchMe();
-    const redirectTarget =
-      typeof route.query.redirect === 'string' && route.query.redirect
-        ? route.query.redirect
-        : '/';
-    router.replace(redirectTarget);
+    await redirectAfterLogin();
   } catch (error) {
     console.error('Login failed', error);
     errorMessage.value = error.response?.data?.message || 'Login failed. Check your credentials.';
@@ -40,6 +45,25 @@ async function submit() {
     submitting.value = false;
   }
 }
+
+onMounted(() => {
+  if (auth.isAuthenticated) {
+    redirectAfterLogin().catch((error) => {
+      console.error('Login redirect failed', error);
+    });
+  }
+});
+
+watch(
+  () => auth.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      redirectAfterLogin().catch((error) => {
+        console.error('Login redirect failed', error);
+      });
+    }
+  }
+);
 </script>
 
 <template>

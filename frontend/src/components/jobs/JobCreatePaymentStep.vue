@@ -49,7 +49,7 @@ function handlePriceBlur(event) {
 </script>
 
 <template>
-  <section class="w-full min-w-0 space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+  <section class="w-full min-w-0 space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
     <header>
       <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Payment</p>
       <h2 class="mt-1 text-xl font-black text-slate-950">Price breakdown</h2>
@@ -66,8 +66,8 @@ function handlePriceBlur(event) {
         inputmode="decimal"
         required
         placeholder="e.g. 120"
-        class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm"
-        :class="validationState.price ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''"
+        class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
+        :class="validationState.price ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200 dark:border-rose-400 dark:bg-rose-400/10 dark:ring-rose-400/30' : ''"
         @input="handlePriceInput"
         @focus="handlePriceFocus"
         @blur="handlePriceBlur"
@@ -75,17 +75,17 @@ function handlePriceBlur(event) {
     </label>
 
     <dl class="grid min-w-0 gap-3 md:grid-cols-2">
-      <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-50 p-4">
+      <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
         <dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Dealer charge</dt>
         <dd
-          class="mt-1 truncate text-lg font-black tabular-nums text-slate-950 sm:text-xl"
+          class="mt-1 truncate text-lg font-black tabular-nums text-slate-950 sm:text-xl dark:text-emerald-300"
           :title="formatMoney(jobPrice)"
         >
           {{ formatMoney(jobPrice) }}
         </dd>
       </div>
-      <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-950 p-4 text-white">
-        <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Driver receives</dt>
+      <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-950 p-4 text-white dark:bg-emerald-400 dark:text-slate-950">
+        <dt class="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver receives</dt>
         <dd
           class="mt-1 truncate text-lg font-black tabular-nums sm:text-2xl"
           :title="formatMoney(estimatedDriverPayout)"

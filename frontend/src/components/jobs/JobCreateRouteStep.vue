@@ -9,7 +9,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
 </script>
 
 <template>
-  <section class="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+  <section class="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5 dark:border-white/10 dark:bg-white/[0.06]">
     <header class="space-y-1">
       <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Route</p>
       <h2 class="text-xl font-black text-slate-950">Pickup and drop-off</h2>
@@ -19,7 +19,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
     </header>
 
     <div class="grid gap-3 md:grid-cols-2">
-      <div class="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-3">
+      <div class="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-950">
         <p class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup</p>
         <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <label class="block min-w-0">
@@ -30,10 +30,10 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
               required
               :readonly="Boolean(form.pickup_label)"
               placeholder="e.g. M1 2AB"
-              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
               :class="[
-                form.pickup_label ? 'bg-slate-100 font-black text-slate-700' : '',
-                validationState.pickup_postcode && !form.pickup_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
+                form.pickup_label ? 'bg-slate-100 font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100' : '',
+                validationState.pickup_postcode && !form.pickup_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200 dark:border-rose-400 dark:bg-rose-400/10 dark:ring-rose-400/30' : ''
               ]"
             />
           </label>
@@ -57,7 +57,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           </button>
         </div>
 
-        <p v-if="addressLookup.pickup.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <p v-if="addressLookup.pickup.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-200">
           {{ addressLookup.pickup.error }}
         </p>
         <button
@@ -72,7 +72,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
         <label v-if="addressLookup.pickup.addresses.length && !form.pickup_label" class="block">
           <span class="text-sm font-bold text-slate-700">Exact address</span>
           <select
-            class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+            class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
             @change="$emit('select-address', 'pickup', $event.target.value)"
           >
             <option value="">Choose the exact pickup address</option>
@@ -84,16 +84,16 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
 
         <div
           v-if="form.pickup_label"
-          class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-3"
-          :class="validationState.pickup_label ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
+          class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10"
+          :class="validationState.pickup_label ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-400 dark:bg-rose-400/10 dark:text-rose-200' : ''"
         >
           <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Pickup locked</p>
-          <p class="mt-1 text-base font-black text-slate-950">{{ form.pickup_label }}</p>
-          <p class="mt-1 text-sm text-slate-600">{{ form.pickup_postcode }}</p>
+          <p class="mt-1 text-base font-black text-slate-950 dark:text-emerald-300">{{ form.pickup_label }}</p>
+          <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ form.pickup_postcode }}</p>
         </div>
       </div>
 
-      <div class="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-3">
+      <div class="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-950">
         <p class="text-xs font-black uppercase tracking-wide text-slate-500">Drop-off</p>
         <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <label class="block min-w-0">
@@ -104,10 +104,10 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
               required
               :readonly="Boolean(form.dropoff_label)"
               placeholder="e.g. LS1 4XY"
-              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
               :class="[
-                form.dropoff_label ? 'bg-slate-100 font-black text-slate-700' : '',
-                validationState.dropoff_postcode && !form.dropoff_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200' : ''
+                form.dropoff_label ? 'bg-slate-100 font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100' : '',
+                validationState.dropoff_postcode && !form.dropoff_label ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200 dark:border-rose-400 dark:bg-rose-400/10 dark:ring-rose-400/30' : ''
               ]"
             />
           </label>
@@ -131,7 +131,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           </button>
         </div>
 
-        <p v-if="addressLookup.dropoff.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <p v-if="addressLookup.dropoff.error" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-200">
           {{ addressLookup.dropoff.error }}
         </p>
         <button
@@ -146,7 +146,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
         <label v-if="addressLookup.dropoff.addresses.length && !form.dropoff_label" class="block">
           <span class="text-sm font-bold text-slate-700">Exact address</span>
           <select
-            class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200"
+            class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
             @change="$emit('select-address', 'dropoff', $event.target.value)"
           >
             <option value="">Choose the exact drop-off address</option>
@@ -158,12 +158,12 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
 
         <div
           v-if="form.dropoff_label"
-          class="rounded-3xl border border-sky-200 bg-sky-50/70 p-3"
-          :class="validationState.dropoff_label ? 'border-rose-400 bg-rose-50 text-rose-700' : ''"
+          class="rounded-3xl border border-sky-200 bg-sky-50/70 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10"
+          :class="validationState.dropoff_label ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-400 dark:bg-rose-400/10 dark:text-rose-200' : ''"
         >
-          <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Drop-off locked</p>
-          <p class="mt-1 text-base font-black text-slate-950">{{ form.dropoff_label }}</p>
-          <p class="mt-1 text-sm text-slate-600">{{ form.dropoff_postcode }}</p>
+          <p class="text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-emerald-300">Drop-off locked</p>
+          <p class="mt-1 text-base font-black text-slate-950 dark:text-emerald-300">{{ form.dropoff_label }}</p>
+          <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ form.dropoff_postcode }}</p>
         </div>
       </div>
     </div>

@@ -810,16 +810,16 @@ watch(
 
 <template>
   <div class="mx-auto max-w-6xl space-y-5 overflow-x-hidden">
-    <div v-if="loading" class="section-card text-sm text-slate-600">
+    <div v-if="loading" class="section-card text-sm text-slate-600 dark:text-emerald-100">
       Loading run details...
     </div>
 
-    <p v-else-if="loadError" class="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-700">
+    <p v-else-if="loadError" class="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
       {{ loadError }}
     </p>
 
     <form v-else class="section-card space-y-5" @submit.prevent="handleWizardSubmit">
-      <header class="space-y-3 border-b border-slate-200 pb-4">
+      <header class="space-y-3 border-b border-slate-200 pb-4 dark:border-white/10">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div class="space-y-2">
               <div>
@@ -831,7 +831,7 @@ watch(
           </div>
 
         <div class="space-y-2">
-          <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+          <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
             <div
               class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-300"
               :style="{ width: `${wizardProgress}%` }"
@@ -848,12 +848,12 @@ watch(
                 @click="setStep(index)"
                 :class="
                   index === currentStep
-                    ? 'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-emerald-200'
+                    ? 'bg-emerald-100 text-emerald-900 shadow-sm ring-1 ring-emerald-200 dark:bg-emerald-400 dark:text-slate-950 dark:ring-emerald-300'
                     : reviewUnlocked
-                      ? 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-slate-950'
+                      ? 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-slate-950 dark:bg-white/10 dark:text-emerald-100 dark:ring-white/10 dark:hover:bg-emerald-400/10 dark:hover:text-emerald-300'
                       : index < currentStep
-                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                        : 'bg-slate-100 text-slate-400'
+                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-white/10 dark:text-emerald-100 dark:hover:bg-white/15'
+                        : 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-emerald-100/50'
                 "
               >
                 {{ step.label }}
@@ -863,7 +863,7 @@ watch(
             <button
               v-if="!isEdit"
               type="button"
-              class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-rose-700 transition hover:bg-rose-100 hover:text-rose-800"
+              class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-rose-700 transition hover:bg-rose-100 hover:text-rose-800 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-200 dark:hover:bg-rose-400/20"
               @click="openStartOverModal"
             >
               Start over
@@ -882,7 +882,7 @@ watch(
         leave-to-class="opacity-0 -translate-x-6"
       >
         <div :key="currentStep" class="relative space-y-5">
-          <p v-if="bannerMessage" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">
+          <p v-if="bannerMessage" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-200">
             {{ bannerMessage }}
           </p>
 

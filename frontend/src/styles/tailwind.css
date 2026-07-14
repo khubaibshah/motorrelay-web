@@ -26,6 +26,14 @@
       linear-gradient(180deg, #f8fafc 0%, #eef2f7 52%, #e2e8f0 100%);
   }
 
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+    background:
+      radial-gradient(circle at top left, rgba(16, 185, 129, 0.16), transparent 34rem),
+      radial-gradient(circle at top right, rgba(20, 184, 166, 0.10), transparent 32rem),
+      linear-gradient(180deg, #020617 0%, #0f172a 52%, #111827 100%);
+  }
+
   * {
     min-width: 0;
   }
@@ -44,6 +52,12 @@
     font-size: 16px !important;
     line-height: 1.5;
   }
+
+  .dark input,
+  .dark textarea,
+  .dark select {
+    @apply border-slate-700 bg-slate-950/80 text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:ring-emerald-400/10;
+  }
 }
 
 .brand-font {
@@ -52,7 +66,7 @@
 
 @layer components {
   .tile {
-    @apply rounded-2xl border border-white/70 bg-white/90 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5 backdrop-blur;
+    @apply rounded-2xl border border-white/70 bg-white/90 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:shadow-black/20 dark:ring-white/10;
   }
 
   .badge {
@@ -60,14 +74,29 @@
   }
 
   .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950 dark:hover:bg-emerald-300;
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700;
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:border-emerald-500/50 dark:hover:bg-slate-800 dark:hover:text-emerald-300;
   }
 
   .section-card {
-    @apply rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5 backdrop-blur sm:p-6;
+    @apply rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5 backdrop-blur sm:p-6 dark:border-white/10 dark:bg-slate-900/90 dark:shadow-black/20 dark:ring-white/10;
   }
+}
+
+.dark .text-slate-950,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: #34d399;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400,
+.dark .text-slate-300,
+.dark .text-slate-200 {
+  color: #a7f3d0;
 }

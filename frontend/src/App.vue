@@ -1,5 +1,5 @@
 <template>
-  <div class="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden text-slate-900">
+  <div class="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden text-slate-900 dark:text-slate-100">
     <div
       v-if="notifications.toasts.length"
       class="fixed right-3 top-20 z-[60] flex w-[calc(100vw-1.5rem)] max-w-sm flex-col gap-3 sm:right-6 sm:top-24 sm:w-full"
@@ -7,13 +7,13 @@
       <div
         v-for="toast in notifications.toasts"
         :key="toast.id"
-        class="rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-950/15"
+        class="rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-950/15 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30"
       >
         <div class="flex items-start justify-between gap-3">
           <button type="button" class="min-w-0 flex-1 text-left" @click="openToast(toast)">
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Notification</p>
-            <h2 class="mt-1 text-sm font-black text-slate-950">{{ toast.title }}</h2>
-            <p class="mt-1 text-sm leading-6 text-slate-600">{{ toast.body }}</p>
+            <h2 class="mt-1 text-sm font-black text-slate-950 dark:text-white">{{ toast.title }}</h2>
+            <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ toast.body }}</p>
           </button>
           <button
             type="button"
@@ -91,16 +91,16 @@
 
             <div
               v-if="notificationDropdownOpen"
-              class="absolute right-0 top-full z-50 mt-3 w-[22rem] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15"
+            class="absolute right-0 top-full z-50 mt-3 w-[22rem] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30"
             >
-              <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                 <div>
                   <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Notifications</p>
-                  <p class="text-sm font-semibold text-slate-900">{{ notificationCount }} unread</p>
+                  <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ notificationCount }} unread</p>
                 </div>
                 <button
                   type="button"
-                  class="rounded-full px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  class="rounded-full px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                   @click="closeNotificationDropdown"
                 >
                   Close
@@ -108,7 +108,7 @@
               </div>
 
               <div class="max-h-96 overflow-auto p-2">
-                <div v-if="!recentNotifications.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                <div v-if="!recentNotifications.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
                   No notifications yet.
                 </div>
 
@@ -117,7 +117,7 @@
                   :key="notification.id"
                   type="button"
                   class="mb-2 w-full rounded-2xl border p-3 text-left transition last:mb-0 hover:border-emerald-200 hover:bg-emerald-50/50"
-                  :class="notification.read_at ? 'border-slate-200 bg-white' : 'border-emerald-200 bg-emerald-50/70'"
+                  :class="notification.read_at ? 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/40 dark:bg-emerald-500/10'"
                   @click="openToast(notification)"
                 >
                   <div class="flex items-start gap-3">
@@ -126,14 +126,14 @@
                       :class="notification.read_at ? 'bg-slate-300' : 'bg-emerald-500'"
                     />
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-black text-slate-950">{{ notification.title }}</p>
-                      <p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{{ notification.body }}</p>
+                      <p class="text-sm font-black text-slate-950 dark:text-white">{{ notification.title }}</p>
+                      <p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-slate-300">{{ notification.body }}</p>
                     </div>
                   </div>
                 </button>
               </div>
 
-              <div class="border-t border-slate-100 p-3">
+              <div class="border-t border-slate-100 p-3 dark:border-slate-800">
                 <RouterLink
                   to="/notifications"
                   class="btn-primary flex w-full items-center justify-center"

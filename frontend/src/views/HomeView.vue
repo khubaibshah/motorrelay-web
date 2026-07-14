@@ -194,7 +194,7 @@ const openJobsEmptyText = computed(() => {
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
               {{ auth.role === 'dealer' ? 'Dealer workspace' : 'Live board' }}
             </p>
-            <h2 class="mt-1 text-xl font-bold">{{ liveBoardTitle }}</h2>
+            <h2 class="mt-1 text-xl font-bold text-emerald-300">{{ liveBoardTitle }}</h2>
           </div>
           <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
             {{ liveBoardCountText }}

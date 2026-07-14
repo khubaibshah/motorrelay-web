@@ -2,12 +2,14 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useThemeStore } from '@/stores/theme';
 import { RouterLink } from 'vue-router';
 import { disconnectDriverPayoutAccount, startDriverPayoutOnboarding } from '@/services/payments';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 import AccountSettingsBlock from '@/components/AccountSettingsBlock.vue';
 
 const auth = useAuthStore();
+const theme = useThemeStore();
 const router = useRouter();
 const payoutSetupLoading = ref(false);
 const payoutDisconnectLoading = ref(false);
@@ -182,6 +184,13 @@ async function handleLogout() {
     </div>
 
     <aside class="tile space-y-4 p-6">
+      <button
+        type="button"
+        class="btn-secondary w-full"
+        @click="theme.toggle"
+      >
+        {{ theme.isDark ? 'Switch to light mode' : 'Switch to dark mode' }}
+      </button>
       <RouterLink to="/invoices" class="btn-secondary w-full">
         Invoices
       </RouterLink>

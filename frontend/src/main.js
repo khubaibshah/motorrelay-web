@@ -4,12 +4,15 @@ import App from './App.vue';
 import router from './router';
 import './styles/tailwind.css';
 import { useAuthStore as authStore } from './stores/auth';
+import { useThemeStore as themeStore } from './stores/theme';
 
 const app = createApp(App);
 const pinia = createPinia();
 app.use(pinia);
 
 const auth = authStore(pinia);
+const theme = themeStore(pinia);
+theme.initialize();
 const initialization = auth.initialize();
 const publicRoutes = new Set(['login', 'signup']);
 

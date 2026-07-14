@@ -275,7 +275,7 @@ const openJobsEmptyText = computed(() => {
               </select>
             </label>
           </div>
-          <button type="submit" class="btn-primary mt-3 w-full">
+          <button type="submit" class="mt-3 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-bold text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-300 dark:text-slate-950">
             Search available runs
           </button>
         </form>
@@ -300,8 +300,8 @@ const openJobsEmptyText = computed(() => {
           </div>
         </RouterLink>
 
-        <RouterLink to="/jobs" class="btn-primary w-full">
-          {{ hasDriverCurrentJob ? 'Open all runs' : 'Browse all available runs' }}
+        <RouterLink v-if="hasDriverCurrentJob" to="/jobs" class="btn-primary w-full">
+          Open all runs
         </RouterLink>
       </div>
     </aside>

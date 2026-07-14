@@ -43,33 +43,6 @@ class AuthController extends Controller
         $isDealer = $validated['role'] === 'dealer';
         $isDriver = $validated['role'] === 'driver';
 
-        if ($isDealer) {
-            $request->validate([
-                'company' => ['required', 'string', 'max:255'],
-                'company_number' => ['required', 'string', 'max:50'],
-                'address_line_one' => ['required', 'string', 'max:255'],
-                'city' => ['required', 'string', 'max:255'],
-                'postcode' => ['required', 'string', 'max:50'],
-                'trade_policy_document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-                'trade_plate_photo' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-                'utility_bill' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-                'passport_number' => ['required', 'string', 'max:50'],
-                'passport_selfie' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-            ]);
-        }
-
-        if ($isDriver) {
-            $request->validate([
-                'driver_dvla_code' => ['required', 'string', 'max:50'],
-                'passport_number' => ['required', 'string', 'max:50'],
-                'driver_utility_bill' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-                'driver_license_front' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-                'driver_license_back' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-                'driver_passport' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-                'driver_selfie' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-            ]);
-        }
-
         $documentPaths = [
             'trade_policy_path' => null,
             'trade_plate_photo_path' => null,

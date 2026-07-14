@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-screen flex-col text-slate-900">
+  <div class="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden text-slate-900">
     <div
       v-if="notifications.toasts.length"
       class="fixed right-3 top-20 z-[60] flex w-[calc(100vw-1.5rem)] max-w-sm flex-col gap-3 sm:right-6 sm:top-24 sm:w-full"
@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <header class="sticky top-0 z-50 border-b border-white/70 bg-white/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+    <header class="z-50 shrink-0 border-b border-white/70 bg-white/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <nav class="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-3 sm:px-6 lg:px-8 md:flex md:justify-between">
         <div class="flex min-w-0 items-center justify-start gap-2 sm:gap-3 md:flex">
           <div class="h-10 w-10 md:hidden" aria-hidden="true"></div>
@@ -185,7 +185,7 @@
       </nav>
     </header>
 
-    <main :class="mainContainerClass">
+    <main ref="mainScrollRef" :class="mainContainerClass">
       <nav v-if="breadcrumbs.length" class="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <template v-for="(crumb, index) in breadcrumbs" :key="crumb.href ?? index">
           <RouterLink
@@ -220,8 +220,9 @@ const notifications = useNotificationsStore();
 const router = useRouter();
 const route = useRoute();
 const notificationMenuRef = ref(null);
+const mainScrollRef = ref(null);
 const notificationDropdownOpen = ref(false);
-const baseMainClasses = 'mx-auto w-full flex-1 max-w-7xl px-3 pb-28 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8';
+const baseMainClasses = 'mx-auto min-h-0 w-full flex-1 max-w-7xl overflow-y-auto overscroll-y-contain px-3 pt-6 sm:px-6 sm:pt-8 lg:px-8';
 
 const navLinks = [
   { to: '/', label: 'Home', exact: true, icon: 'home', showInBottomNav: true },
@@ -337,7 +338,12 @@ const breadcrumbs = computed(() => {
   return crumbs;
 });
 
-const mainContainerClass = computed(() => baseMainClasses);
+const mainContainerClass = computed(() => [
+  baseMainClasses,
+  bottomNavItems.value.length
+    ? 'pb-[calc(7rem+env(safe-area-inset-bottom))] sm:pb-10'
+    : 'pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-10'
+]);
 
 function closeNotificationDropdown() {
   notificationDropdownOpen.value = false;
@@ -384,6 +390,7 @@ watch(
   () => route.fullPath,
   () => {
     closeNotificationDropdown();
+    mainScrollRef.value?.scrollTo({ top: 0, behavior: 'auto' });
   }
 );
 

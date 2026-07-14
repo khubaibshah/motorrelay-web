@@ -26,7 +26,8 @@ function isActive(item) {
 <template>
   <nav
     v-if="items.length"
-    class="fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 md:hidden"
+    class="absolute bottom-0 left-0 right-0 z-40 px-3 md:hidden"
+    style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom));"
     role="navigation"
     aria-label="Primary navigation"
   >

@@ -184,13 +184,26 @@ async function handleLogout() {
     </div>
 
     <aside class="tile space-y-4 p-6">
-      <button
-        type="button"
-        class="btn-secondary w-full"
-        @click="theme.toggle"
-      >
-        {{ theme.isDark ? 'Switch to light mode' : 'Switch to dark mode' }}
-      </button>
+      <div class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.06]">
+        <div>
+          <p class="text-sm font-bold text-slate-900 dark:text-emerald-300">Dark mode</p>
+          <p class="text-xs text-slate-500 dark:text-emerald-100">{{ theme.isDark ? 'On' : 'Off' }}</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          :aria-checked="theme.isDark"
+          class="relative h-8 w-14 rounded-full p-1 transition"
+          :class="theme.isDark ? 'bg-emerald-400' : 'bg-slate-300'"
+          @click="theme.toggle"
+        >
+          <span
+            class="block h-6 w-6 rounded-full bg-white shadow-md transition"
+            :class="theme.isDark ? 'translate-x-6' : 'translate-x-0'"
+          />
+          <span class="sr-only">Toggle dark mode</span>
+        </button>
+      </div>
       <RouterLink to="/invoices" class="btn-secondary w-full">
         Invoices
       </RouterLink>

@@ -82,8 +82,8 @@ onMounted(async () => {
 <template>
   <div class="space-y-4">
     <header>
-      <h1 class="text-2xl font-bold text-slate-900">Invoices</h1>
-      <p class="text-sm text-slate-600">
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-emerald-300">Invoices</h1>
+      <p class="text-sm text-slate-600 dark:text-emerald-100">
         Generate and share MotorRelay invoices instantly after each delivery.
       </p>
     </header>
@@ -92,7 +92,7 @@ onMounted(async () => {
       {{ errorMessage }}
     </p>
 
-    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
       <p class="font-bold">Why a download may be greyed out</p>
       <p>
         The PDF download is only available after the run is completed, inspection photos are uploaded, and the dealer approves the run.
@@ -100,19 +100,19 @@ onMounted(async () => {
       </p>
     </div>
 
-    <div v-if="loading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
+    <div v-if="loading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
       Loading invoices...
     </div>
 
-    <div v-else-if="!invoices.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-600">
+    <div v-else-if="!invoices.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
       No invoices yet. Approved runs will appear here once completion is signed off.
     </div>
 
     <div v-else class="space-y-4">
       <div class="hidden md:block">
-        <table class="min-w-full divide-y divide-slate-200 overflow-hidden rounded-2xl border bg-white">
-          <thead class="bg-slate-50">
-            <tr class="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <table class="min-w-full divide-y divide-slate-200 overflow-hidden rounded-2xl border bg-white dark:divide-white/10 dark:border-white/10 dark:bg-white/[0.06]">
+          <thead class="bg-slate-50 dark:bg-slate-950">
+            <tr class="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-emerald-100">
               <th class="px-4 py-3">Invoice</th>
               <th class="px-4 py-3">Run</th>
               <th class="px-4 py-3">Subtotal</th>
@@ -123,16 +123,16 @@ onMounted(async () => {
               <th class="px-4 py-3 sr-only">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-200 text-sm text-slate-700">
+          <tbody class="divide-y divide-slate-200 text-sm text-slate-700 dark:divide-white/10 dark:text-emerald-100">
             <tr v-for="invoice in invoices" :key="invoice.id">
-              <td class="px-4 py-3 font-semibold text-slate-900">
+              <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                 {{ invoice.number || invoice.id }}
               </td>
               <td class="px-4 py-3">
-                <div class="font-medium text-slate-800">
+                <div class="font-medium text-slate-800 dark:text-white">
                   {{ invoice.job?.title || `Run #${invoice.job?.id ?? '--'}` }}
                 </div>
-                <div class="text-xs text-slate-500">
+                <div class="text-xs text-slate-500 dark:text-emerald-100">
                   Run ID: {{ invoice.job?.id ?? '--' }}
                 </div>
               </td>
@@ -151,7 +151,7 @@ onMounted(async () => {
                   :class="{
                     'bg-emerald-100 text-emerald-700': invoice.status === 'finalized',
                     'bg-amber-100 text-amber-700': invoice.status === 'draft',
-                    'bg-slate-200 text-slate-700': !invoice.status
+                    'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-emerald-100': !invoice.status
                   }"
                 >
                   {{ invoiceStatusLabel(invoice.status) }}
@@ -163,7 +163,7 @@ onMounted(async () => {
               <td class="px-4 py-3 text-right">
                 <button
                   type="button"
-                  class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-emerald-100 dark:hover:bg-white/10"
                   :disabled="!invoice.pdf_available || downloadingId === invoice.id"
                   :title="invoice.pdf_available ? 'Download invoice PDF' : 'PDF has not been generated for this invoice yet'"
                   @click="handleDownload(invoice)"
@@ -182,14 +182,14 @@ onMounted(async () => {
         <article
           v-for="invoice in invoices"
           :key="`card-${invoice.id}`"
-          class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
         >
           <header class="flex items-center justify-between gap-3">
             <div>
-              <p class="text-sm font-semibold text-slate-900">
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">
                 {{ invoice.number || invoice.id }}
               </p>
-              <p class="text-xs text-slate-500">
+              <p class="text-xs text-slate-500 dark:text-emerald-100">
                 {{ invoice.issued_at ? new Date(invoice.issued_at).toLocaleDateString() : 'Not issued' }}
               </p>
             </div>
@@ -198,35 +198,35 @@ onMounted(async () => {
               :class="{
                 'bg-emerald-100 text-emerald-700': invoice.status === 'finalized',
                 'bg-amber-100 text-amber-700': invoice.status === 'draft',
-                'bg-slate-200 text-slate-700': !invoice.status
+                'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-emerald-100': !invoice.status
               }"
             >
               {{ invoiceStatusLabel(invoice.status) }}
             </span>
           </header>
 
-          <dl class="mt-3 grid gap-2 text-xs text-slate-600">
+          <dl class="mt-3 grid gap-2 text-xs text-slate-600 dark:text-emerald-100">
             <div>
-              <dt class="font-semibold uppercase tracking-wide text-slate-500">Run</dt>
-              <dd class="text-sm font-medium text-slate-900">
+              <dt class="font-semibold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Run</dt>
+              <dd class="text-sm font-medium text-slate-900 dark:text-white">
                 {{ invoice.job?.title || `Run #${invoice.job?.id ?? '--'}` }}
               </dd>
             </div>
             <div class="flex items-center justify-between">
-              <dt class="font-semibold uppercase tracking-wide text-slate-500">Subtotal</dt>
-              <dd class="text-sm font-semibold text-slate-900">
+              <dt class="font-semibold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Subtotal</dt>
+              <dd class="text-sm font-semibold text-slate-900 dark:text-white">
                 {{ formatCurrency(invoice.subtotal, invoice.currency) }}
               </dd>
             </div>
             <div class="flex items-center justify-between">
-              <dt class="font-semibold uppercase tracking-wide text-slate-500">VAT</dt>
-              <dd class="text-sm font-semibold text-slate-900">
+              <dt class="font-semibold uppercase tracking-wide text-slate-500 dark:text-emerald-100">VAT</dt>
+              <dd class="text-sm font-semibold text-slate-900 dark:text-white">
                 {{ formatCurrency(invoice.vat_total, invoice.currency) }}
               </dd>
             </div>
             <div class="flex items-center justify-between">
-              <dt class="font-semibold uppercase tracking-wide text-slate-500">Total</dt>
-              <dd class="text-sm font-semibold text-emerald-700">
+              <dt class="font-semibold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Total</dt>
+              <dd class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                 {{ formatCurrency(invoice.total, invoice.currency) }}
               </dd>
             </div>
@@ -234,7 +234,7 @@ onMounted(async () => {
 
           <button
             type="button"
-            class="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            class="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-emerald-100 dark:hover:bg-white/10"
             :disabled="!invoice.pdf_available || downloadingId === invoice.id"
             :title="invoice.pdf_available ? 'Download invoice PDF' : 'PDF has not been generated for this invoice yet'"
             @click="handleDownload(invoice)"
@@ -248,5 +248,4 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
 

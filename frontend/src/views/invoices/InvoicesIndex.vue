@@ -1,13 +1,28 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { fetchInvoices, downloadInvoice } from '@/services/invoices';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
+const route = useRoute();
 const invoices = ref([]);
 const loading = ref(false);
 const downloadingId = ref(null);
 const errorMessage = ref('');
+const focusedJobId = computed(() => (typeof route.query.job === 'string' ? route.query.job : null));
+const focusedInvoiceId = computed(() => (typeof route.query.invoice === 'string' ? route.query.invoice : null));
+const visibleInvoices = computed(() => {
+  if (focusedInvoiceId.value) {
+    return invoices.value.filter((invoice) => String(invoice.id) === focusedInvoiceId.value);
+  }
+
+  if (focusedJobId.value) {
+    return invoices.value.filter((invoice) => String(invoice.job?.id) === focusedJobId.value);
+  }
+
+  return invoices.value;
+});
 
 function formatCurrency(value, currencyCode = 'GBP') {
   try {
@@ -104,8 +119,8 @@ onMounted(async () => {
       Loading invoices...
     </div>
 
-    <div v-else-if="!invoices.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
-      No invoices yet. Approved runs will appear here once completion is signed off.
+    <div v-else-if="!visibleInvoices.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+      {{ focusedJobId || focusedInvoiceId ? 'No invoice found for this run yet.' : 'No invoices yet. Approved runs will appear here once completion is signed off.' }}
     </div>
 
     <div v-else class="space-y-4">
@@ -124,7 +139,7 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 text-sm text-slate-700 dark:divide-white/10 dark:text-emerald-100">
-            <tr v-for="invoice in invoices" :key="invoice.id">
+            <tr v-for="invoice in visibleInvoices" :key="invoice.id">
               <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                 {{ invoice.number || invoice.id }}
               </td>
@@ -180,7 +195,7 @@ onMounted(async () => {
 
       <div class="space-y-3 md:hidden">
         <article
-          v-for="invoice in invoices"
+          v-for="invoice in visibleInvoices"
           :key="`card-${invoice.id}`"
           class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
         >
@@ -248,4 +263,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-

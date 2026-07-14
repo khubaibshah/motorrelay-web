@@ -448,6 +448,13 @@ const canApproveCompletion = computed(() => {
 const hasDeliveryProof = computed(() => Boolean(job.value?.delivery_proof_path));
 
 const invoiceFinalized = computed(() => Boolean(job.value?.finalized_invoice_id));
+const jobInvoiceLink = computed(() => ({
+  name: 'invoices',
+  query: {
+    job: job.value?.id,
+    invoice: job.value?.finalized_invoice_id
+  }
+}));
 const isCompletedJob = computed(() => ['completed', 'closed'].includes(String(job.value?.status || '').toLowerCase()));
 const shouldShowCompletionPanel = computed(() => {
   return canUploadInspection.value || canSubmitCompletion.value || canApproveCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
@@ -1348,10 +1355,10 @@ watch(
           </button>
           <RouterLink
             v-if="invoiceFinalized"
-            to="/invoices"
+            :to="jobInvoiceLink"
             class="btn-secondary w-full px-4 py-2 text-center text-sm sm:w-auto"
           >
-            View invoices
+            View this invoice
           </RouterLink>
         </div>
       </section>
@@ -2181,7 +2188,7 @@ watch(
           class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-700"
         >
           Invoice finalised.
-          <RouterLink to="/invoices" class="font-semibold text-emerald-800 underline">View invoices</RouterLink>
+          <RouterLink :to="jobInvoiceLink" class="font-semibold text-emerald-800 underline">View this invoice</RouterLink>
         </div>
       </section>
 

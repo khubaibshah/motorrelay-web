@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <header class="sticky top-0 z-50 border-b border-white/70 bg-white/75 backdrop-blur-xl">
+    <header class="sticky top-0 z-50 border-b border-white/70 bg-white/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <nav class="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-3 sm:px-6 lg:px-8 md:flex md:justify-between">
         <div class="flex min-w-0 items-center justify-start gap-2 sm:gap-3 md:flex">
           <div v-if="showBackButton" class="md:hidden">
@@ -225,7 +225,7 @@ const router = useRouter();
 const route = useRoute();
 const notificationMenuRef = ref(null);
 const notificationDropdownOpen = ref(false);
-const baseMainClasses = 'mx-auto w-full flex-1 max-w-7xl px-3 pb-28 pt-5 sm:px-6 sm:pb-10 sm:pt-7 lg:px-8';
+const baseMainClasses = 'mx-auto w-full flex-1 max-w-7xl px-3 pb-28 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8';
 
 const navLinks = [
   { to: '/', label: 'Home', exact: true, icon: 'home', showInBottomNav: true },

@@ -43,7 +43,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="mx-auto grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-900/5 backdrop-blur sm:rounded-[2rem] lg:grid-cols-[0.9fr_1.1fr]">
+  <div class="mx-auto grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-900/5 backdrop-blur sm:rounded-[2rem] lg:grid-cols-[0.9fr_1.1fr] dark:border-white/10 dark:bg-slate-950 dark:shadow-black/30 dark:ring-white/10">
     <aside class="hidden bg-slate-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
       <div>
         <p class="text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">MotorRelay</p>
@@ -65,18 +65,18 @@ async function submit() {
       </div>
     </aside>
 
-    <section class="space-y-6 p-5 sm:space-y-8 sm:p-8 lg:p-10">
-      <nav class="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1" aria-label="Account access">
+    <section class="space-y-6 p-5 sm:space-y-8 sm:p-8 lg:p-10 dark:bg-slate-950">
+      <nav class="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.06]" aria-label="Account access">
         <RouterLink
           to="/login"
-          class="rounded-xl bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-sm"
+          class="rounded-xl bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950"
           aria-current="page"
         >
           Log in
         </RouterLink>
         <RouterLink
           to="/signup"
-          class="rounded-xl px-4 py-2.5 text-center text-sm font-bold text-slate-600 transition hover:bg-white hover:text-slate-950"
+          class="rounded-xl px-4 py-2.5 text-center text-sm font-bold text-slate-600 transition hover:bg-white hover:text-slate-950 dark:text-emerald-100 dark:hover:bg-white/10 dark:hover:text-emerald-300"
         >
           Sign up
         </RouterLink>
@@ -84,13 +84,13 @@ async function submit() {
 
       <header class="space-y-2">
         <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">Welcome back</p>
-        <h1 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Sign in to MotorRelay</h1>
-        <p class="text-sm leading-6 text-slate-600">
+        <h1 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl dark:text-emerald-300">Sign in to MotorRelay</h1>
+        <p class="text-sm leading-6 text-slate-600 dark:text-emerald-100">
           Access your account to manage runs, drivers, messages, tracking, and paperwork.
         </p>
       </header>
 
-      <div class="grid gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900 lg:hidden">
+      <div class="grid gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900 lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
         <p class="font-bold">Demo accounts</p>
         <p><span class="font-semibold">Driver:</span> driver@motorrelay.com / password</p>
         <p><span class="font-semibold">Dealer:</span> dealer@motorrelay.com / password</p>
@@ -98,7 +98,7 @@ async function submit() {
 
     <form class="space-y-5" @submit.prevent="submit">
       <div>
-        <label class="text-sm font-semibold text-slate-700">Email</label>
+        <label class="text-sm font-semibold text-slate-700 dark:text-emerald-100">Email</label>
         <input
           v-model="form.email"
           type="email"
@@ -109,7 +109,7 @@ async function submit() {
       </div>
 
       <div>
-        <label class="text-sm font-semibold text-slate-700">Password</label>
+        <label class="text-sm font-semibold text-slate-700 dark:text-emerald-100">Password</label>
         <input
           v-model="form.password"
           type="password"
@@ -136,4 +136,3 @@ async function submit() {
     </section>
   </div>
 </template>
-

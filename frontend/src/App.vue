@@ -7,7 +7,7 @@
       <div
         v-for="toast in notifications.toasts"
         :key="toast.id"
-        class="rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-950/15 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30"
+        class="rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-950/15 dark:border-white/10 dark:bg-slate-950 dark:shadow-black/30"
       >
         <div class="flex items-start justify-between gap-3">
           <button type="button" class="min-w-0 flex-1 text-left" @click="openToast(toast)">
@@ -91,7 +91,7 @@
 
             <div
               v-if="notificationDropdownOpen"
-            class="absolute right-0 top-full z-50 mt-3 w-[22rem] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30"
+            class="absolute right-0 top-full z-50 mt-3 w-[22rem] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15 dark:border-white/10 dark:bg-slate-950 dark:shadow-black/30"
             >
               <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                 <div>
@@ -117,7 +117,7 @@
                   :key="notification.id"
                   type="button"
                   class="mb-2 w-full rounded-2xl border p-3 text-left transition last:mb-0 hover:border-emerald-200 hover:bg-emerald-50/50"
-                  :class="notification.read_at ? 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/40 dark:bg-emerald-500/10'"
+                  :class="notification.read_at ? 'border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.06]' : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/40 dark:bg-emerald-500/10'"
                   @click="openToast(notification)"
                 >
                   <div class="flex items-start gap-3">
@@ -127,7 +127,7 @@
                     />
                     <div class="min-w-0 flex-1">
                       <p class="text-sm font-black text-slate-950 dark:text-white">{{ notification.title }}</p>
-                      <p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-slate-300">{{ notification.body }}</p>
+                      <p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-emerald-100">{{ notification.body }}</p>
                     </div>
                   </div>
                 </button>

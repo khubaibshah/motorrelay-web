@@ -301,11 +301,11 @@ function scrollMessagesToBottom() {
               v-model="threadSearch"
               type="search"
               placeholder="Search runs, people, messages..."
-              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
             >
           </header>
 
-          <div v-if="threadsLoading" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600">
+          <div v-if="threadsLoading" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
             Loading conversations...
           </div>
 
@@ -319,15 +319,15 @@ function scrollMessagesToBottom() {
               :key="thread.id"
               type="button"
               class="w-full rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
-              :class="selectedThreadId === thread.id ? 'border-emerald-200 bg-emerald-50 shadow-sm' : 'border-slate-200 bg-white'"
+              :class="selectedThreadId === thread.id ? 'border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-400/50 dark:bg-emerald-400/10' : 'border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.06]'"
               @click="selectThread(thread.id)"
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <h3 class="truncate text-sm font-black text-slate-950">
+                  <h3 class="truncate text-sm font-black text-slate-950 dark:text-white">
                     {{ thread.subject || thread.job?.title || 'Conversation' }}
                   </h3>
-                  <p class="mt-1 truncate text-xs text-slate-500">
+                  <p class="mt-1 truncate text-xs text-slate-500 dark:text-emerald-100">
                     {{ thread.last_message || 'No messages yet.' }}
                   </p>
                 </div>
@@ -336,16 +336,16 @@ function scrollMessagesToBottom() {
                 </span>
               </div>
               <div class="mt-3 flex flex-wrap items-center gap-2">
-                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:bg-white/10 dark:text-emerald-100">
                     {{ thread.job_id ? `Run #${thread.job_id}` : 'No run' }}
                 </span>
-                <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
+                <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-white/10 dark:text-emerald-100 dark:ring-white/10">
                   {{ thread.updated_at ? new Date(thread.updated_at).toLocaleDateString() : '--' }}
                 </span>
               </div>
             </button>
 
-            <div v-if="!filteredThreads.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            <div v-if="!filteredThreads.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
               No conversations match your search.
             </div>
           </div>
@@ -359,41 +359,41 @@ function scrollMessagesToBottom() {
         <button
           v-if="mobileView === 'thread'"
           type="button"
-          class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm lg:hidden"
+          class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
           @click="backToThreadList"
         >
           <span aria-hidden="true">←</span>
           Threads
         </button>
 
-        <div v-if="!selectedThread" class="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+        <div v-if="!selectedThread" class="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center dark:border-white/10 dark:bg-white/[0.06]">
           <div class="max-w-md">
-            <h2 class="text-xl font-black text-slate-950">Select a conversation</h2>
-            <p class="mt-2 text-sm text-slate-600">
+            <h2 class="text-xl font-black text-slate-950 dark:text-emerald-300">Select a conversation</h2>
+            <p class="mt-2 text-sm text-slate-600 dark:text-emerald-100">
               Choose a thread on the left to review updates, proof, and run messages.
             </p>
           </div>
         </div>
 
         <template v-else>
-          <header class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
+          <header class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-white/10">
             <div class="min-w-0">
               <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Active thread</p>
-              <h2 class="mt-1 truncate text-2xl font-black text-slate-950">
+              <h2 class="mt-1 truncate text-2xl font-black text-slate-950 dark:text-emerald-300">
                 {{ selectedThread.subject || selectedThread.job?.title || 'Conversation' }}
               </h2>
-              <p class="mt-1 text-sm text-slate-600">
+              <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
                 <span v-for="(participant, index) in selectedThread.participants" :key="participant.id">
                   {{ participant.name }}<span v-if="index < selectedThread.participants.length - 1">, </span>
                 </span>
               </p>
             </div>
-            <span v-if="selectedThread.job_id" class="badge bg-slate-100 text-slate-700">
+            <span v-if="selectedThread.job_id" class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">
               Run #{{ selectedThread.job_id }}
             </span>
           </header>
 
-          <div v-if="messagesLoading" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600">
+          <div v-if="messagesLoading" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
             Loading messages...
           </div>
 
@@ -407,9 +407,9 @@ function scrollMessagesToBottom() {
           <div
             v-else
             ref="messageContainer"
-            class="flex min-h-[26rem] flex-1 flex-col gap-3 overflow-y-auto rounded-3xl border border-slate-200 bg-slate-50 p-4"
+            class="flex min-h-[26rem] flex-1 flex-col gap-3 overflow-y-auto rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-950"
           >
-            <p v-if="!messages.length" class="text-sm text-slate-600">
+            <p v-if="!messages.length" class="text-sm text-slate-600 dark:text-emerald-100">
               No messages yet. Start the conversation below.
             </p>
 
@@ -430,7 +430,7 @@ function scrollMessagesToBottom() {
               <div
                 v-else
                 class="max-w-[82%] rounded-3xl px-4 py-3 text-sm shadow-sm"
-                :class="message.user.id === auth.user?.id ? 'bg-slate-950 text-white' : 'bg-white text-slate-800 ring-1 ring-slate-200'"
+                :class="message.user.id === auth.user?.id ? 'bg-emerald-400 text-slate-950 dark:bg-emerald-400 dark:text-slate-950' : 'bg-white text-slate-800 ring-1 ring-slate-200 dark:bg-white/[0.08] dark:text-emerald-100 dark:ring-white/10'"
               >
                 <p v-if="message.body" class="leading-6">{{ message.body }}</p>
 
@@ -461,7 +461,7 @@ function scrollMessagesToBottom() {
                 </div>
               </div>
               <div
-                class="flex items-center gap-2 text-[11px] text-slate-500"
+                class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-emerald-100"
                 :class="isLocationMessage(message) ? 'self-start' : ''"
               >
                 <span>{{ message.user.name }}</span>
@@ -480,8 +480,8 @@ function scrollMessagesToBottom() {
             </article>
           </div>
 
-          <form class="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" @submit.prevent="sendCurrentMessage">
-            <label class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500" for="message-body">
+          <form class="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]" @submit.prevent="sendCurrentMessage">
+            <label class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100" for="message-body">
               Message
             </label>
             <textarea
@@ -492,10 +492,10 @@ function scrollMessagesToBottom() {
               placeholder="Write your update..."
             />
 
-            <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+            <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-emerald-100">
               <label class="flex items-center gap-2">
                 <input type="file" multiple accept=".png,.jpg,.jpeg,.pdf" class="hidden" @change="handleAttachmentChange" />
-                <span class="rounded-2xl border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100">
+                <span class="rounded-2xl border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:text-emerald-100 dark:hover:bg-white/10">
                   Attach files
                 </span>
               </label>

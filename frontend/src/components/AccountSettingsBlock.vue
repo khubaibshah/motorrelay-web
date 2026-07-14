@@ -250,7 +250,7 @@ watch(
           >
             {{ pendingRequests.length }} pending
           </span>
-          <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
             Plan: {{ auth.planDisplayLabel || 'Free' }}
           </span>
         </div>
@@ -260,10 +260,10 @@ watch(
         <div
           v-for="item in accountSummary"
           :key="item.label"
-          class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+          class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.06]"
         >
-          <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ item.label }}</p>
-          <p class="mt-0.5 truncate text-sm font-semibold text-slate-900">{{ item.value }}</p>
+          <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-emerald-100">{{ item.label }}</p>
+          <p class="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-white">{{ item.value }}</p>
         </div>
       </div>
 
@@ -281,7 +281,7 @@ watch(
       </div>
     </header>
 
-    <form v-if="showDetails" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4" @submit.prevent="handleSubmit">
+    <form v-if="showDetails" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.06]" @submit.prevent="handleSubmit">
       <div class="grid gap-4 md:grid-cols-2">
         <div>
           <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Full name</label>
@@ -479,11 +479,11 @@ watch(
       </ul>
     </div>
 
-    <section v-if="showDetails || requests.length" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section v-if="showDetails || requests.length" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
       <header class="mb-4 flex items-center justify-between gap-2">
         <div>
-          <h3 class="text-base font-black text-slate-900">Change history</h3>
-          <p class="text-xs text-slate-500">
+          <h3 class="text-base font-black text-slate-900 dark:text-emerald-300">Change history</h3>
+          <p class="text-xs text-slate-500 dark:text-emerald-100">
             Pending and recently reviewed account updates.
           </p>
         </div>
@@ -491,14 +491,14 @@ watch(
 
       <div
         v-if="loadingRequests"
-        class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
+        class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
       >
         Loading account requests...
       </div>
 
       <div
         v-else-if="!requests.length"
-        class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
+        class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
       >
         No account change requests yet.
       </div>
@@ -507,12 +507,12 @@ watch(
         <article
           v-for="request in visibleRequests"
           :key="request.id"
-          class="rounded-xl border border-slate-200 bg-slate-50 p-3"
+          class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.06]"
         >
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
-              <p class="truncate text-sm font-semibold text-slate-900">{{ requestFieldSummary(request) }}</p>
-              <p class="mt-1 text-xs text-slate-500">Submitted {{ formatDateTime(request.created_at) }}</p>
+              <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ requestFieldSummary(request) }}</p>
+              <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">Submitted {{ formatDateTime(request.created_at) }}</p>
             </div>
             <span
               class="rounded-full px-2.5 py-1 text-[11px] font-bold capitalize"

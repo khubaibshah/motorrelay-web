@@ -538,10 +538,10 @@ onMounted(async () => {
       </div>
     </div>
 
-    <section v-if="isDealer" class="section-card space-y-4">
+    <section v-if="isDealer" class="section-card space-y-4 dark:border-white/10 dark:bg-slate-950 dark:text-white">
       <header class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Dealer operations</p>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Dealer operations</p>
           <RouterLink
             to="/jobs/new"
             class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
@@ -552,8 +552,8 @@ onMounted(async () => {
 
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 class="text-xl font-black text-slate-950">Your runs</h2>
-            <p class="mt-2 text-sm text-slate-600">
+            <h2 class="text-xl font-black text-slate-950 dark:text-emerald-300">Your runs</h2>
+            <p class="mt-2 text-sm text-slate-600 dark:text-emerald-100">
               Keep an eye on your posted jobs, then expand the table when you need the full view.
             </p>
           </div>
@@ -561,10 +561,10 @@ onMounted(async () => {
             <div
               v-for="stat in dealerRunStats"
               :key="stat.label"
-              class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center"
+              class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.06]"
             >
-              <p class="text-base font-black text-slate-950">{{ stat.value }}</p>
-              <p class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{{ stat.label }}</p>
+              <p class="text-base font-black text-slate-950 dark:text-emerald-300">{{ stat.value }}</p>
+              <p class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-emerald-100">{{ stat.label }}</p>
             </div>
           </div>
         </div>
@@ -572,7 +572,7 @@ onMounted(async () => {
 
       <div v-if="showAllDealerRuns" class="grid w-full gap-3 sm:grid-cols-3">
           <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-search" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            <label for="dealer-jobs-search" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
               Search
             </label>
             <input
@@ -585,7 +585,7 @@ onMounted(async () => {
           </div>
 
           <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-status" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            <label for="dealer-jobs-status" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
               Status
             </label>
             <select
@@ -608,7 +608,7 @@ onMounted(async () => {
           </div>
 
           <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-payment" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            <label for="dealer-jobs-payment" class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
               Payment
             </label>
             <select
@@ -625,11 +625,11 @@ onMounted(async () => {
           </div>
       </div>
 
-      <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
+      <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
         Loading your runs...
       </div>
 
-      <div v-else-if="!displayedDealerJobs.length" class="space-y-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+      <div v-else-if="!displayedDealerJobs.length" class="space-y-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
         <p>{{ showAllDealerRuns ? 'No runs match your search.' : 'No runs yet. Create a run to start receiving driver requests.' }}</p>
         <button
           v-if="showAllDealerRuns"
@@ -646,12 +646,12 @@ onMounted(async () => {
           <article
             v-for="job in displayedDealerJobs"
             :key="`mobile-job-${job.id}`"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="text-base font-black text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
-                <p class="mt-1 text-xs text-slate-500">
+                <p class="text-base font-black text-slate-950 dark:text-white">{{ job.title || `Run #${job.id}` }}</p>
+                <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
                   {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
                 </p>
               </div>
@@ -659,7 +659,7 @@ onMounted(async () => {
             </div>
 
             <div class="mt-3 flex items-center justify-between gap-3">
-              <span class="text-xs font-semibold text-slate-500">
+              <span class="text-xs font-semibold text-slate-500 dark:text-emerald-100">
                 {{ formatShortDate(job.updated_at || job.created_at) }}
               </span>
               <a
@@ -676,11 +676,11 @@ onMounted(async () => {
           </article>
         </div>
 
-        <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+        <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block dark:border-white/10 dark:bg-white/[0.06]">
         <div :class="showAllDealerRuns ? 'max-h-[34rem] overflow-auto' : ''">
-          <table class="min-w-full divide-y divide-slate-200 text-left">
-            <thead class="sticky top-0 z-10 bg-slate-50">
-              <tr class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+          <table class="min-w-full divide-y divide-slate-200 text-left dark:divide-white/10">
+            <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950">
+              <tr class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
                 <th class="px-4 py-3">Run</th>
                 <th class="px-4 py-3">Now</th>
                 <th class="px-4 py-3">Payment</th>
@@ -688,33 +688,33 @@ onMounted(async () => {
                 <th class="px-4 py-3 text-right">Open</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 dark:divide-white/10">
               <tr
                 v-for="job in displayedDealerJobs"
                 :key="job.id"
-                class="cursor-pointer transition hover:bg-slate-50"
+                class="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-white/[0.08]"
                 @click="openJob(job)"
               >
                 <td class="px-4 py-4 align-top">
-                <p class="font-black text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
-                  <p class="mt-1 text-xs text-slate-500">
+                <p class="font-black text-slate-950 dark:text-white">{{ job.title || `Run #${job.id}` }}</p>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
                     {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
                   </p>
-                  <p class="mt-1 text-xs text-slate-500">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
                 </td>
                 <td class="px-4 py-4 align-top">
                   <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
                 </td>
                 <td class="px-4 py-4 align-top">
-                  <span class="badge bg-slate-100 text-slate-700">{{ paymentLabel(job) }}</span>
+                  <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">{{ paymentLabel(job) }}</span>
                 </td>
-                <td class="px-4 py-4 align-top text-sm text-slate-600">
+                <td class="px-4 py-4 align-top text-sm text-slate-600 dark:text-emerald-100">
                   {{ formatShortDate(job.updated_at || job.created_at) }}
                 </td>
                 <td class="px-4 py-4 align-top text-right">
                   <RouterLink
                     :to="`/jobs/${job.id}`"
-                    class="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-200 hover:text-emerald-700"
+                    class="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-200 hover:text-emerald-700 dark:border-white/10 dark:text-emerald-100 dark:hover:border-emerald-300 dark:hover:text-emerald-300"
                     @click.stop
                   >
                     Open
@@ -727,7 +727,7 @@ onMounted(async () => {
       </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <p v-if="!showAllDealerRuns && dealerJobsProgress.length > displayedDealerJobs.length" class="text-xs text-slate-500">
+          <p v-if="!showAllDealerRuns && dealerJobsProgress.length > displayedDealerJobs.length" class="text-xs text-slate-500 dark:text-emerald-100">
             Showing {{ displayedDealerJobs.length }} of {{ dealerJobsProgress.length }} runs.
           </p>
           <button
@@ -1122,7 +1122,6 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
 
 
 

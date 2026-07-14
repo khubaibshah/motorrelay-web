@@ -9,6 +9,7 @@ const auth = useAuthStore();
 const overview = ref(null);
 const loading = ref(false);
 const errorMessage = ref('');
+const driverTab = ref('active');
 
 const priceFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -69,6 +70,16 @@ const activeJobs = computed(() => overview.value?.active ?? []);
 const currentJob = computed(() => activeJobs.value[0] ?? null);
 const completedJobs = computed(() => overview.value?.completed ?? []);
 const pendingApplications = computed(() => overview.value?.applications ?? []);
+const dashboardTabs = computed(() => [
+  { key: 'active', label: 'Active runs', count: activeJobs.value.length },
+  { key: 'applications', label: 'Pending applications', count: pendingApplications.value.length },
+  { key: 'completed', label: 'Recently completed', count: completedJobs.value.length }
+]);
+const selectedTabEmptyText = computed(() => {
+  if (driverTab.value === 'applications') return 'You have no pending applications.';
+  if (driverTab.value === 'completed') return 'No completed runs yet.';
+  return 'You have no active runs right now.';
+});
 
 function jobStatusLabel(status) {
   return (status || 'in progress').toString().replace(/_/g, ' ');
@@ -107,292 +118,143 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-6">
-    <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div class="space-y-1">
-        <h1 class="text-2xl font-bold text-slate-900">Driver dashboard</h1>
-        <p class="text-sm text-slate-600">
-          Track your active runs, check pending applications, and review completed deliveries.
-        </p>
-      </div>
-      <RouterLink
-        v-if="auth.hasPlannerAccess"
-        to="/planner"
-        class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-      >
-        Open planner
-        <span aria-hidden="true">→</span>
-      </RouterLink>
-    </header>
-
-    <div v-if="loading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-            Loading your driver workspace...
+    <div v-if="loading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+      Loading your driver workspace...
     </div>
 
-    <p v-else-if="errorMessage" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+    <p v-else-if="errorMessage" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
       {{ errorMessage }}
     </p>
 
     <template v-else>
-      <section
-        v-if="currentJob"
-        class="overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-sm"
-      >
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div class="space-y-3">
-            <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Current run</p>
+      <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-5 dark:border-white/10 dark:bg-slate-950">
+        <header class="space-y-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 class="text-2xl font-black text-slate-950">
-                {{ currentJob.title || `Run #${currentJob.id}` }}
-              </h2>
-              <p class="mt-1 text-sm text-slate-600">
-                {{ currentJob.pickup_postcode || '--' }} to {{ currentJob.dropoff_postcode || '--' }}
+              <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Driver workspace</p>
+              <h2 class="mt-1 text-xl font-black text-slate-950 dark:text-emerald-300">Your runs</h2>
+              <p class="mt-2 text-sm text-slate-600 dark:text-emerald-100">
+                Everything you need to track work, applications, and completed deliveries.
               </p>
             </div>
-            <p class="max-w-2xl rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
-              {{ currentJobAction(currentJob) }}
-            </p>
-          </div>
-
-          <div class="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
-            <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Route</p>
-              <p class="mt-1 font-black text-slate-950">
-                {{ currentJob.pickup_postcode || '--' }} → {{ currentJob.dropoff_postcode || '--' }}
-              </p>
-            </div>
-            <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Driver payout</p>
-              <p class="mt-1 font-black text-emerald-700">{{ formatDriverPayout(currentJob) }}</p>
-            </div>
-            <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-              <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Status</p>
-              <p class="mt-1 font-black capitalize text-slate-950">{{ jobStatusLabel(currentJob.status) }}</p>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right dark:border-white/10 dark:bg-white/[0.06]">
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-emerald-100">Total earnings</p>
+              <p class="mt-1 text-xl font-black text-slate-950 dark:text-emerald-300">{{ formatPrice(stats.total_earnings ?? 0) }}</p>
             </div>
           </div>
-        </div>
 
-        <div class="mt-5 flex flex-col gap-3 sm:flex-row">
-          <RouterLink
-            :to="`/jobs/${currentJob.id}`"
-            class="btn-primary inline-flex justify-center px-5 py-3 text-sm"
-          >
-            Open current run
-          </RouterLink>
-          <RouterLink
-            to="/jobs"
-            class="btn-secondary inline-flex justify-center px-5 py-3 text-sm"
-          >
-            View all runs
-          </RouterLink>
-        </div>
-      </section>
+          <nav class="grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.06]" aria-label="Driver run sections">
+            <button
+              v-for="tab in dashboardTabs"
+              :key="tab.key"
+              type="button"
+              class="rounded-xl px-2 py-2.5 text-center text-xs font-bold transition sm:px-4 sm:text-sm"
+              :class="driverTab === tab.key ? 'bg-slate-950 text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-white hover:text-slate-950 dark:text-emerald-100 dark:hover:bg-white/10 dark:hover:text-emerald-300'"
+              @click="driverTab = tab.key"
+            >
+              {{ tab.label }}
+              <span class="ml-1 opacity-80">({{ tab.count }})</span>
+            </button>
+          </nav>
+        </header>
 
-      <section class="grid grid-cols-3 gap-3 lg:grid-cols-4">
-        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Active runs</h2>
-          <p class="mt-2 text-2xl font-bold text-slate-900">
-            {{ stats.active_count ?? 0 }}
-          </p>
-        </article>
-        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed runs</h2>
-          <p class="mt-2 text-2xl font-bold text-slate-900">
-            {{ stats.completed_count ?? 0 }}
-          </p>
-        </article>
-        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending applications</h2>
-          <p class="mt-2 text-2xl font-bold text-slate-900">
-            {{ stats.pending_applications ?? 0 }}
-          </p>
-        </article>
-        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm col-span-3 lg:col-span-1">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total earnings</h2>
-          <p class="mt-2 text-2xl font-bold text-slate-900">
-            {{ formatPrice(stats.total_earnings ?? 0) }}
-          </p>
-        </article>
-        <article
-          v-if="auth.hasPlannerAccess"
-          class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm col-span-3 lg:col-span-1"
-        >
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Planner status</h2>
-          <p class="mt-2 text-base font-semibold text-emerald-900">
-            Keep your availability synced with upcoming runs.
-          </p>
-          <RouterLink
-            to="/planner"
-            class="mt-3 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/60"
-          >
-            Manage schedule
-            <span aria-hidden="true">→</span>
-          </RouterLink>
-        </article>
-      </section>
-
-      <section
-        v-if="auth.hasPlannerAccess"
-        class="rounded-2xl border border-slate-200 bg-white p-6 space-y-3"
-      >
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div v-if="driverTab === 'active'" class="space-y-3">
+          <div v-if="!activeJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+            {{ selectedTabEmptyText }}
+          </div>
           <div>
-            <h2 class="text-lg font-semibold text-slate-900">Planner quick access</h2>
-            <p class="text-xs text-slate-500">
-              Block out your calendar, pin pick-ups, and hold delivery slots before accepting new work.
-            </p>
-          </div>
-          <RouterLink
-            to="/planner"
-            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Open planner
-            <span aria-hidden="true">→</span>
-          </RouterLink>
-        </div>
-        <p class="text-xs text-slate-500">
-          Saved routes and holds appear in the planner view. Update it daily to keep dealers in sync with your availability.
-        </p>
-      </section>
-
-      <section class="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900">Active runs</h2>
-            <p class="text-xs text-slate-500">
-              Runs currently assigned to you. Update status from the run detail screen.
-            </p>
-          </div>
-          <RouterLink to="/jobs" class="btn-secondary inline-flex w-full justify-center px-4 py-2 text-sm sm:w-auto">
-            View runs
-            <span aria-hidden="true">→</span>
-          </RouterLink>
-        </div>
-
-        <div v-if="!activeJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          You have no active runs right now.
-        </div>
-
-        <div v-else class="space-y-3">
-          <RouterLink
-            v-for="job in activeJobs"
-            :key="job.id"
-            :to="`/jobs/${job.id}`"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-slate-900">
-                  {{ job.title || `Run #${job.id}` }}
-                </p>
-                <p class="text-xs text-slate-500">
-                  {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
-                </p>
-                <p class="text-xs text-slate-500">
-                  Posted by {{ job.posted_by?.name || 'Dealer' }}
-                </p>
-              </div>
-              <div class="text-right">
-                <div class="text-lg font-bold text-emerald-600">
-                  {{ formatDriverPayout(job) }}
+            <RouterLink
+              v-for="job in activeJobs"
+              :key="job.id"
+              :to="`/jobs/${job.id}`"
+              class="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.09]"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-slate-900 dark:text-white">
+                    {{ job.title || `Run #${job.id}` }}
+                  </p>
+                  <p class="text-xs text-slate-500 dark:text-emerald-100">
+                    {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
+                  </p>
+                  <p class="text-xs text-slate-500 dark:text-emerald-100">
+                    Posted by {{ job.posted_by?.name || 'Dealer' }}
+                  </p>
                 </div>
-                <span class="badge bg-emerald-100 text-emerald-700">{{ job.status }}</span>
+                <div class="text-right">
+                  <div class="text-lg font-bold text-emerald-600 dark:text-emerald-300">
+                    {{ formatDriverPayout(job) }}
+                  </div>
+                  <span class="badge bg-emerald-100 text-emerald-700">{{ jobStatusLabel(job.status) }}</span>
+                </div>
               </div>
-            </div>
-          </RouterLink>
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900">Pending applications</h2>
-            <p class="text-xs text-slate-500">
-              Dealers will review and confirm your application. You will be notified once accepted.
-            </p>
+              <p class="mt-3 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-emerald-100">
+                {{ currentJobAction(job) }}
+              </p>
+            </RouterLink>
           </div>
-          <RouterLink to="/jobs" class="btn-secondary inline-flex w-full justify-center px-4 py-2 text-sm sm:w-auto">
-            Browse runs
-            <span aria-hidden="true">→</span>
-          </RouterLink>
         </div>
 
-        <div v-if="!pendingApplications.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          You have no pending applications.
-        </div>
-
-        <div v-else class="space-y-3">
+        <div v-else-if="driverTab === 'applications'" class="space-y-3">
+          <div v-if="!pendingApplications.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+            {{ selectedTabEmptyText }}
+          </div>
           <article
             v-for="application in pendingApplications"
             :key="application.id"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-slate-900">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-slate-900 dark:text-white">
                   {{ application.job?.title || `Run #${application.job?.id}` }}
                 </p>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs text-slate-500 dark:text-emerald-100">
                   Dealer: {{ application.job?.posted_by?.name || 'Dealer' }}
                 </p>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs text-slate-500 dark:text-emerald-100">
                   Applied {{ formatDate(application.created_at) }}
                 </p>
               </div>
               <div class="text-right">
-                <div class="text-lg font-bold text-emerald-600">
+                <div class="text-lg font-bold text-emerald-600 dark:text-emerald-300">
                   {{ formatDriverPayout(application.job) }}
                 </div>
                 <span class="badge bg-amber-100 text-amber-700">{{ application.status }}</span>
               </div>
             </div>
-            <p v-if="application.message" class="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+            <p v-if="application.message" class="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/10 dark:text-emerald-100">
               "{{ application.message }}"
             </p>
           </article>
         </div>
-      </section>
-
-      <section class="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900">Recently completed</h2>
-            <p class="text-xs text-slate-500">
-              A quick snapshot of the latest closed runs. Explore everything from your scorecard.
-            </p>
-          </div>
-          <RouterLink to="/profile" class="btn-secondary inline-flex w-full justify-center px-4 py-2 text-sm sm:w-auto">
-            View scorecard
-            <span aria-hidden="true">→</span>
-          </RouterLink>
-        </div>
-
-        <div v-if="!completedJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          No completed runs yet.
-        </div>
 
         <div v-else class="space-y-3">
+          <div v-if="!completedJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+            {{ selectedTabEmptyText }}
+          </div>
           <article
             v-for="job in completedJobs.slice(0, 5)"
             :key="job.id"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-slate-900">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-slate-900 dark:text-white">
                   {{ job.title || `Run #${job.id}` }}
                 </p>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs text-slate-500 dark:text-emerald-100">
                   {{ job.pickup_postcode || '--' }} → {{ job.dropoff_postcode || '--' }}
                 </p>
               </div>
               <div class="text-right">
-                <div class="text-lg font-bold text-emerald-600">
+                <div class="text-lg font-bold text-emerald-600 dark:text-emerald-300">
                   {{ formatDriverPayout(job) }}
                 </div>
-                <span class="badge bg-slate-200 text-slate-800">{{ job.status }}</span>
+                <span class="badge bg-slate-200 text-slate-800 dark:bg-white/10 dark:text-emerald-100">{{ jobStatusLabel(job.status) }}</span>
               </div>
             </div>
-            <p class="text-xs text-slate-500">
+            <p class="mt-2 text-xs text-slate-500 dark:text-emerald-100">
               Completed {{ formatDate(job.updated_at ?? job.created_at) }}
             </p>
           </article>
@@ -401,4 +263,3 @@ onMounted(async () => {
     </template>
   </div>
 </template>
-

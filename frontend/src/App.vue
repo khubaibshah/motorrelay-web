@@ -203,7 +203,7 @@ const navLinks = [
   { to: '/invoices', label: 'Invoices', roles: ['driver', 'dealer', 'admin'] },
   { to: '/jobs', label: 'Runs', icon: 'jobs', showInBottomNav: true },
   { to: '/membership', label: 'Membership' },
-  { to: '/messages', label: 'Messages', icon: 'messages', showInBottomNav: true },
+  { to: '/messages', label: 'Chat', icon: 'messages', showInBottomNav: true },
   { to: '/notifications', label: 'Notifications', icon: 'notifications', showInBottomNav: true },
   { to: '/admin', label: 'Admin', roles: ['admin'], icon: 'admin', showInBottomNav: true },
   { to: '/planner', label: 'Planner', condition: () => auth.hasPlannerAccess },

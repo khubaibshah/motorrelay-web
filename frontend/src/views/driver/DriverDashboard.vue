@@ -233,10 +233,11 @@ onMounted(async () => {
           <div v-if="!completedJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
             {{ selectedTabEmptyText }}
           </div>
-          <article
+          <RouterLink
             v-for="job in completedJobs.slice(0, 5)"
             :key="job.id"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
+            :to="`/jobs/${job.id}`"
+            class="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.09]"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
@@ -257,7 +258,7 @@ onMounted(async () => {
             <p class="mt-2 text-xs text-slate-500 dark:text-emerald-100">
               Completed {{ formatDate(job.updated_at ?? job.created_at) }}
             </p>
-          </article>
+          </RouterLink>
         </div>
       </section>
     </template>

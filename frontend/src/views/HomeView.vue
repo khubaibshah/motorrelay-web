@@ -2,10 +2,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { fetchJobHighlights } from '@/services/jobs';
+import { fetchJobHighlights, fetchJobs } from '@/services/jobs';
 
 const auth = useAuthStore();
 const jobs = ref([]);
+const driverActiveJobs = ref([]);
 const loading = ref(false);
 
 const priceFormatter = new Intl.NumberFormat('en-GB', {
@@ -23,9 +24,20 @@ onMounted(async () => {
   try {
     const payload = await fetchJobHighlights();
     jobs.value = Array.isArray(payload?.jobs) ? payload.jobs : [];
+
+    if (auth.role === 'driver') {
+      const activePayload = await fetchJobs({ scope: 'current' });
+      const activeList = Array.isArray(activePayload?.data)
+        ? activePayload.data
+        : Array.isArray(activePayload?.jobs)
+          ? activePayload.jobs
+          : [];
+      driverActiveJobs.value = activeList;
+    }
   } catch (error) {
     console.error('Failed to load highlight jobs', error);
     jobs.value = [];
+    driverActiveJobs.value = [];
   } finally {
     loading.value = false;
   }
@@ -64,21 +76,37 @@ const dealerActiveJobs = computed(() =>
   sortByRecentActivity(postedJobs.value.filter((job) => activeStatuses.includes(String(job?.status || '').toLowerCase())))
 );
 const dealerCompletedJobs = computed(() => sortByRecentActivity(completedJobs.value));
+const driverCurrentJob = computed(() => sortByRecentActivity(driverActiveJobs.value)[0] || null);
+const driverOpportunityJobs = computed(() => jobs.value.slice(0, 2));
+const hasDriverCurrentJob = computed(() => Boolean(driverCurrentJob.value));
 
 const primaryAction = computed(() => {
-  if (auth.role === 'driver') return { to: '/jobs', label: 'Browse runs' };
+  if (auth.role === 'driver' && driverCurrentJob.value) return { to: `/jobs/${driverCurrentJob.value.id}`, label: 'Continue current run' };
+  if (auth.role === 'driver') return { to: '/jobs', label: 'Browse available runs' };
   if (auth.role === 'dealer') return { to: '/jobs/new', label: 'Create run' };
   if (auth.role === 'admin') return { to: '/admin', label: 'Open admin' };
   return { to: '/login', label: 'Sign in' };
 });
 
+const heroTitle = computed(() => {
+  if (auth.role === 'driver' && driverCurrentJob.value) return 'Keep your current run moving.';
+  if (auth.role === 'driver') return 'Ready for your next run?';
+  return 'Move vehicles with less chasing.';
+});
+
+const heroText = computed(() => {
+  if (auth.role === 'driver' && driverCurrentJob.value) {
+    return 'Open your assigned run, check the next step, and keep the dealer updated from one clean workspace.';
+  }
+  if (auth.role === 'driver') {
+    return 'Browse paid dealer runs, request the ones that work for you, and manage active deliveries from one place.';
+  }
+  return 'MotorRelay brings runs, drivers, live tracking, expenses, messages, inspection photos, and invoices into one clean workspace.';
+});
+
 const quickLinks = computed(() => {
   if (auth.role === 'driver') {
-    return [
-      { to: '/jobs', title: 'Find a run', text: 'Apply for open vehicle movements near you.' },
-      { to: '/messages', title: 'Messages', text: 'Keep dealers updated from one inbox.' },
-      { to: '/profile', title: 'Scorecard', text: 'Review completed work and earnings.' }
-    ];
+    return [];
   }
 
   if (auth.role === 'dealer') {
@@ -130,6 +158,14 @@ const liveBoardCountText = computed(() => {
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
+function driverNextAction(job) {
+  const status = String(job?.status || '').toLowerCase();
+  if (['accepted', 'in_progress'].includes(status)) return 'Collect vehicle';
+  if (['collected', 'in_transit'].includes(status)) return 'Continue delivery';
+  if (['completion_pending', 'delivered'].includes(status)) return 'Await dealer approval';
+  return 'Open run';
+}
+
 function formatDate(value) {
   if (!value) return '--';
 
@@ -172,14 +208,14 @@ const openJobsEmptyText = computed(() => {
 
           <div class="max-w-3xl space-y-4">
             <h1 class="text-3xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-              Move vehicles with less chasing.
+              {{ heroTitle }}
             </h1>
-            <p class="max-w-2xl text-sm leading-6 text-slate-600 sm:text-lg sm:leading-7">
-              MotorRelay brings runs, drivers, live tracking, expenses, messages, inspection photos, and invoices into one clean workspace.
+            <p v-if="auth.role !== 'driver'" class="max-w-2xl text-sm leading-6 text-slate-600 sm:text-lg sm:leading-7">
+              {{ heroText }}
             </p>
           </div>
 
-          <div class="grid gap-3 sm:flex sm:flex-wrap">
+          <div v-if="auth.role !== 'driver'" class="grid gap-3 sm:flex sm:flex-wrap">
             <RouterLink :to="primaryAction.to" class="btn-primary w-full sm:w-auto">
               {{ primaryAction.label }}
             </RouterLink>
@@ -187,7 +223,78 @@ const openJobsEmptyText = computed(() => {
         </div>
       </div>
     </section>
-    <aside class="rounded-3xl bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20 sm:p-5">
+
+    <aside v-if="auth.role === 'driver'" class="rounded-3xl bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20 sm:p-5">
+      <div class="flex flex-col gap-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Driver workspace</p>
+            <h2 class="mt-1 text-xl font-bold text-emerald-300">
+              {{ hasDriverCurrentJob ? 'Current run' : 'Run opportunities' }}
+            </h2>
+          </div>
+          <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
+            {{ loading ? 'Syncing' : hasDriverCurrentJob ? '1 active' : `${driverOpportunityJobs.length} shown` }}
+          </span>
+        </div>
+
+        <RouterLink
+          v-if="driverCurrentJob"
+          :to="`/jobs/${driverCurrentJob.id}`"
+          class="block rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 transition hover:-translate-y-0.5 hover:bg-emerald-400/15"
+        >
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <p class="font-semibold text-white">
+                {{ driverCurrentJob.pickup_label || driverCurrentJob.pickup_postcode || 'Pickup' }}
+                <span class="text-emerald-200">to</span>
+                {{ driverCurrentJob.dropoff_label || driverCurrentJob.dropoff_postcode || 'Drop-off' }}
+              </p>
+              <p class="mt-1 text-xs text-emerald-100">{{ driverNextAction(driverCurrentJob) }}</p>
+            </div>
+            <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
+              Open run
+            </span>
+          </div>
+        </RouterLink>
+
+        <div v-else class="space-y-3">
+          <RouterLink
+            v-for="job in driverOpportunityJobs"
+            :key="job.id"
+            :to="`/jobs/${job.id}`"
+            class="block rounded-2xl border border-white/10 bg-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0">
+                <p class="font-semibold text-white">
+                  {{ job.pickup_label || job.pickup_postcode || 'Pickup' }}
+                  <span class="text-slate-500">to</span>
+                  {{ job.dropoff_label || job.dropoff_postcode || 'Drop-off' }}
+                </p>
+                <p class="mt-1 text-xs text-slate-400">{{ job.status || 'open' }}</p>
+              </div>
+              <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
+                {{ priceFormatter.format(Number(job.price || 0)) }}
+              </span>
+            </div>
+          </RouterLink>
+
+          <div
+            v-if="!loading && !driverOpportunityJobs.length"
+            class="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-300"
+          >
+            No open runs right now. Check the Runs page again soon.
+          </div>
+        </div>
+
+        <RouterLink to="/jobs" class="btn-primary w-full">
+          {{ hasDriverCurrentJob ? 'Open all runs' : 'Browse all available runs' }}
+        </RouterLink>
+      </div>
+    </aside>
+
+    <aside v-else class="rounded-3xl bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20 sm:p-5">
       <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>

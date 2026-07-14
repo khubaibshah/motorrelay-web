@@ -534,7 +534,7 @@ onMounted(async () => {
 <template>
   <div class="space-y-5">
     <div
-      v-if="!isDealer"
+      v-if="!isDealer && !isDriver"
       class="section-card overflow-hidden"
     >
       <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -832,13 +832,13 @@ onMounted(async () => {
           </span>
         </div>
 
-        <div class="flex flex-wrap gap-2">
+        <div class="grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.06]">
           <button
             v-for="tab in driverRunTabs"
             :key="tab.key"
             type="button"
-            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="driverRunsTab === tab.key ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-emerald-100 dark:hover:bg-white/15'"
+            class="rounded-xl px-3 py-2.5 text-center text-xs font-bold transition sm:text-sm"
+            :class="driverRunsTab === tab.key ? 'bg-slate-950 text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-white hover:text-slate-950 dark:text-emerald-100 dark:hover:bg-white/10 dark:hover:text-emerald-300'"
             @click="driverRunsTab = tab.key"
           >
             {{ tab.label }}
@@ -895,7 +895,10 @@ onMounted(async () => {
               </p>
             </button>
 
-            <div class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right dark:bg-emerald-400 dark:text-slate-950">
+            <div
+              v-if="driverRunsTab !== 'available'"
+              class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right dark:bg-emerald-400 dark:text-slate-950"
+            >
               <p class="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver payout</p>
               <div class="mt-1 text-2xl font-black">
                 {{ priceFormatter.format(visibleAmountForJob(job)) }}
@@ -1280,6 +1283,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-
-

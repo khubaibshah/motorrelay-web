@@ -218,14 +218,13 @@ const navLinks = [
   { to: '/messages', label: 'Chat', icon: 'messages', showInBottomNav: true },
   { to: '/notifications', label: 'Notifs', icon: 'notifications', showInBottomNav: true },
   { to: '/admin', label: 'Admin', roles: ['admin'], icon: 'admin', showInBottomNav: true },
-  { to: '/planner', label: 'Planner', condition: () => auth.hasPlannerAccess },
   { to: '/profile', label: 'Profile', icon: 'profile', showInBottomNav: true }
 ];
 
 const roleNavMap = {
-  driver: new Set(['/', '/driver', '/jobs', '/messages', '/notifications', '/profile', '/invoices', '/planner']),
-  dealer: new Set(['/', '/jobs', '/messages', '/notifications', '/profile', '/invoices', '/planner']),
-  admin: new Set(['/', '/admin', '/jobs', '/messages', '/notifications', '/profile', '/invoices', '/planner'])
+  driver: new Set(['/', '/driver', '/jobs', '/messages', '/notifications', '/profile', '/invoices']),
+  dealer: new Set(['/', '/jobs', '/messages', '/notifications', '/profile', '/invoices']),
+  admin: new Set(['/', '/admin', '/jobs', '/messages', '/notifications', '/profile', '/invoices'])
 };
 
 function canShowLink(link, role) {

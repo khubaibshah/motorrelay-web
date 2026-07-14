@@ -582,14 +582,6 @@ onMounted(async () => {
           >
             Create run
           </RouterLink>
-
-          <RouterLink
-            v-if="auth.hasPlannerAccess && !isDriver"
-            to="/planner"
-            class="btn-secondary w-full sm:w-auto"
-          >
-            Planner
-          </RouterLink>
         </div>
       </div>
     </div>
@@ -816,27 +808,6 @@ onMounted(async () => {
             {{ step }}
           </li>
         </ol>
-      </div>
-    </section>
-
-    <section
-      v-if="auth.hasPlannerAccess && !isDealer && !isDriver"
-      class="section-card"
-    >
-      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 class="text-lg font-semibold text-slate-900">Planner</h2>
-          <p class="text-sm text-slate-600">
-            Coordinate routes and reserve driver time before posting or assigning new runs.
-          </p>
-        </div>
-        <RouterLink
-          to="/planner"
-          class="btn-secondary w-full sm:w-auto"
-        >
-          Open planner
-          <span aria-hidden="true">?</span>
-        </RouterLink>
       </div>
     </section>
 

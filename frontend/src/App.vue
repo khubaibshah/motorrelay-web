@@ -26,37 +26,25 @@
       </div>
     </div>
 
-    <header class="z-50 shrink-0 border-b border-white/70 bg-white/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
-      <nav class="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-3 sm:px-6 lg:px-8 md:flex md:justify-between">
+    <header class="z-50 shrink-0 border-b border-white/10 bg-[#004c3f] pt-[env(safe-area-inset-top)] shadow-lg shadow-slate-950/10">
+      <nav class="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-2.5 sm:px-6 lg:px-8 md:flex md:justify-between">
         <div class="flex min-w-0 items-center justify-start gap-2 sm:gap-3 md:flex">
-          <div class="h-10 w-10 md:hidden" aria-hidden="true"></div>
-          <RouterLink to="/" class="group hidden min-w-0 items-center gap-2 sm:gap-3 md:flex">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 shadow-lg shadow-slate-950/15 ring-1 ring-white/40 transition group-hover:-translate-y-0.5 sm:h-11 sm:w-11">
-              <img
-                src="@/assets/logo-icon.svg"
-                alt="MotorRelay logo"
-                class="h-7 w-7 sm:h-8 sm:w-8"
-              />
+          <div class="h-12 w-16 md:hidden" aria-hidden="true"></div>
+          <RouterLink to="/" class="group hidden min-w-0 items-center md:flex">
+            <span class="text-xl font-black tracking-tight text-white transition group-hover:-translate-y-0.5 sm:text-2xl">
+              MotorRelay
             </span>
-            <div class="flex min-w-0 flex-col leading-tight text-slate-900">
-              <span class="truncate text-sm font-black tracking-tight sm:text-base">MotorRelay</span>
-              <span class="hidden text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-600 sm:block">Move Smarter</span>
-            </div>
           </RouterLink>
         </div>
 
-        <RouterLink to="/" class="group col-start-2 flex min-w-0 items-center justify-center gap-2 md:hidden">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 shadow-lg shadow-slate-950/15 ring-1 ring-white/40 transition group-hover:-translate-y-0.5 sm:h-11 sm:w-11">
-            <img
-              src="@/assets/logo-icon.svg"
-              alt="MotorRelay logo"
-              class="h-7 w-7 sm:h-8 sm:w-8"
-            />
+        <RouterLink to="/" class="group col-start-2 flex min-w-0 items-center justify-center md:hidden">
+          <span class="text-xl font-black tracking-tight text-white transition group-hover:-translate-y-0.5 sm:text-2xl">
+            MotorRelay
           </span>
         </RouterLink>
 
         <div class="hidden items-center gap-2 md:flex">
-          <div class="flex items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/70 p-1 text-sm font-semibold text-slate-600 shadow-sm">
+          <div class="flex items-center gap-1 rounded-2xl border border-white/15 bg-white/10 p-1 text-sm font-semibold text-white shadow-sm">
             <RouterLink
               v-for="item in desktopNavLinks"
               :key="item.to"
@@ -83,8 +71,8 @@
           <div v-if="visibleNavLinks.some((item) => item.icon === 'notifications')" ref="notificationMenuRef" class="relative">
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-emerald-200 hover:text-slate-950"
-              :class="notificationDropdownOpen ? 'ring-2 ring-emerald-200' : ''"
+              class="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
+              :class="notificationDropdownOpen ? 'ring-2 ring-white/30' : ''"
               @click="toggleNotificationDropdown"
             >
               <span class="relative inline-flex h-5 w-5 items-center justify-center">
@@ -162,7 +150,7 @@
           <RouterLink
             v-if="showLogin"
             to="/login"
-            class="btn-primary shrink-0 px-3 py-2 text-xs sm:px-4 sm:text-sm"
+            class="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-bold text-[#004c3f] shadow-sm transition hover:bg-emerald-50 sm:px-4 sm:text-sm"
           >
             Login
           </RouterLink>
@@ -172,7 +160,7 @@
         <RouterLink
           v-if="!showLogin"
           to="/profile"
-          class="hidden shrink-0 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/80 p-2 text-slate-800 shadow-sm transition hover:border-emerald-200 hover:text-slate-950 md:inline-flex"
+          class="hidden shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 p-2 text-white shadow-sm transition hover:bg-white/15 md:inline-flex"
           aria-label="Profile"
           title="Profile"
         >
@@ -186,21 +174,6 @@
     </header>
 
     <main ref="mainScrollRef" :class="mainContainerClass">
-      <nav v-if="breadcrumbs.length" class="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-        <template v-for="(crumb, index) in breadcrumbs" :key="crumb.href ?? index">
-          <RouterLink
-            v-if="index !== breadcrumbs.length - 1 && crumb.href"
-            :to="crumb.href"
-            class="font-semibold text-emerald-700 hover:text-emerald-800"
-          >
-            {{ crumb.label }}
-          </RouterLink>
-          <span v-else class="font-medium text-slate-700">
-            {{ crumb.label }}
-          </span>
-          <span v-if="index !== breadcrumbs.length - 1" aria-hidden="true" class="text-slate-300">/</span>
-        </template>
-      </nav>
       <RouterView />
     </main>
 
@@ -284,8 +257,8 @@ const bottomNavItems = computed(() => {
 });
 
 const baseLinkClass = 'rounded-xl px-3 py-2 transition';
-const activeLinkClass = 'bg-slate-950 text-white shadow-sm';
-const inactiveLinkClass = 'hover:bg-slate-100 hover:text-slate-950';
+const activeLinkClass = 'bg-white text-[#004c3f] shadow-sm';
+const inactiveLinkClass = 'text-white/85 hover:bg-white/10 hover:text-white';
 const notificationCount = computed(() => Number(notifications.unreadCount || 0));
 const recentNotifications = computed(() => notifications.recentItems.slice(0, 5));
 const hasNotifications = computed(() => notificationCount.value > 0);
@@ -296,47 +269,6 @@ function isNavActive(item) {
   }
   return route.path.startsWith(item.to);
 }
-
-const breadcrumbs = computed(() => {
-  const crumbs = [];
-
-  route.matched.forEach((record) => {
-    if (!record.meta || record.meta.breadcrumb === undefined) return;
-
-    const value =
-      typeof record.meta.breadcrumb === 'function'
-        ? record.meta.breadcrumb(route)
-        : record.meta.breadcrumb;
-
-    const entries = Array.isArray(value) ? value : [{ label: value }];
-
-    entries.forEach((entry) => {
-      if (entry === null || entry === undefined || entry === false) return;
-
-      const normalized =
-        typeof entry === 'string' ? { label: entry } : { ...entry };
-
-      if (!normalized.label) return;
-
-      let href = null;
-      if (normalized.to) {
-        href = normalized.to;
-      } else if (normalized.name) {
-        href = router.resolve({ name: normalized.name, params: route.params }).href;
-      } else if (record.name) {
-        href = router.resolve({ name: record.name, params: route.params }).href;
-      }
-
-      crumbs.push({ label: normalized.label, href });
-    });
-  });
-
-  if (crumbs.length) {
-    crumbs[crumbs.length - 1].href = null;
-  }
-
-  return crumbs;
-});
 
 const mainContainerClass = computed(() => [
   baseMainClasses,

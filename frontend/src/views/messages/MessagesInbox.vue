@@ -284,22 +284,6 @@ function scrollMessagesToBottom() {
 
 <template>
   <div class="space-y-5">
-    <section class="section-card hidden overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/60 md:block">
-      <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Messages</p>
-          <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Keep every run conversation in one place</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Track updates, images, proof, and location messages without leaving the run.
-          </p>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Threads</p>
-          <p class="mt-1 text-2xl font-black text-slate-950">{{ threads.length }}</p>
-        </div>
-      </div>
-    </section>
-
     <div class="grid gap-4 lg:grid-cols-[360px,1fr]">
       <aside class="space-y-4" :class="mobileView === 'thread' ? 'hidden lg:block' : ''">
         <section class="section-card space-y-4">

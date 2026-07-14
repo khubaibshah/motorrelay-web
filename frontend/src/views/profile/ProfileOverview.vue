@@ -182,6 +182,9 @@ async function handleLogout() {
     </div>
 
     <aside class="tile space-y-4 p-6">
+      <RouterLink to="/invoices" class="btn-secondary w-full">
+        Invoices
+      </RouterLink>
       <RouterLink to="/legal" class="btn-secondary w-full">
         Legal
       </RouterLink>

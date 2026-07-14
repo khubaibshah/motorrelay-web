@@ -203,10 +203,11 @@ onMounted(async () => {
           <div v-if="!pendingApplications.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
             {{ selectedTabEmptyText }}
           </div>
-          <article
+          <RouterLink
             v-for="application in pendingApplications"
             :key="application.id"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
+            :to="`/jobs/${application.job?.id}`"
+            class="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.09]"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
@@ -230,7 +231,7 @@ onMounted(async () => {
             <p v-if="application.message" class="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/10 dark:text-emerald-100">
               "{{ application.message }}"
             </p>
-          </article>
+          </RouterLink>
         </div>
 
         <div v-else class="space-y-3">

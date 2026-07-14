@@ -116,6 +116,22 @@ watch(
 
 <template>
   <div class="mx-auto w-full max-w-3xl space-y-8 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 lg:p-10">
+    <nav class="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1" aria-label="Account access">
+      <RouterLink
+        to="/login"
+        class="rounded-xl px-4 py-2.5 text-center text-sm font-bold text-slate-600 transition hover:bg-white hover:text-slate-950"
+      >
+        Log in
+      </RouterLink>
+      <RouterLink
+        to="/signup"
+        class="rounded-xl bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-sm"
+        aria-current="page"
+      >
+        Sign up
+      </RouterLink>
+    </nav>
+
     <header>
       <h1 class="text-2xl font-bold text-slate-900">Create your MotorRelay account</h1>
       <p class="text-sm text-slate-600">Drivers and dealers join to post, accept and track runs.</p>
@@ -403,11 +419,5 @@ watch(
       </button>
     </form>
 
-    <p class="text-sm text-slate-600">
-      Already have an account?
-      <RouterLink to="/login" class="font-semibold text-emerald-600 hover:underline">
-        Log in
-      </RouterLink>
-    </p>
   </div>
 </template>

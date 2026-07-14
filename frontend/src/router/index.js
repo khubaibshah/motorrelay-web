@@ -234,18 +234,12 @@ const routes = [
   {
     path: '/login',
     name: 'login',
-    component: () => import('../views/auth/LoginView.vue'),
-    meta: {
-      breadcrumb: 'Login'
-    }
+    component: () => import('../views/auth/LoginView.vue')
   },
   {
     path: '/signup',
     name: 'signup',
-    component: () => import('../views/auth/SignupView.vue'),
-    meta: {
-      breadcrumb: 'Sign up'
-    }
+    component: () => import('../views/auth/SignupView.vue')
   }
 ];
 

@@ -66,6 +66,22 @@ async function submit() {
     </aside>
 
     <section class="space-y-6 p-5 sm:space-y-8 sm:p-8 lg:p-10">
+      <nav class="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1" aria-label="Account access">
+        <RouterLink
+          to="/login"
+          class="rounded-xl bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-sm"
+          aria-current="page"
+        >
+          Log in
+        </RouterLink>
+        <RouterLink
+          to="/signup"
+          class="rounded-xl px-4 py-2.5 text-center text-sm font-bold text-slate-600 transition hover:bg-white hover:text-slate-950"
+        >
+          Sign up
+        </RouterLink>
+      </nav>
+
       <header class="space-y-2">
         <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700 sm:text-xs sm:tracking-[0.18em]">Welcome back</p>
         <h1 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Sign in to MotorRelay</h1>
@@ -117,14 +133,7 @@ async function submit() {
       </button>
     </form>
 
-    <p class="text-sm text-slate-600">
-      New to MotorRelay?
-      <RouterLink to="/signup" class="font-semibold text-emerald-600 hover:underline">
-        Create an account
-      </RouterLink>
-    </p>
     </section>
   </div>
 </template>
-
 

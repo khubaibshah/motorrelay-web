@@ -29,10 +29,7 @@
     <header class="sticky top-0 z-50 border-b border-white/70 bg-white/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <nav class="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-3 sm:px-6 lg:px-8 md:flex md:justify-between">
         <div class="flex min-w-0 items-center justify-start gap-2 sm:gap-3 md:flex">
-          <div v-if="showBackButton" class="md:hidden">
-            <BackButton />
-          </div>
-          <div v-else class="h-10 w-10 md:hidden" aria-hidden="true"></div>
+          <div class="h-10 w-10 md:hidden" aria-hidden="true"></div>
           <RouterLink to="/" class="group hidden min-w-0 items-center gap-2 sm:gap-3 md:flex">
             <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 shadow-lg shadow-slate-950/15 ring-1 ring-white/40 transition group-hover:-translate-y-0.5 sm:h-11 sm:w-11">
               <img
@@ -217,7 +214,6 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationsStore } from '@/stores/notifications';
 import BottomNav from '@/components/BottomNav.vue';
-import BackButton from '@/components/BackButton.vue';
 
 const auth = useAuthStore();
 const notifications = useNotificationsStore();
@@ -267,7 +263,9 @@ const visibleNavLinks = computed(() => {
 const desktopNavLinks = computed(() =>
   visibleNavLinks.value.filter((link) => link.icon !== 'notifications' && link.icon !== 'profile')
 );
-const showLogin = computed(() => !auth.isAuthenticated);
+const showLogin = computed(
+  () => !auth.isAuthenticated && !['login', 'signup'].includes(String(route.name))
+);
 
 const bottomNavItems = computed(() => {
   if (!auth.isAuthenticated) return [];
@@ -340,7 +338,6 @@ const breadcrumbs = computed(() => {
 });
 
 const mainContainerClass = computed(() => baseMainClasses);
-const showBackButton = computed(() => route.path !== '/');
 
 function closeNotificationDropdown() {
   notificationDropdownOpen.value = false;

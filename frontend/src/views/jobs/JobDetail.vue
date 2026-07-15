@@ -133,6 +133,7 @@ const checkoutLoading = ref(false);
 const payoutReleaseLoading = ref(false);
 const paymentError = ref("");
 const paymentNotice = ref("");
+const realtimeReloadTimer = ref(null);
 
 const priceFormatter = new Intl.NumberFormat("en-GB", {
   style: "currency",
@@ -1077,6 +1078,30 @@ async function loadJob() {
   }
 }
 
+function scheduleRealtimeJobReload() {
+  if (typeof window === 'undefined') return;
+
+  if (realtimeReloadTimer.value) {
+    window.clearTimeout(realtimeReloadTimer.value);
+  }
+
+  realtimeReloadTimer.value = window.setTimeout(() => {
+    realtimeReloadTimer.value = null;
+    loadJob();
+  }, 250);
+}
+
+function handleRealtimeJobEvent(event) {
+  const incomingJobId = Number(event?.detail?.job_id || 0);
+  const currentJobId = Number(route.params.id || job.value?.id || 0);
+
+  if (!incomingJobId || !currentJobId || incomingJobId !== currentJobId) {
+    return;
+  }
+
+  scheduleRealtimeJobReload();
+}
+
 function isImageInspectionPhoto(photo) {
   const mime = String(photo?.mime_type || '').toLowerCase();
   const name = String(photo?.original_name || photo?.path || '').toLowerCase();
@@ -1689,6 +1714,10 @@ async function handleDownloadProof() {
 }
 
 onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+  }
+
   if (!auth.user && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
@@ -1701,6 +1730,14 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+    if (realtimeReloadTimer.value) {
+      window.clearTimeout(realtimeReloadTimer.value);
+      realtimeReloadTimer.value = null;
+    }
+  }
+
   clearInspectionPhotoPreviews();
 });
 

@@ -37,6 +37,22 @@ function clearToastTimer(id) {
   }
 }
 
+function dispatchRealtimeNotification(notification) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('motorrelay:notification', { detail: notification }));
+
+  const jobId = notification?.data?.job_id ?? notification?.job_id ?? null;
+  if (jobId) {
+    window.dispatchEvent(new CustomEvent('motorrelay:job-event', {
+      detail: {
+        job_id: Number(jobId),
+        event: notification?.data?.event ?? notification?.event ?? null,
+        notification
+      }
+    }));
+  }
+}
+
 export const useNotificationsStore = defineStore('notifications', {
   state: () => ({
     items: [],
@@ -123,6 +139,7 @@ export const useNotificationsStore = defineStore('notifications', {
       this.unreadCount = this.items.filter((item) => !item.read_at).length;
       this.lastSyncedAt = new Date().toISOString();
       this.enqueueToast(notification);
+      dispatchRealtimeNotification(notification);
 
       if (!payload.id) {
         this.refresh({ showToasts: false }).catch(() => null);

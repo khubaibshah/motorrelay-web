@@ -33,7 +33,7 @@ class NotificationController extends Controller
         $notification = $user->notifications()->where('id', $notificationId)->first();
         abort_unless($notification, 404);
 
-        if (!$notification->read_at) {
+        if (! $notification->read_at) {
             $notification->markAsRead();
         }
 
@@ -114,7 +114,7 @@ class NotificationController extends Controller
 
     protected function fallbackBody(array $data, string $type): string
     {
-        if (!empty($data['job_title'])) {
+        if (! empty($data['job_title'])) {
             return sprintf('There was an update on %s.', $data['job_title']);
         }
 
@@ -127,16 +127,16 @@ class NotificationController extends Controller
 
     protected function fallbackUrl(array $data): ?string
     {
-        if (!empty($data['url'])) {
+        if (! empty($data['url'])) {
             return $data['url'];
         }
 
-        if (!empty($data['job_id'])) {
-            return url('/jobs/' . $data['job_id']);
+        if (! empty($data['job_id'])) {
+            return '/jobs/'.$data['job_id'];
         }
 
-        if (!empty($data['invoice_id'])) {
-            return url('/invoices/' . $data['invoice_id']);
+        if (! empty($data['invoice_id'])) {
+            return '/invoices/'.$data['invoice_id'];
         }
 
         return null;

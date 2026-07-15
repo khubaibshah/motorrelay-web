@@ -33,8 +33,16 @@ function formatDate(value) {
   }
 }
 
-function isInternalLink(url) {
-  return typeof url === 'string' && url.startsWith('/');
+function internalRouteFromUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  if (url.startsWith('/')) return url;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname + parsed.search + parsed.hash;
+  } catch {
+    return null;
+  }
 }
 
 async function openNotification(notification) {
@@ -42,9 +50,10 @@ async function openNotification(notification) {
 
   const url = notification.url || '/notifications';
   await notifications.openNotification(notification.id).catch(() => null);
+  const routeUrl = internalRouteFromUrl(url);
 
-  if (isInternalLink(url)) {
-    await router.push(url);
+  if (routeUrl) {
+    await router.push(routeUrl);
     return;
   }
 

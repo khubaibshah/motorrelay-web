@@ -314,14 +314,28 @@ async function handleLogout() {
 async function openToast(toast) {
   if (!toast?.id) return;
   await notifications.openNotification(toast.id).catch(() => null);
+  closeNotificationDropdown();
 
-  if (toast.url && typeof toast.url === 'string' && toast.url.startsWith('/')) {
-    await router.push(toast.url);
+  const routeUrl = normalizeNotificationUrl(toast.url);
+  if (routeUrl) {
+    await router.push(routeUrl);
     return;
   }
 
   if (toast.url && typeof window !== 'undefined') {
     window.location.href = toast.url;
+  }
+}
+
+function normalizeNotificationUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  if (url.startsWith('/')) return url;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname + parsed.search + parsed.hash;
+  } catch {
+    return null;
   }
 }
 

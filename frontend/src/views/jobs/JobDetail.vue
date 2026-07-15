@@ -185,13 +185,15 @@ async function shareLiveLocation() {
     });
 
     const coords = position.coords || {};
+    const heading = Number(coords.heading);
+    const speed = Number(coords.speed);
     const payload = {
       latitude: coords.latitude,
       longitude: coords.longitude,
       accuracy: coords.accuracy ?? undefined,
-      heading: coords.heading ?? undefined,
-      speed_kph: typeof coords.speed === "number" && !Number.isNaN(coords.speed) ? Math.max(coords.speed * 3.6, 0) : undefined,
-      source: "web"
+      heading: Number.isFinite(heading) && heading >= 0 && heading <= 360 ? heading : undefined,
+      speed_kph: Number.isFinite(speed) && speed >= 0 ? Math.min(speed * 3.6, 300) : undefined,
+      source: Capacitor.isNativePlatform() ? "ios" : "web"
     };
 
     if (payload.latitude === undefined || payload.longitude === undefined) {

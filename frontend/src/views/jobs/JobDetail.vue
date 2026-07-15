@@ -27,6 +27,8 @@ import {
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { useAuthStore } from "@/stores/auth";
 import { AppLauncher } from "@capacitor/app-launcher";
+import { Capacitor } from "@capacitor/core";
+import { Geolocation } from "@capacitor/geolocation";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
 import { formatStatusLabel } from "@/utils/statusLabels";
 
@@ -142,7 +144,23 @@ function formatDateTime(value) {
   }
 }
 
-function getCurrentPosition(options = {}) {
+async function getCurrentPosition(options = {}) {
+  if (Capacitor.isNativePlatform()) {
+    const currentPermission = await Geolocation.checkPermissions();
+
+    if (currentPermission.location !== "granted") {
+      const requestedPermission = await Geolocation.requestPermissions({
+        permissions: ["location"]
+      });
+
+      if (requestedPermission.location !== "granted") {
+        throw createLocationPermissionError();
+      }
+    }
+
+    return Geolocation.getCurrentPosition(options);
+  }
+
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation is not supported on this device."));
@@ -212,10 +230,16 @@ async function openLocationSettings() {
   }
 }
 
+function createLocationPermissionError() {
+  const error = new Error("Location permission is blocked.");
+  error.code = 1;
+  return error;
+}
+
 function geolocationErrorMessage(error) {
   if (!error) return "";
 
-  if (error.code === 1) {
+  if (error.code === 1 || error.message?.toLowerCase().includes("denied")) {
     return "Location permission is blocked. Open MotorRelay settings, allow Location while using the app, then tap Share live location again.";
   }
 

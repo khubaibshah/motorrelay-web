@@ -160,16 +160,6 @@ const liveBoardCountText = computed(() => {
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
-function driverNextAction(job) {
-  const status = String(job?.status || '').toLowerCase();
-  if (['accepted', 'in_progress'].includes(status) && !job?.delivery_proof_path) return 'Upload inspection';
-  if (['accepted', 'in_progress'].includes(status)) return 'Collect vehicle';
-  if (['collected', 'in_transit'].includes(status)) return 'Continue delivery';
-  if (status === 'delivered') return 'Submit completion';
-  if (status === 'completion_pending') return 'Await dealer approval';
-  return 'Open run';
-}
-
 function submitDriverJobSearch() {
   router.push({
     name: 'jobs',
@@ -282,29 +272,6 @@ const openJobsEmptyText = computed(() => {
           </button>
         </form>
 
-        <RouterLink
-          v-if="driverCurrentJob"
-          :to="`/jobs/${driverCurrentJob.id}`"
-          class="block rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 transition hover:-translate-y-0.5 hover:bg-emerald-400/15"
-        >
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div class="min-w-0">
-              <p class="font-semibold text-white">
-                {{ driverCurrentJob.pickup_label || driverCurrentJob.pickup_postcode || 'Pickup' }}
-                <span class="text-emerald-200">to</span>
-                {{ driverCurrentJob.dropoff_label || driverCurrentJob.dropoff_postcode || 'Drop-off' }}
-              </p>
-              <p class="mt-1 text-xs text-emerald-100">{{ driverNextAction(driverCurrentJob) }}</p>
-            </div>
-            <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
-              Open run
-            </span>
-          </div>
-        </RouterLink>
-
-        <RouterLink v-if="hasDriverCurrentJob" to="/jobs" class="btn-primary w-full">
-          Open all runs
-        </RouterLink>
       </div>
     </aside>
 

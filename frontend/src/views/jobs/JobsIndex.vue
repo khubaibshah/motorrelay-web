@@ -694,7 +694,12 @@ onMounted(async () => {
           <article
             v-for="job in displayedDealerJobs"
             :key="`mobile-job-${job.id}`"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
+            class="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/[0.06]"
+            role="button"
+            tabindex="0"
+            @click="openJob(job)"
+            @keydown.enter="openJob(job)"
+            @keydown.space.prevent="openJob(job)"
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">

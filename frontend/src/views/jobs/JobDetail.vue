@@ -674,14 +674,6 @@ const driverModeNavigationLinks = computed(() => {
 });
 
 const driverModePrimaryAction = computed(() => {
-  if (canUploadInspection.value) {
-    return {
-      label: completionSubmitting.value ? "Uploading photos..." : "Upload pre-inspection photos",
-      disabled: completionSubmitting.value,
-      handler: openDriverModeInspectionPicker
-    };
-  }
-
   if (canMarkCollected.value) {
     return {
       label: driverActionLoading.value === "collected" ? "Updating..." : "Mark collected",

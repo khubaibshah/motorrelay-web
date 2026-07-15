@@ -22,7 +22,8 @@ import {
   markIncidentRecoverySent,
   markIncidentRecoveryCompleted,
   reportJobIncident,
-  applyForJob
+  applyForJob,
+  requestJobLocationUpdate
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { useAuthStore } from "@/stores/auth";
@@ -101,7 +102,10 @@ const incidentForm = reactive({
 
 const trackingState = reactive({
   sending: false,
+  requesting: false,
   error: "",
+  requestError: "",
+  requestNotice: "",
   locationBlocked: false,
   locationServicesOff: false,
   lastUpdate: null
@@ -174,6 +178,7 @@ async function getCurrentPosition(options = {}) {
 async function shareLiveLocation() {
   if (!job.value) return;
   trackingState.error = "";
+  trackingState.requestNotice = "";
   trackingState.locationBlocked = false;
   trackingState.locationServicesOff = false;
   trackingState.sending = true;
@@ -221,6 +226,24 @@ async function shareLiveLocation() {
       "We could not determine your current location. Please try again.";
   } finally {
     trackingState.sending = false;
+  }
+}
+
+async function requestLocationUpdate() {
+  if (!job.value?.id || !canRequestTracking.value) return;
+
+  trackingState.requesting = true;
+  trackingState.requestError = "";
+  trackingState.requestNotice = "";
+
+  try {
+    const payload = await requestJobLocationUpdate(job.value.id);
+    trackingState.requestNotice = payload?.message || "Location update requested. The driver has been notified.";
+  } catch (error) {
+    console.error("Failed to request location update", error);
+    trackingState.requestError = error?.response?.data?.message || "Unable to request a location update right now.";
+  } finally {
+    trackingState.requesting = false;
   }
 }
 
@@ -395,11 +418,25 @@ const lastTrackedAt = computed(() => trackingState.lastUpdate ?? job.value?.last
 
 const lastTrackedDisplay = computed(() => (lastTrackedAt.value ? formatDateTime(lastTrackedAt.value) : ""));
 
+const activeTrackingStatuses = new Set(["in_progress", "collected", "in_transit", "accepted"]);
+const endedTrackingStatuses = new Set(["delivered", "completion_pending", "completed", "closed", "cancelled"]);
+const isTrackingActive = computed(() => {
+  if (!job.value?.assigned_to_id) return false;
+  return activeTrackingStatuses.has(String(job.value.status || "").toLowerCase());
+});
+const hasTrackingEnded = computed(() => {
+  if (!job.value?.assigned_to_id) return false;
+  return endedTrackingStatuses.has(String(job.value.status || "").toLowerCase()) || Boolean(job.value.completed_at);
+});
 const canShareTracking = computed(() => {
   if (!job.value || !auth.user) return false;
-  const activeStatuses = new Set(["in_progress", "collected", "in_transit", "accepted"]);
-  return job.value.assigned_to_id === auth.user.id && activeStatuses.has(String(job.value.status || "").toLowerCase());
+  return job.value.assigned_to_id === auth.user.id && isTrackingActive.value;
 });
+const canRequestTracking = computed(() => {
+  if (!job.value || !auth.user) return false;
+  return (currentRole.value === "admin" || isDealerForJob.value) && isTrackingActive.value;
+});
+const shouldShowTrackingCard = computed(() => canShareTracking.value || canRequestTracking.value || hasTrackingEnded.value || Boolean(lastTrackedAt.value));
 
 const navigationDestination = computed(() => {
   if (!job.value) return "";
@@ -2064,15 +2101,22 @@ watch(
         </div>
       </section>
 
-      <section v-if="canShareTracking" class="tile space-y-3 p-4">
+      <section v-if="shouldShowTrackingCard" class="tile space-y-3 p-4">
         <header class="space-y-1">
           <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Live tracking</h2>
-          <p class="text-xs text-slate-500">
-            Share your current position with the dealer and launch navigation for the drop-off.
+          <p v-if="hasTrackingEnded" class="text-xs text-slate-500">
+            Live tracking has ended for this run. The last shared location is kept on the job record.
+          </p>
+          <p v-else-if="canShareTracking" class="text-xs text-slate-500">
+            Share your current position with the dealer while this run is active.
+          </p>
+          <p v-else class="text-xs text-slate-500">
+            Request a live location update from the assigned driver while the run is active.
           </p>
         </header>
-        <div class="flex flex-wrap gap-3">
+        <div v-if="!hasTrackingEnded" class="flex flex-wrap gap-3">
           <button
+            v-if="canShareTracking"
             type="button"
             class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
             :disabled="trackingState.sending"
@@ -2082,6 +2126,17 @@ watch(
             <span v-else>Share live location</span>
           </button>
           <button
+            v-if="canRequestTracking"
+            type="button"
+            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+            :disabled="trackingState.requesting"
+            @click="requestLocationUpdate"
+          >
+            <span v-if="trackingState.requesting">Requesting...</span>
+            <span v-else>Request location update</span>
+          </button>
+          <button
+            v-if="canShareTracking"
             type="button"
             class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             @click="navigationModalOpen = true"
@@ -2091,6 +2146,12 @@ watch(
         </div>
         <p v-if="trackingState.error" class="text-xs text-rose-600">
           {{ trackingState.error }}
+        </p>
+        <p v-if="trackingState.requestError" class="text-xs text-rose-600">
+          {{ trackingState.requestError }}
+        </p>
+        <p v-if="trackingState.requestNotice" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
+          {{ trackingState.requestNotice }}
         </p>
         <p v-if="trackingState.locationServicesOff" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
           On iPhone, open Settings → Privacy & Security → Location Services, turn Location Services on, then return to MotorRelay.
@@ -2105,6 +2166,9 @@ watch(
         </button>
         <p v-if="lastTrackedDisplay" class="text-xs text-slate-500">
           Last shared: {{ lastTrackedDisplay }}
+        </p>
+        <p v-else-if="hasTrackingEnded" class="text-xs text-slate-500">
+          No live location was shared before this run ended.
         </p>
       </section>
 

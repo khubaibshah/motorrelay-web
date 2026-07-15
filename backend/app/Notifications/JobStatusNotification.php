@@ -93,6 +93,12 @@ class JobStatusNotification extends Notification
                 'action_label' => 'Open job',
                 'url' => $route,
             ],
+            'dealer_requested_location' => [
+                'title' => 'Location update requested',
+                'body' => sprintf('The dealer requested a live location update for %s.', $jobLabel),
+                'action_label' => 'Share location',
+                'url' => $route,
+            ],
             'driver_marked_collected' => [
                 'title' => 'Vehicle collected',
                 'body' => sprintf('The driver marked %s as collected.', $jobLabel),

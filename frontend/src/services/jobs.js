@@ -161,6 +161,11 @@ export async function updateJobLocation(jobId, payload) {
   return data;
 }
 
+export async function requestJobLocationUpdate(jobId) {
+  const { data } = await api.post(`/jobs/${jobId}/location-request`);
+  return data;
+}
+
 export async function dealerCompleteJob(jobId, payload = {}) {
   const { data } = await api.post(`/jobs/${jobId}/dealer-complete`, payload);
   return data;

@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Job;
 use App\Models\Message;
 use App\Models\MessageThread;
+use App\Notifications\JobStatusNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class JobTrackingController extends Controller
 {
+    private const ACTIVE_TRACKING_STATUSES = ['accepted', 'collected', 'in_transit', 'in_progress'];
+
     public function store(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
@@ -23,7 +27,7 @@ class JobTrackingController extends Controller
             abort(422, 'Tracking is only available once a driver is assigned.');
         }
 
-        if (!in_array(strtolower((string) $job->status), ['accepted', 'collected', 'in_transit', 'in_progress'], true)) {
+        if (!in_array(strtolower((string) $job->status), self::ACTIVE_TRACKING_STATUSES, true)) {
             abort(422, 'Tracking is available once the job is underway.');
         }
 
@@ -113,6 +117,46 @@ class JobTrackingController extends Controller
             'message' => $messagePayload,
             'job' => $jobPayload,
         ], 201);
+    }
+
+    public function requestUpdate(Request $request, Job $job): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
+            abort(403, 'Only the dealer can request a location update for this run.');
+        }
+
+        if (!$job->assigned_to_id || !$job->assignedTo) {
+            abort(422, 'Location can only be requested once a driver is assigned.');
+        }
+
+        if (!in_array(strtolower((string) $job->status), self::ACTIVE_TRACKING_STATUSES, true)) {
+            abort(422, 'Location updates can only be requested while the run is active.');
+        }
+
+        $thread = $this->resolveThread($job);
+
+        $message = $thread->messages()->create([
+            'user_id' => $user->id,
+            'body' => 'The dealer requested a live location update.',
+            'meta' => [
+                'type' => 'location_request',
+                'requested_by' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ],
+            ],
+        ]);
+
+        $this->createReceipts($thread, $message, $user->id);
+        $thread->touch();
+
+        Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), 'dealer_requested_location'));
+
+        return response()->json([
+            'message' => 'Location update requested. The driver has been notified.',
+        ]);
     }
 
     protected function resolveThread(Job $job): MessageThread

@@ -141,6 +141,16 @@ const priceFormatter = new Intl.NumberFormat("en-GB", {
   maximumFractionDigits: 0
 });
 
+const requiredInspectionShots = [
+  "Front",
+  "Rear",
+  "Driver side",
+  "Passenger side",
+  "Interior",
+  "Mileage"
+];
+const minInspectionPhotoCount = requiredInspectionShots.length;
+
 function formatCurrency(value, currencyCode = "GBP") {
   try {
     return new Intl.NumberFormat("en-GB", {
@@ -396,6 +406,15 @@ function resetCompletionForm() {
   completionForm.proof = [];
   completionError.value = "";
   completionFormKey.value += 1;
+}
+
+function resetDriverModeUploadedPhotos() {
+  driverModeUploadedPhotos.value.forEach((photo) => {
+    if (photo.previewUrl) {
+      URL.revokeObjectURL(photo.previewUrl);
+    }
+  });
+  driverModeUploadedPhotos.value = [];
 }
 
 function updateExpenseSummary(list) {
@@ -1330,11 +1349,7 @@ async function onDriverModeInspectionChange(event) {
   const files = Array.from(event.target?.files ?? []);
   completionForm.proof = files;
 
-  driverModeUploadedPhotos.value.forEach((photo) => {
-    if (photo.previewUrl) {
-      URL.revokeObjectURL(photo.previewUrl);
-    }
-  });
+  resetDriverModeUploadedPhotos();
   driverModeUploadedPhotos.value = files.map((file) => ({
     name: file.name,
     previewUrl: file.type?.startsWith("image/") ? URL.createObjectURL(file) : "",
@@ -1347,8 +1362,8 @@ async function onDriverModeInspectionChange(event) {
 
 async function handleCompletionSubmit() {
   if (!job.value) return;
-  if (canUploadInspection.value && !completionForm.proof.length) {
-    completionError.value = "Please upload inspection photos before collection.";
+  if (canUploadInspection.value && completionForm.proof.length < minInspectionPhotoCount) {
+    completionError.value = `Please upload at least ${minInspectionPhotoCount} inspection photos: ${requiredInspectionShots.join(", ")}.`;
     return;
   }
 
@@ -1366,6 +1381,7 @@ async function handleCompletionSubmit() {
       });
     }
     resetCompletionForm();
+    resetDriverModeUploadedPhotos();
     await loadJob();
   } catch (error) {
     console.error("Failed to submit completion", error);
@@ -2810,18 +2826,36 @@ watch(
             ></textarea>
           </div>
           <div v-if="canUploadInspection" class="md:col-span-2">
+            <div class="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-100">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="font-black uppercase tracking-wide">Required photos</p>
+                <span class="rounded-full bg-white px-2.5 py-1 font-black text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
+                  {{ completionForm.proof.length }}/{{ minInspectionPhotoCount }}
+                </span>
+              </div>
+              <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                <span
+                  v-for="(shot, index) in requiredInspectionShots"
+                  :key="shot"
+                  class="rounded-xl px-3 py-2 font-bold"
+                  :class="completionForm.proof.length > index ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-slate-950' : 'bg-white text-emerald-800 dark:bg-white/10 dark:text-emerald-100'"
+                >
+                  {{ index + 1 }}. {{ shot }}
+                </span>
+              </div>
+            </div>
             <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Inspection photos</label>
             <input
               :key="completionFormKey"
               type="file"
-              accept="image/*,.pdf"
+              accept="image/*"
               capture="environment"
               class="mt-1 w-full text-sm text-slate-600"
               multiple
               required
               @change="onCompletionProofChange"
             />
-            <p class="mt-1 text-xs text-slate-500">Upload inspection images or a signed PDF before collecting the vehicle.</p>
+            <p class="mt-1 text-xs text-slate-500">Upload at least {{ minInspectionPhotoCount }} images before collecting the vehicle. You can add extra damage or tyre photos too.</p>
           </div>
           <div v-else class="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
             Inspection is uploaded. Submit completion after delivery so the dealer can approve and generate the invoice.
@@ -3075,7 +3109,7 @@ watch(
             <input
               ref="driverModeInspectionInput"
               type="file"
-              accept="image/*,.pdf"
+              accept="image/*"
               capture="environment"
               multiple
               class="hidden"
@@ -3090,6 +3124,27 @@ watch(
             <p v-if="completionError" class="mt-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm font-bold text-amber-100">
               {{ completionError }}
             </p>
+            <div
+              v-if="canUploadInspection"
+              class="mt-4 rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-4"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Photo checklist</p>
+                <span class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950">
+                  {{ completionForm.proof.length }}/{{ minInspectionPhotoCount }}
+                </span>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2">
+                <span
+                  v-for="(shot, index) in requiredInspectionShots"
+                  :key="`driver-mode-shot-${shot}`"
+                  class="rounded-2xl px-3 py-2 text-xs font-black"
+                  :class="completionForm.proof.length > index ? 'bg-emerald-400 text-slate-950' : 'bg-white/[0.06] text-emerald-100'"
+                >
+                  {{ shot }}
+                </span>
+              </div>
+            </div>
             <div v-if="driverModeUploadedPhotos.length" class="mt-4 grid grid-cols-2 gap-3">
               <div
                 v-for="photo in driverModeUploadedPhotos"

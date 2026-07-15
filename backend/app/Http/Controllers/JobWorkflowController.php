@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 
 class JobWorkflowController extends Controller
 {
+    private const MIN_INSPECTION_PHOTOS = 6;
+
     public function accept(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
@@ -123,9 +125,8 @@ class JobWorkflowController extends Controller
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:2000'],
-            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
-            'proofs' => ['nullable', 'array', 'min:1'],
-            'proofs.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
+            'proofs' => ['required', 'array', 'min:' . self::MIN_INSPECTION_PHOTOS, 'max:20'],
+            'proofs.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif', 'max:' . config('invoices.proof_max_size_kb')],
         ]);
 
         $paths = $this->storeProofFiles($request, $job);

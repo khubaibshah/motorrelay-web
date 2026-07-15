@@ -3037,7 +3037,7 @@ watch(
     <transition name="fade">
       <div
         v-if="driverModeOpen"
-        class="fixed inset-0 z-[100] overflow-y-auto bg-slate-950 text-white"
+        class="fixed inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)*-1)] z-[100] min-h-[calc(100dvh+env(safe-area-inset-top))] overflow-y-auto bg-slate-950 text-white"
       >
         <div class="mx-auto flex min-h-screen max-w-2xl flex-col px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+2.25rem)]">
           <header class="flex items-center justify-between gap-3">

@@ -1410,11 +1410,11 @@ watch(
                 <button
                   v-if="canSendRecovery && !incident.recovery_sent_at"
                   type="button"
-                  class="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
+                  class="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
                   :disabled="recoverySendingId === incident.id"
                   @click="handleRecoverySent(incident)"
                 >
-                  {{ recoverySendingId === incident.id ? 'Sending...' : 'Recovery sent' }}
+                  {{ recoverySendingId === incident.id ? 'Sending...' : 'Send recovery' }}
                 </button>
               </div>
             </div>

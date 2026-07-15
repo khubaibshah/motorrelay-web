@@ -3037,9 +3037,9 @@ watch(
     <transition name="fade">
       <div
         v-if="driverModeOpen"
-        class="fixed inset-0 z-50 overflow-y-auto bg-slate-950 text-white"
+        class="fixed inset-0 z-[100] overflow-y-auto bg-slate-950 text-white"
       >
-        <div class="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-5">
+        <div class="mx-auto flex min-h-screen max-w-2xl flex-col px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+2.25rem)]">
           <header class="flex items-center justify-between gap-3">
             <div>
               <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Driver mode</p>
@@ -3131,7 +3131,7 @@ watch(
 
           <section class="mt-4 grid gap-3">
             <button
-              v-if="canShareTracking && !trackingState.shared"
+              v-if="canShareTracking && !trackingState.shared && driverModePrimaryAction?.handler !== shareLiveLocation"
               type="button"
               class="w-full rounded-3xl bg-emerald-400 px-5 py-4 text-left text-base font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 dark:text-slate-950"
               :disabled="trackingState.sending"

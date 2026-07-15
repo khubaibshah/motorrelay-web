@@ -75,6 +75,7 @@ const completionDecisionLoading = ref(false);
 const proofDownloading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
+const driverModeOpen = ref(false);
 const jobRequestLoading = ref(false);
 const jobRequestError = ref("");
 const incidentModalOpen = ref(false);
@@ -438,11 +439,51 @@ const canRequestTracking = computed(() => {
   return (currentRole.value === "admin" || isDealerForJob.value) && isTrackingActive.value;
 });
 const shouldShowTrackingCard = computed(() => canShareTracking.value || canRequestTracking.value || hasTrackingEnded.value || Boolean(lastTrackedAt.value));
+const canUseDriverMode = computed(() => canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value);
 
 const navigationDestination = computed(() => {
   if (!job.value) return "";
   const parts = [job.value.dropoff_label, job.value.dropoff_postcode].filter(Boolean);
   return parts.join(", ");
+});
+
+const driverModeDestinationLabel = computed(() => {
+  if (!job.value) return "Destination";
+  const status = String(job.value.status || "").toLowerCase();
+
+  if (["accepted", "in_progress"].includes(status)) {
+    return job.value.pickup_label || job.value.pickup_postcode || "Pickup";
+  }
+
+  return job.value.dropoff_label || job.value.dropoff_postcode || "Drop-off";
+});
+
+const driverModePrimaryAction = computed(() => {
+  if (canMarkCollected.value) {
+    return {
+      label: driverActionLoading.value === "collected" ? "Updating..." : "Mark collected",
+      disabled: driverActionLoading.value === "collected",
+      handler: handleDriverCollected
+    };
+  }
+
+  if (canMarkDeliveredFromDetail.value) {
+    return {
+      label: driverActionLoading.value === "delivered" ? "Updating..." : "Mark delivered",
+      disabled: driverActionLoading.value === "delivered",
+      handler: handleDriverDelivered
+    };
+  }
+
+  if (canShareTracking.value && !trackingState.shared) {
+    return {
+      label: trackingState.sending ? "Sharing location..." : "Share live location",
+      disabled: trackingState.sending,
+      handler: shareLiveLocation
+    };
+  }
+
+  return null;
 });
 
 const navigationLinks = computed(() => {
@@ -1474,9 +1515,19 @@ watch(
               {{ priceFormatter.format(headerDisplayAmount) }}
             </p>
           </div>
-          <RouterLink to="/jobs" class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto">
-            Back to runs
-          </RouterLink>
+          <div class="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <button
+              v-if="canUseDriverMode"
+              type="button"
+              class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+              @click="driverModeOpen = true"
+            >
+              Start driver mode
+            </button>
+            <RouterLink to="/jobs" class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto">
+              Back to runs
+            </RouterLink>
+          </div>
         </div>
       </header>
 
@@ -2631,6 +2682,124 @@ watch(
         </div>
       </section>
     </div>
+
+    <transition name="fade">
+      <div
+        v-if="driverModeOpen"
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-950 text-white"
+      >
+        <div class="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-5">
+          <header class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Driver mode</p>
+              <h2 class="mt-1 text-2xl font-black">{{ job.title || `Run #${job.id}` }}</h2>
+            </div>
+            <button
+              type="button"
+              class="rounded-2xl border border-white/15 px-4 py-2 text-sm font-black text-white"
+              @click="driverModeOpen = false"
+            >
+              Close
+            </button>
+          </header>
+
+          <section class="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Current step</p>
+            <h3 class="mt-2 text-3xl font-black">
+              {{ currentWorkflowStep?.label || 'Active run' }}
+            </h3>
+            <p class="mt-2 text-sm text-emerald-100">
+              {{ driverNextActionText || 'Keep this run moving and update the dealer as you progress.' }}
+            </p>
+
+            <button
+              v-if="driverModePrimaryAction"
+              type="button"
+              class="mt-5 w-full rounded-3xl bg-emerald-400 px-5 py-4 text-lg font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+              :disabled="driverModePrimaryAction.disabled"
+              @click="driverModePrimaryAction.handler"
+            >
+              {{ driverModePrimaryAction.label }}
+            </button>
+            <div
+              v-else-if="trackingState.shared"
+              class="mt-5 rounded-3xl bg-slate-800 px-5 py-4 text-center text-lg font-black text-slate-300"
+            >
+              Live location shared
+            </div>
+          </section>
+
+          <section class="mt-4 grid gap-3 sm:grid-cols-2">
+            <div class="rounded-3xl border border-white/10 bg-white/[0.06] p-4">
+              <p class="text-xs font-black uppercase tracking-wide text-slate-400">Go to</p>
+              <p class="mt-1 text-xl font-black">{{ driverModeDestinationLabel }}</p>
+              <p class="mt-1 text-sm text-emerald-100">
+                {{ navigationDestination || 'Destination will appear when route details are available.' }}
+              </p>
+            </div>
+            <div class="rounded-3xl border border-white/10 bg-white/[0.06] p-4">
+              <p class="text-xs font-black uppercase tracking-wide text-slate-400">Tracking</p>
+              <p class="mt-1 text-xl font-black">
+                {{ trackingState.shared ? 'Shared' : lastTrackedDisplay ? 'Previously shared' : 'Not shared yet' }}
+              </p>
+              <p class="mt-1 text-sm text-emerald-100">
+                {{ lastTrackedDisplay ? `Last shared ${lastTrackedDisplay}` : 'Share location while this run is active.' }}
+              </p>
+            </div>
+          </section>
+
+          <section class="mt-4 grid gap-3">
+            <button
+              v-if="canShareTracking && !trackingState.shared"
+              type="button"
+              class="w-full rounded-3xl border border-emerald-300/40 bg-emerald-400/10 px-5 py-4 text-left text-base font-black text-emerald-100"
+              :disabled="trackingState.sending"
+              @click="shareLiveLocation"
+            >
+              {{ trackingState.sending ? 'Sharing location...' : 'Share live location' }}
+            </button>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <a
+                v-for="link in navigationLinks"
+                :key="`driver-mode-${link.id}`"
+                :href="link.href"
+                target="_blank"
+                rel="noopener"
+                class="rounded-3xl bg-white px-5 py-4 text-center text-base font-black text-slate-950"
+              >
+                {{ link.label }}
+              </a>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <RouterLink
+                :to="{ name: 'messages' }"
+                class="rounded-3xl border border-white/10 bg-white/[0.06] px-5 py-4 text-center text-base font-black text-white"
+                @click="driverModeOpen = false"
+              >
+                Open chat
+              </RouterLink>
+              <button
+                v-if="canReportIncident"
+                type="button"
+                class="rounded-3xl border border-amber-300/40 bg-amber-400/10 px-5 py-4 text-base font-black text-amber-100"
+                @click="driverModeOpen = false; openIncidentModal()"
+              >
+                Report issue
+              </button>
+            </div>
+          </section>
+
+          <p v-if="driverActionError" class="mt-4 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm text-amber-100">
+            {{ driverActionError }}
+          </p>
+          <p v-if="trackingState.error" class="mt-4 rounded-2xl border border-rose-300/30 bg-rose-400/10 p-3 text-sm text-rose-100">
+            {{ trackingState.error }}
+          </p>
+        </div>
+      </div>
+    </transition>
 
     <transition name="fade">
       <div

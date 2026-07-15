@@ -343,7 +343,9 @@ class MessageController extends Controller
             return;
         }
 
-        if (!$job->assigned_to_id || $job->status !== 'in_progress') {
+        $messageableStatuses = ['accepted', 'in_progress', 'collected', 'in_transit', 'delivered', 'completion_pending'];
+
+        if (!$job->assigned_to_id || !in_array(strtolower((string) $job->status), $messageableStatuses, true)) {
             abort(422, 'Messaging is available once a dealer accepts a driver.');
         }
 

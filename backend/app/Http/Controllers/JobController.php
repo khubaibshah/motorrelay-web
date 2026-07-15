@@ -5,13 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Job;
 use App\Models\JobDailyMetric;
 use App\Notifications\JobStatusNotification;
+use App\Services\VehicleLookupService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Carbon\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Notification;
-use App\Services\VehicleLookupService;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class JobController extends Controller
 {
@@ -30,7 +30,7 @@ class JobController extends Controller
             ->get(['id', 'price', 'pickup_label', 'dropoff_label', 'status']);
 
         return response()->json([
-            'jobs' => $jobs
+            'jobs' => $jobs,
         ]);
     }
 
@@ -43,7 +43,7 @@ class JobController extends Controller
         $query = Job::query()->with([
             'postedBy:id,name',
             'assignedTo:id,name',
-            'finalizedInvoice:id,job_id,status,number,total,currency,issued_at'
+            'finalizedInvoice:id,job_id,status,number,total,currency,issued_at',
         ]);
 
         if ($user) {
@@ -63,7 +63,7 @@ class JobController extends Controller
             }
         } elseif ($scope === 'current') {
             $query->whereIn('status', ['in_progress', 'accepted', 'collected', 'in_transit', 'pending', 'completion_pending'])
-                ->when(!$user?->isAdmin(), function ($inner) use ($user) {
+                ->when(! $user?->isAdmin(), function ($inner) use ($user) {
                     $inner->where(function ($child) use ($user) {
                         $child->where('assigned_to_id', $user->id)
                             ->orWhere('posted_by_id', $user->id);
@@ -71,7 +71,7 @@ class JobController extends Controller
                 });
         } elseif ($scope === 'completed') {
             $query->whereIn('status', ['completed', 'delivered', 'cancelled', 'closed'])
-                ->when(!$user?->isAdmin(), function ($inner) use ($user) {
+                ->when(! $user?->isAdmin(), function ($inner) use ($user) {
                     $inner->where(function ($child) use ($user) {
                         $child->where('assigned_to_id', $user->id)
                             ->orWhere('posted_by_id', $user->id);
@@ -93,7 +93,7 @@ class JobController extends Controller
             });
         }
 
-        if (!$user || !$user->isAdmin()) {
+        if (! $user || ! $user->isAdmin()) {
             $query->where(function ($builder) use ($user) {
                 $builder
                     ->whereNull('goes_live_at')
@@ -121,10 +121,11 @@ class JobController extends Controller
             ->paginate($request->integer('per_page', 15));
 
         if ($user && $user->isDriver()) {
-            $jobs->getCollection()->transform(function (Job $jobItem) use ($user) {
+            $jobs->getCollection()->transform(function (Job $jobItem) {
                 $application = $jobItem->applications->first();
                 $jobItem->setRelation('my_application', $application);
                 $jobItem->unsetRelation('applications');
+
                 return $jobItem;
             });
         }
@@ -136,7 +137,7 @@ class JobController extends Controller
     {
         $user = $request->user();
 
-        if (!$user || (!$user->isDealer() && !$user->isAdmin())) {
+        if (! $user || (! $user->isDealer() && ! $user->isAdmin())) {
             abort(403, 'Only dealers or admins can create jobs.');
         }
 
@@ -158,7 +159,11 @@ class JobController extends Controller
         $planSlug = $user->plan_slug ?? Str::slug((string) $user->plan, '_');
         $planLimits = config("jobs.plan_limits.{$planSlug}", []);
 
-        if ($user->isDealer() && !$user->isAdmin() && !empty($planLimits)) {
+        $unlimitedTestAccounts = collect(config('jobs.unlimited_test_accounts', []))
+            ->map(fn ($email) => strtolower((string) $email));
+        $hasUnlimitedTestAccess = $unlimitedTestAccounts->contains(strtolower((string) $user->email));
+
+        if ($user->isDealer() && ! $user->isAdmin() && ! $hasUnlimitedTestAccess && ! empty($planLimits)) {
             $startOfMonth = Carbon::now()->startOfMonth();
             $monthlyLimit = $planLimits['monthly_job_posts'] ?? null;
             if ($monthlyLimit) {
@@ -175,7 +180,7 @@ class JobController extends Controller
             }
         }
 
-        if (!empty($data['pickup_ready_at']) && !empty($data['delivery_due_at'])) {
+        if (! empty($data['pickup_ready_at']) && ! empty($data['delivery_due_at'])) {
             $pickupReady = Carbon::parse($data['pickup_ready_at']);
             $deliveryDue = Carbon::parse($data['delivery_due_at']);
 
@@ -184,8 +189,8 @@ class JobController extends Controller
             }
         }
 
-        $pickupReadyAt = !empty($data['pickup_ready_at']) ? Carbon::parse($data['pickup_ready_at']) : null;
-        $deliveryDueAt = !empty($data['delivery_due_at']) ? Carbon::parse($data['delivery_due_at']) : null;
+        $pickupReadyAt = ! empty($data['pickup_ready_at']) ? Carbon::parse($data['pickup_ready_at']) : null;
+        $deliveryDueAt = ! empty($data['delivery_due_at']) ? Carbon::parse($data['delivery_due_at']) : null;
 
         $job = Job::create([
             'status' => 'open',
@@ -214,7 +219,7 @@ class JobController extends Controller
         $job->load([
             'postedBy:id,name,email',
             'assignedTo:id,name,email',
-            'finalizedInvoice:id,job_id,status,number,total,currency,issued_at'
+            'finalizedInvoice:id,job_id,status,number,total,currency,issued_at',
         ]);
 
         if ($user) {
@@ -240,7 +245,7 @@ class JobController extends Controller
         $isOwner = $user && $job->posted_by_id === $user->id;
         $isAdmin = $user && $user->isAdmin();
 
-        if ($job->goes_live_at && $job->goes_live_at->isFuture() && !$isOwner && !$isAdmin) {
+        if ($job->goes_live_at && $job->goes_live_at->isFuture() && ! $isOwner && ! $isAdmin) {
             abort(404);
         }
 
@@ -272,7 +277,7 @@ class JobController extends Controller
     {
         $user = $request->user();
 
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
+        if (! $user || (! $user->isAdmin() && $job->posted_by_id !== $user->id)) {
             abort(403, 'You cannot update this job.');
         }
 
@@ -318,11 +323,11 @@ class JobController extends Controller
             unset($updates['vehicle_make']);
         }
 
-        if (array_key_exists('pickup_postcode', $updates) && !array_key_exists('pickup_label', $updates)) {
+        if (array_key_exists('pickup_postcode', $updates) && ! array_key_exists('pickup_label', $updates)) {
             $updates['pickup_label'] = $updates['pickup_postcode'];
         }
 
-        if (array_key_exists('dropoff_postcode', $updates) && !array_key_exists('dropoff_label', $updates)) {
+        if (array_key_exists('dropoff_postcode', $updates) && ! array_key_exists('dropoff_label', $updates)) {
             $updates['dropoff_label'] = $updates['dropoff_postcode'];
         }
 
@@ -363,7 +368,7 @@ class JobController extends Controller
     public function destroy(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
+        if (! $user || (! $user->isAdmin() && $job->posted_by_id !== $user->id)) {
             abort(403, 'You cannot delete this job.');
         }
 

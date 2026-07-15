@@ -6,6 +6,11 @@ return [
         'dealer_pro',
     ],
 
+    'unlimited_test_accounts' => array_filter(array_map(
+        'trim',
+        explode(',', env('UNLIMITED_TEST_ACCOUNT_EMAILS', 'dealer@motorrelay.com,driver@motorrelay.com'))
+    )),
+
     'plan_limits' => [
         'starter' => [
             'monthly_job_posts' => 5,

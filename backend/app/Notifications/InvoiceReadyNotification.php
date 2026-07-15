@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Invoice;
+use App\Notifications\Channels\SafeBroadcastChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -18,7 +19,7 @@ class InvoiceReadyNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database', 'broadcast'];
+        return ['mail', 'database', SafeBroadcastChannel::class];
     }
 
     public function toMail(object $notifiable): MailMessage

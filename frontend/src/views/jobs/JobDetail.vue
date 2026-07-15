@@ -26,6 +26,7 @@ import {
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { useAuthStore } from "@/stores/auth";
+import { AppLauncher } from "@capacitor/app-launcher";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
 import { formatStatusLabel } from "@/utils/statusLabels";
 
@@ -99,6 +100,7 @@ const incidentForm = reactive({
 const trackingState = reactive({
   sending: false,
   error: "",
+  locationBlocked: false,
   lastUpdate: null
 });
 const navigationModalOpen = ref(false);
@@ -153,6 +155,7 @@ function getCurrentPosition(options = {}) {
 async function shareLiveLocation() {
   if (!job.value) return;
   trackingState.error = "";
+  trackingState.locationBlocked = false;
   trackingState.sending = true;
   try {
     const position = await getCurrentPosition({
@@ -188,6 +191,7 @@ async function shareLiveLocation() {
     navigationModalOpen.value = true;
   } catch (error) {
     console.error("Failed to share live location", error);
+    trackingState.locationBlocked = error?.code === 1;
     trackingState.error =
       error?.response?.data?.message ||
       geolocationErrorMessage(error) ||
@@ -197,11 +201,22 @@ async function shareLiveLocation() {
   }
 }
 
+async function openLocationSettings() {
+  trackingState.error = "";
+
+  try {
+    await AppLauncher.openUrl({ url: "app-settings:" });
+  } catch (error) {
+    console.error("Failed to open app settings", error);
+    window.location.href = "app-settings:";
+  }
+}
+
 function geolocationErrorMessage(error) {
   if (!error) return "";
 
   if (error.code === 1) {
-    return "Location permission is blocked. Please allow location access for MotorRelay in your iPhone settings, then try again.";
+    return "Location permission is blocked. Open MotorRelay settings, allow Location while using the app, then tap Share live location again.";
   }
 
   if (error.code === 2) {
@@ -2034,6 +2049,14 @@ watch(
         <p v-if="trackingState.error" class="text-xs text-rose-600">
           {{ trackingState.error }}
         </p>
+        <button
+          v-if="trackingState.locationBlocked"
+          type="button"
+          class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+          @click="openLocationSettings"
+        >
+          Open MotorRelay settings
+        </button>
         <p v-if="lastTrackedDisplay" class="text-xs text-slate-500">
           Last shared: {{ lastTrackedDisplay }}
         </p>

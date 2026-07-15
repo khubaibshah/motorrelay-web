@@ -9,6 +9,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\JobController;
+use App\Http\Controllers\JobIncidentController;
 use App\Http\Controllers\JobTrackingController;
 use App\Http\Controllers\JobWorkflowController;
 use App\Http\Controllers\MessageController;
@@ -79,6 +80,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/completion/reject', [JobWorkflowController::class, 'rejectCompletion']);
     Route::post('/jobs/{job}/dealer-complete', [JobWorkflowController::class, 'dealerComplete']);
     Route::post('/jobs/{job}/location-update', [JobTrackingController::class, 'store']);
+    Route::post('/jobs/{job}/incidents', [JobIncidentController::class, 'store']);
     Route::get('/jobs/{job}/delivery-proof', [JobWorkflowController::class, 'deliveryProof']);
 
     Route::get('/messages', [MessageController::class, 'index']);

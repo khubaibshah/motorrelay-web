@@ -20,6 +20,11 @@ export async function mutateJob(jobId, action) {
   return data;
 }
 
+export async function reportJobIncident(jobId, payload) {
+  const { data } = await api.post(`/jobs/${jobId}/incidents`, payload);
+  return data;
+}
+
 export async function applyForJob(jobId, payload = {}) {
   const { data } = await api.post(`/jobs/${jobId}/applications`, payload);
   return data;

@@ -117,6 +117,11 @@ class Job extends Model
         return $this->belongsTo(Invoice::class, 'finalized_invoice_id');
     }
 
+    public function incidents(): HasMany
+    {
+        return $this->hasMany(JobIncident::class);
+    }
+
     public function scopeVisibleTo($query, User $user)
     {
         if ($user->isAdmin()) {

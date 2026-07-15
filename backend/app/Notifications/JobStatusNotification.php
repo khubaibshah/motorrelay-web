@@ -147,6 +147,12 @@ class JobStatusNotification extends Notification
                 'action_label' => 'Open job',
                 'url' => $route,
             ],
+            'job_incident_reported' => [
+                'title' => 'Run issue reported',
+                'body' => sprintf('The driver reported an issue on %s%s.', $jobLabel, ($this->meta['recovery_required'] ?? false) ? ' and requested recovery' : ''),
+                'action_label' => 'Review issue',
+                'url' => $route,
+            ],
             default => [
                 'title' => 'Job update',
                 'body' => sprintf('There was an update on %s.', $jobLabel),

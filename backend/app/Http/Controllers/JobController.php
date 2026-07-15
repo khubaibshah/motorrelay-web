@@ -275,8 +275,13 @@ class JobController extends Controller
                 ->with(['driver:id,name'])
                 ->orderByDesc('created_at')
                 ->get();
+            $incidents = $job->incidents()
+                ->with(['reportedBy:id,name'])
+                ->orderByDesc('created_at')
+                ->get();
 
             $job->setRelation('expenses', $expenses);
+            $job->setRelation('incidents', $incidents);
 
             $job->setAttribute('expenses_summary', [
                 'submitted_total' => $expenses->where('status', 'submitted')->sum(fn ($expense) => $expense->total_amount),

@@ -19,6 +19,7 @@ import {
   updateJobLocation,
   markJobCollected,
   markJobDelivered,
+  reportJobIncident,
   applyForJob
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
@@ -69,6 +70,19 @@ const driverActionLoading = ref("");
 const driverActionError = ref("");
 const jobRequestLoading = ref(false);
 const jobRequestError = ref("");
+const incidentModalOpen = ref(false);
+const incidentSubmitting = ref(false);
+const incidentError = ref("");
+const incidentForm = reactive({
+  type: "vehicle_breakdown",
+  recovery_required: true,
+  vehicle_safe: true,
+  blocking_road: false,
+  location_label: "",
+  latitude: null,
+  longitude: null,
+  description: ""
+});
 
 const trackingState = reactive({
   sending: false,
@@ -423,6 +437,10 @@ const canMarkDeliveredFromDetail = computed(() => {
   if (!isAssignedDriver.value) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   return ['collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
+});
+const canReportIncident = computed(() => {
+  if (!isAssignedDriver.value) return false;
+  return ['accepted', 'in_progress', 'collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
 });
 const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
@@ -1036,6 +1054,71 @@ async function handleDriverDelivered() {
   }
 }
 
+function openIncidentModal() {
+  incidentError.value = "";
+  incidentModalOpen.value = true;
+  incidentForm.location_label = job.value?.current_latitude && job.value?.current_longitude ? "Current tracked location" : "";
+  incidentForm.latitude = job.value?.current_latitude ?? null;
+  incidentForm.longitude = job.value?.current_longitude ?? null;
+}
+
+function closeIncidentModal() {
+  if (incidentSubmitting.value) return;
+  incidentModalOpen.value = false;
+}
+
+function useCurrentIncidentLocation() {
+  if (!navigator.geolocation) {
+    incidentError.value = "Location is not available on this device.";
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      incidentForm.latitude = position.coords.latitude;
+      incidentForm.longitude = position.coords.longitude;
+      incidentForm.location_label = "Driver current location";
+      incidentError.value = "";
+    },
+    () => {
+      incidentError.value = "Could not get your current location. You can still describe where you are.";
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
+}
+
+async function handleIncidentSubmit() {
+  if (!job.value?.id || !canReportIncident.value) return;
+  if (!incidentForm.description.trim()) {
+    incidentError.value = "Add a short description so the dealer knows what happened.";
+    return;
+  }
+
+  incidentSubmitting.value = true;
+  incidentError.value = "";
+
+  try {
+    await reportJobIncident(job.value.id, {
+      type: incidentForm.type,
+      recovery_required: incidentForm.recovery_required,
+      vehicle_safe: incidentForm.vehicle_safe,
+      blocking_road: incidentForm.blocking_road,
+      location_label: incidentForm.location_label,
+      latitude: incidentForm.latitude,
+      longitude: incidentForm.longitude,
+      description: incidentForm.description
+    });
+    incidentModalOpen.value = false;
+    incidentForm.description = "";
+    await loadJob();
+  } catch (error) {
+    console.error("Failed to report incident", error);
+    incidentError.value = error.response?.data?.message || "Unable to report this issue.";
+  } finally {
+    incidentSubmitting.value = false;
+  }
+}
+
 async function handleCheckout() {
   if (!job.value?.id) return;
 
@@ -1391,12 +1474,53 @@ watch(
               <span v-if="driverActionLoading === 'delivered'">Updating...</span>
               <span v-else>Mark delivered</span>
             </button>
+            <button
+              v-if="canReportIncident"
+              type="button"
+              class="btn-secondary w-full border-amber-200 px-4 py-2 text-sm text-amber-700 hover:border-amber-300 hover:text-amber-800 sm:w-auto dark:border-amber-400/30 dark:text-amber-200"
+              @click="openIncidentModal"
+            >
+              Report issue
+            </button>
           </div>
         </div>
 
         <p v-if="driverActionError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
           {{ driverActionError }}
         </p>
+      </section>
+
+      <section v-if="job.incidents?.length" class="tile space-y-3 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-200">Reported issues</p>
+            <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Incident history</h2>
+          </div>
+          <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-300 dark:text-slate-950">
+            {{ job.incidents.length }} logged
+          </span>
+        </div>
+        <div class="space-y-2">
+          <article
+            v-for="incident in job.incidents"
+            :key="incident.id"
+            class="rounded-2xl border border-amber-200 bg-white p-3 text-sm dark:border-amber-400/20 dark:bg-white/[0.06]"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p class="font-black capitalize text-slate-950 dark:text-white">{{ String(incident.type || '').replaceAll('_', ' ') }}</p>
+                <p class="mt-1 text-xs text-slate-600 dark:text-emerald-100">
+                  Reported by {{ incident.reported_by?.name || 'driver' }} · {{ formatDateTime(incident.created_at) }}
+                </p>
+              </div>
+              <span v-if="incident.recovery_required" class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">
+                Recovery requested
+              </span>
+            </div>
+            <p v-if="incident.description" class="mt-2 text-slate-700 dark:text-emerald-100">{{ incident.description }}</p>
+            <p v-if="incident.location_label" class="mt-1 text-xs text-slate-500 dark:text-emerald-100">Location: {{ incident.location_label }}</p>
+          </article>
+        </div>
       </section>
 
       <section v-if="showApplicationsAtTop" class="tile space-y-4 border-emerald-200 bg-emerald-50/40 p-4">
@@ -2230,6 +2354,87 @@ watch(
         </div>
       </section>
     </div>
+
+    <transition name="fade">
+      <div
+        v-if="incidentModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4"
+        @click.self="closeIncidentModal"
+      >
+        <form class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950" @submit.prevent="handleIncidentSubmit">
+          <header>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-amber-600">Report issue</p>
+            <h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">What happened?</h3>
+            <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
+              This will notify the dealer and add the issue to the job chat.
+            </p>
+          </header>
+
+          <label class="block">
+            <span class="text-sm font-bold text-slate-700 dark:text-emerald-100">Issue type</span>
+            <select v-model="incidentForm.type" class="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100">
+              <option value="vehicle_breakdown">Vehicle breakdown</option>
+              <option value="accident">Accident</option>
+              <option value="access_issue">Cannot access vehicle</option>
+              <option value="dealer_unavailable">Dealer/customer unavailable</option>
+              <option value="wrong_address">Wrong address</option>
+              <option value="other">Other issue</option>
+            </select>
+          </label>
+
+          <div class="grid gap-2 sm:grid-cols-3">
+            <label class="flex items-center gap-2 rounded-2xl border border-slate-200 p-3 text-sm font-semibold dark:border-white/10 dark:text-emerald-100">
+              <input v-model="incidentForm.recovery_required" type="checkbox" class="h-4 w-4">
+              Recovery needed
+            </label>
+            <label class="flex items-center gap-2 rounded-2xl border border-slate-200 p-3 text-sm font-semibold dark:border-white/10 dark:text-emerald-100">
+              <input v-model="incidentForm.vehicle_safe" type="checkbox" class="h-4 w-4">
+              Vehicle safe
+            </label>
+            <label class="flex items-center gap-2 rounded-2xl border border-slate-200 p-3 text-sm font-semibold dark:border-white/10 dark:text-emerald-100">
+              <input v-model="incidentForm.blocking_road" type="checkbox" class="h-4 w-4">
+              Blocking road
+            </label>
+          </div>
+
+          <label class="block">
+            <span class="text-sm font-bold text-slate-700 dark:text-emerald-100">Location</span>
+            <div class="mt-2 flex gap-2">
+              <input
+                v-model="incidentForm.location_label"
+                type="text"
+                placeholder="e.g. hard shoulder near M65 J12"
+                class="min-w-0 flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100"
+              >
+              <button type="button" class="btn-secondary px-4 py-2 text-sm" @click="useCurrentIncidentLocation">
+                Use GPS
+              </button>
+            </div>
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-bold text-slate-700 dark:text-emerald-100">Details</span>
+            <textarea
+              v-model="incidentForm.description"
+              rows="4"
+              placeholder="Tell the dealer what happened and what help you need."
+              class="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100"
+            ></textarea>
+          </label>
+
+          <p v-if="incidentError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+            {{ incidentError }}
+          </p>
+
+          <div class="flex flex-wrap justify-end gap-2">
+            <button type="button" class="btn-secondary px-4 py-2 text-sm" @click="closeIncidentModal">Cancel</button>
+            <button type="submit" class="btn-primary px-4 py-2 text-sm" :disabled="incidentSubmitting">
+              {{ incidentSubmitting ? 'Reporting...' : 'Report issue' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </transition>
 
     <transition name="fade">
       <div

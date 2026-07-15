@@ -208,7 +208,7 @@ const route = useRoute();
 const notificationMenuRef = ref(null);
 const mainScrollRef = ref(null);
 const notificationDropdownOpen = ref(false);
-const baseMainClasses = 'mx-auto min-h-0 w-full flex-1 max-w-7xl overflow-y-auto overscroll-y-contain px-3 pt-6 sm:px-6 sm:pt-8 lg:px-8';
+const baseMainClasses = 'mx-auto min-h-0 w-full flex-1 max-w-7xl overscroll-y-contain px-3 pt-6 sm:px-6 sm:pt-8 lg:px-8';
 
 const navLinks = [
   { to: '/', label: 'Home', exact: true, icon: 'home', showInBottomNav: true },
@@ -285,9 +285,14 @@ function isNavActive(item) {
 
 const mainContainerClass = computed(() => [
   baseMainClasses,
-  bottomNavItems.value.length
+  route.name === 'messages'
+    ? 'overflow-hidden pb-[calc(7.25rem+env(safe-area-inset-bottom))] md:pb-6'
+    : 'overflow-y-auto',
+  route.name !== 'messages' && bottomNavItems.value.length
     ? 'pb-[calc(7rem+env(safe-area-inset-bottom))] sm:pb-10'
-    : 'pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-10'
+    : route.name !== 'messages'
+    ? 'pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-10'
+    : ''
 ]);
 
 function closeNotificationDropdown() {

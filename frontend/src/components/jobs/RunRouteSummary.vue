@@ -5,6 +5,10 @@ const props = defineProps({
   job: {
     type: Object,
     required: true
+  },
+  compact: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -27,11 +31,11 @@ const transportLabel = computed(() => {
 </script>
 
 <template>
-  <section class="tile space-y-3 p-4">
+  <section class="tile space-y-3" :class="compact ? 'p-3' : 'p-4'">
     <div class="grid items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-      <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
         <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Pickup</h2>
-        <p class="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">{{ pickupTitle }}</p>
+        <p class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-base' : 'text-lg'">{{ pickupTitle }}</p>
         <p v-if="showPickupPostcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
           {{ job.pickup_postcode || '--' }}
         </p>
@@ -43,9 +47,9 @@ const transportLabel = computed(() => {
         </span>
       </div>
 
-      <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
         <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Drop-off</h2>
-        <p class="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">{{ dropoffTitle }}</p>
+        <p class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-base' : 'text-lg'">{{ dropoffTitle }}</p>
         <p v-if="showDropoffPostcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
           {{ job.dropoff_postcode || '--' }}
         </p>
@@ -53,12 +57,12 @@ const transportLabel = computed(() => {
     </div>
 
     <div class="grid grid-cols-2 gap-3 text-sm">
-      <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
         <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Distance</p>
         <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ distanceLabel }}</p>
       </div>
 
-      <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
         <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Transport</p>
         <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ transportLabel }}</p>
       </div>

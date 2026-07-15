@@ -626,7 +626,7 @@ const canRequestTracking = computed(() => {
   return (currentRole.value === "admin" || isDealerForJob.value) && isTrackingActive.value;
 });
 const shouldShowTrackingCard = computed(() => canShareTracking.value || canRequestTracking.value || hasTrackingEnded.value || Boolean(lastTrackedAt.value));
-const canUseDriverMode = computed(() => canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value);
+const canUseDriverMode = computed(() => canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value);
 
 const navigationDestination = computed(() => {
   if (!job.value) return "";
@@ -687,6 +687,14 @@ const driverModePrimaryAction = computed(() => {
       label: driverActionLoading.value === "delivered" ? "Updating..." : "Mark delivered",
       disabled: driverActionLoading.value === "delivered",
       handler: handleDriverDelivered
+    };
+  }
+
+  if (canSubmitCompletion.value) {
+    return {
+      label: completionSubmitting.value ? "Submitting..." : "Submit completion",
+      disabled: completionSubmitting.value,
+      handler: handleCompletionSubmit
     };
   }
 
@@ -768,6 +776,7 @@ const isAssignedDriver = computed(() => {
   if (!job.value || !auth.user) return false;
   return job.value.assigned_to_id === auth.user.id;
 });
+const isDriverDetailView = computed(() => currentRole.value === "driver");
 
 const canSeeExpenses = computed(() => {
   if (!job.value || !auth.token) return false;
@@ -894,7 +903,7 @@ const shouldShowCompletionPanel = computed(() => {
   return canUploadInspection.value || canSubmitCompletion.value || canApproveCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
 });
 const showCompactCompletionPanel = computed(() => shouldShowCompletionPanel.value && isCompletedJob.value);
-const showFullCompletionPanel = computed(() => shouldShowCompletionPanel.value && !showCompactCompletionPanel.value);
+const showFullCompletionPanel = computed(() => shouldShowCompletionPanel.value && !showCompactCompletionPanel.value && !isAssignedDriver.value);
 const workflowSteps = computed(() => {
   if (!job.value) return [];
   const status = String(job.value.status || '').toLowerCase();
@@ -1862,11 +1871,11 @@ watch(
     </div>
 
     <div v-else class="space-y-4">
-      <header class="tile space-y-4 p-4">
+      <header class="tile p-4" :class="isDriverDetailView ? 'space-y-3' : 'space-y-4'">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run details</p>
-            <h1 class="mt-1 break-words text-2xl font-black text-slate-950 dark:text-white">
+            <h1 class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="isDriverDetailView ? 'text-xl' : 'text-2xl'">
               {{ job.title || `Run #${job.id}` }}
             </h1>
             <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
@@ -1881,7 +1890,7 @@ watch(
         <div class="flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">{{ headerDisplayLabel }}</p>
-            <p class="mt-1 text-3xl font-black text-emerald-600 dark:text-emerald-300">
+            <p class="mt-1 font-black text-emerald-600 dark:text-emerald-300" :class="isDriverDetailView ? 'text-2xl' : 'text-3xl'">
               {{ priceFormatter.format(headerDisplayAmount) }}
             </p>
           </div>
@@ -1966,7 +1975,7 @@ watch(
         </p>
       </section>
 
-      <RunRouteSummary :job="job" />
+      <RunRouteSummary :job="job" :compact="isDriverDetailView" />
 
       <section v-if="job.incidents?.length" class="tile space-y-3 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2094,7 +2103,7 @@ watch(
         </div>
       </section>
 
-      <section v-if="showRunProgress" class="tile space-y-4 p-4">
+      <section v-if="showRunProgress && !isDriverDetailView" class="tile space-y-4 p-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Run progress</h2>
@@ -2524,7 +2533,7 @@ watch(
         </div>
       </section>
 
-      <section v-if="shouldShowTrackingCard" class="tile space-y-3 p-4">
+      <section v-if="shouldShowTrackingCard && !isAssignedDriver" class="tile space-y-3 p-4">
         <header class="space-y-1">
           <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Live tracking</h2>
           <p v-if="hasTrackingEnded" class="text-xs text-slate-500">
@@ -2599,7 +2608,7 @@ watch(
         </p>
       </section>
 
-      <section v-if="basicAnalytics" class="tile space-y-4 p-4">
+      <section v-if="basicAnalytics && !isDriverDetailView" class="tile space-y-4 p-4">
         <header class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Basic analytics</h2>

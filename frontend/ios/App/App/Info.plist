@@ -26,6 +26,10 @@
 	<string>MotorRelay uses your location while you are on an active run so the dealer can see live tracking updates.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>MotorRelay uses your location while you are on an active run so the dealer can see live tracking updates.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>MotorRelay uses your camera so drivers can upload vehicle inspection photos for a run.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MotorRelay uses your photo library so drivers can choose existing vehicle inspection photos for a run.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

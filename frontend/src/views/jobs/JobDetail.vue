@@ -85,6 +85,9 @@ const driverActionError = ref("");
 const driverModeOpen = ref(false);
 const driverModeInspectionInput = ref(null);
 const driverModeUploadedPhotos = ref([]);
+const inspectionGalleryOpen = ref(false);
+const inspectionGalleryIndex = ref(0);
+const inspectionGalleryTouchStartX = ref(null);
 const driverChatOpen = ref(false);
 const driverChatLoading = ref(false);
 const driverChatSending = ref(false);
@@ -150,6 +153,7 @@ const requiredInspectionShots = [
   "Mileage"
 ];
 const minInspectionPhotoCount = requiredInspectionShots.length;
+const currentInspectionGalleryPhoto = computed(() => driverModeUploadedPhotos.value[inspectionGalleryIndex.value] ?? null);
 
 function formatCurrency(value, currencyCode = "GBP") {
   try {
@@ -415,6 +419,91 @@ function resetDriverModeUploadedPhotos() {
     }
   });
   driverModeUploadedPhotos.value = [];
+}
+
+function syncSelectedInspectionPreviews() {
+  resetDriverModeUploadedPhotos();
+  driverModeUploadedPhotos.value = completionForm.proof.map((file, index) => ({
+    id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+    name: file.name,
+    previewUrl: file.type?.startsWith("image/") ? URL.createObjectURL(file) : "",
+  }));
+}
+
+function appendInspectionFiles(files) {
+  const incoming = Array.from(files ?? []).filter((file) => file?.type?.startsWith("image/"));
+  if (!incoming.length) return;
+
+  const existing = completionForm.proof.map((file) => `${file.name}-${file.size}-${file.lastModified}`);
+  const nextFiles = [...completionForm.proof];
+
+  incoming.forEach((file) => {
+    const key = `${file.name}-${file.size}-${file.lastModified}`;
+    if (!existing.includes(key) && nextFiles.length < 20) {
+      nextFiles.push(file);
+      existing.push(key);
+    }
+  });
+
+  completionForm.proof = nextFiles;
+  completionFormKey.value += 1;
+  syncSelectedInspectionPreviews();
+}
+
+function removeInspectionFile(index) {
+  completionForm.proof = completionForm.proof.filter((_, fileIndex) => fileIndex !== index);
+  syncSelectedInspectionPreviews();
+
+  if (inspectionGalleryIndex.value >= driverModeUploadedPhotos.value.length) {
+    inspectionGalleryIndex.value = Math.max(driverModeUploadedPhotos.value.length - 1, 0);
+  }
+  if (!driverModeUploadedPhotos.value.length) {
+    inspectionGalleryOpen.value = false;
+  }
+}
+
+function openInspectionGallery(index = 0) {
+  if (!driverModeUploadedPhotos.value.length) return;
+  inspectionGalleryIndex.value = Math.min(Math.max(index, 0), driverModeUploadedPhotos.value.length - 1);
+  inspectionGalleryOpen.value = true;
+}
+
+function closeInspectionGallery() {
+  inspectionGalleryOpen.value = false;
+  inspectionGalleryTouchStartX.value = null;
+}
+
+function previousInspectionPhoto() {
+  if (!driverModeUploadedPhotos.value.length) return;
+  inspectionGalleryIndex.value = inspectionGalleryIndex.value === 0
+    ? driverModeUploadedPhotos.value.length - 1
+    : inspectionGalleryIndex.value - 1;
+}
+
+function nextInspectionPhoto() {
+  if (!driverModeUploadedPhotos.value.length) return;
+  inspectionGalleryIndex.value = inspectionGalleryIndex.value === driverModeUploadedPhotos.value.length - 1
+    ? 0
+    : inspectionGalleryIndex.value + 1;
+}
+
+function onInspectionGalleryTouchStart(event) {
+  inspectionGalleryTouchStartX.value = event.changedTouches?.[0]?.clientX ?? null;
+}
+
+function onInspectionGalleryTouchEnd(event) {
+  if (inspectionGalleryTouchStartX.value === null) return;
+
+  const endX = event.changedTouches?.[0]?.clientX ?? inspectionGalleryTouchStartX.value;
+  const delta = endX - inspectionGalleryTouchStartX.value;
+  inspectionGalleryTouchStartX.value = null;
+
+  if (Math.abs(delta) < 40) return;
+  if (delta < 0) {
+    nextInspectionPhoto();
+  } else {
+    previousInspectionPhoto();
+  }
 }
 
 function updateExpenseSummary(list) {
@@ -1337,7 +1426,7 @@ function deliveryProofDownloadName() {
 }
 
 function onCompletionProofChange(event) {
-  completionForm.proof = Array.from(event.target?.files ?? []);
+  appendInspectionFiles(event.target?.files ?? []);
 }
 
 function openDriverModeInspectionPicker() {
@@ -1346,18 +1435,7 @@ function openDriverModeInspectionPicker() {
 }
 
 async function onDriverModeInspectionChange(event) {
-  const files = Array.from(event.target?.files ?? []);
-  completionForm.proof = files;
-
-  resetDriverModeUploadedPhotos();
-  driverModeUploadedPhotos.value = files.map((file) => ({
-    name: file.name,
-    previewUrl: file.type?.startsWith("image/") ? URL.createObjectURL(file) : "",
-  }));
-
-  if (!files.length) return;
-
-  await handleCompletionSubmit();
+  appendInspectionFiles(event.target?.files ?? []);
 }
 
 async function handleCompletionSubmit() {
@@ -2849,13 +2927,30 @@ watch(
               :key="completionFormKey"
               type="file"
               accept="image/*"
-              capture="environment"
               class="mt-1 w-full text-sm text-slate-600"
               multiple
-              required
               @change="onCompletionProofChange"
             />
             <p class="mt-1 text-xs text-slate-500">Upload at least {{ minInspectionPhotoCount }} images before collecting the vehicle. You can add extra damage or tyre photos too.</p>
+            <div v-if="driverModeUploadedPhotos.length" class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+              <button
+                v-for="(photo, index) in driverModeUploadedPhotos"
+                :key="`form-preview-${photo.id}`"
+                type="button"
+                class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.06]"
+                @click="openInspectionGallery(index)"
+              >
+                <img
+                  v-if="photo.previewUrl"
+                  :src="photo.previewUrl"
+                  :alt="photo.name"
+                  class="h-20 w-full object-cover"
+                >
+                <span class="absolute bottom-1 right-1 rounded-full bg-slate-950/80 px-2 py-0.5 text-[10px] font-black text-white">
+                  {{ index + 1 }}
+                </span>
+              </button>
+            </div>
           </div>
           <div v-else class="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
             Inspection is uploaded. Submit completion after delivery so the dealer can approve and generate the invoice.
@@ -3110,7 +3205,6 @@ watch(
               ref="driverModeInspectionInput"
               type="file"
               accept="image/*"
-              capture="environment"
               multiple
               class="hidden"
               @change="onDriverModeInspectionChange"
@@ -3130,7 +3224,7 @@ watch(
             >
               <div class="flex items-center justify-between gap-3">
                 <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Photo checklist</p>
-                <span class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950">
+                <span class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950 dark:text-slate-950">
                   {{ completionForm.proof.length }}/{{ minInspectionPhotoCount }}
                 </span>
               </div>
@@ -3139,29 +3233,61 @@ watch(
                   v-for="(shot, index) in requiredInspectionShots"
                   :key="`driver-mode-shot-${shot}`"
                   class="rounded-2xl px-3 py-2 text-xs font-black"
-                  :class="completionForm.proof.length > index ? 'bg-emerald-400 text-slate-950' : 'bg-white/[0.06] text-emerald-100'"
+                  :class="completionForm.proof.length > index ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/[0.06] text-emerald-100'"
                 >
                   {{ shot }}
                 </span>
               </div>
+              <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  class="rounded-2xl border border-emerald-300/30 bg-white/[0.06] px-4 py-3 text-sm font-black text-emerald-100"
+                  @click="openDriverModeInspectionPicker"
+                >
+                  Add more photos
+                </button>
+                <button
+                  type="button"
+                  class="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 dark:text-slate-950"
+                  :disabled="completionForm.proof.length < minInspectionPhotoCount || completionSubmitting"
+                  @click="handleCompletionSubmit"
+                >
+                  {{ completionSubmitting ? 'Submitting...' : 'Submit inspection photos' }}
+                </button>
+              </div>
             </div>
             <div v-if="driverModeUploadedPhotos.length" class="mt-4 grid grid-cols-2 gap-3">
-              <div
-                v-for="photo in driverModeUploadedPhotos"
-                :key="photo.name"
+              <article
+                v-for="(photo, index) in driverModeUploadedPhotos"
+                :key="photo.id"
                 class="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]"
               >
-                <img
-                  v-if="photo.previewUrl"
-                  :src="photo.previewUrl"
-                  :alt="photo.name"
-                  class="h-28 w-full object-cover"
+                <button
+                  type="button"
+                  class="block w-full"
+                  @click="openInspectionGallery(index)"
                 >
-                <div v-else class="flex h-28 items-center justify-center px-3 text-center text-xs font-bold text-emerald-100">
-                  {{ photo.name }}
+                  <img
+                    v-if="photo.previewUrl"
+                    :src="photo.previewUrl"
+                    :alt="photo.name"
+                    class="h-28 w-full object-cover"
+                  >
+                  <div v-else class="flex h-28 items-center justify-center px-3 text-center text-xs font-bold text-emerald-100">
+                    {{ photo.name }}
+                  </div>
+                </button>
+                <div class="flex items-center justify-between gap-2 px-3 py-2">
+                  <p class="truncate text-xs font-bold text-emerald-100">{{ index + 1 }}. {{ photo.name }}</p>
+                  <button
+                    type="button"
+                    class="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100"
+                    @click="removeInspectionFile(index)"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <p class="truncate px-3 py-2 text-xs font-bold text-emerald-100">{{ photo.name }}</p>
-              </div>
+              </article>
             </div>
           </section>
 
@@ -3234,6 +3360,76 @@ watch(
             {{ trackingState.error }}
           </p>
         </div>
+      </div>
+    </transition>
+
+    <transition name="fade">
+      <div
+        v-if="inspectionGalleryOpen && currentInspectionGalleryPhoto"
+        class="fixed inset-0 z-[130] flex flex-col bg-slate-950 text-white"
+      >
+        <header class="flex items-center justify-between gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+1rem)]">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Inspection gallery</p>
+            <h3 class="mt-1 text-lg font-black">
+              Photo {{ inspectionGalleryIndex + 1 }} of {{ driverModeUploadedPhotos.length }}
+            </h3>
+          </div>
+          <button
+            type="button"
+            class="rounded-2xl border border-white/15 px-4 py-2 text-sm font-black text-white"
+            @click="closeInspectionGallery"
+          >
+            Close
+          </button>
+        </header>
+
+        <div
+          class="relative flex min-h-0 flex-1 items-center justify-center px-3 pb-4"
+          @touchstart.passive="onInspectionGalleryTouchStart"
+          @touchend.passive="onInspectionGalleryTouchEnd"
+        >
+          <button
+            v-if="driverModeUploadedPhotos.length > 1"
+            type="button"
+            class="absolute left-3 z-10 rounded-full bg-white/10 px-4 py-3 text-2xl font-black text-white backdrop-blur"
+            @click="previousInspectionPhoto"
+          >
+            ‹
+          </button>
+
+          <img
+            v-if="currentInspectionGalleryPhoto.previewUrl"
+            :src="currentInspectionGalleryPhoto.previewUrl"
+            :alt="currentInspectionGalleryPhoto.name"
+            class="max-h-full max-w-full rounded-3xl object-contain shadow-2xl"
+          >
+          <div v-else class="rounded-3xl border border-white/10 bg-white/[0.06] p-8 text-center text-sm font-bold text-emerald-100">
+            {{ currentInspectionGalleryPhoto.name }}
+          </div>
+
+          <button
+            v-if="driverModeUploadedPhotos.length > 1"
+            type="button"
+            class="absolute right-3 z-10 rounded-full bg-white/10 px-4 py-3 text-2xl font-black text-white backdrop-blur"
+            @click="nextInspectionPhoto"
+          >
+            ›
+          </button>
+        </div>
+
+        <footer class="grid gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <p class="truncate text-center text-sm font-bold text-emerald-100">
+            {{ currentInspectionGalleryPhoto.name }}
+          </p>
+          <button
+            type="button"
+            class="mx-auto rounded-2xl bg-white/10 px-4 py-2 text-xs font-black text-emerald-100"
+            @click="removeInspectionFile(inspectionGalleryIndex)"
+          >
+            Remove this photo
+          </button>
+        </footer>
       </div>
     </transition>
 

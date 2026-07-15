@@ -1475,7 +1475,7 @@ watch(
                 <button
                   v-if="canSendRecovery && !incident.recovery_sent_at"
                   type="button"
-                  class="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
+                  class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
                   :disabled="recoverySendingId === incident.id"
                   @click="openRecoveryConfirmation('send', incident)"
                 >
@@ -1484,7 +1484,7 @@ watch(
                 <button
                   v-if="canConfirmRecoveryCompleted && incident.recovery_sent_at && !incident.recovery_completed_at"
                   type="button"
-                  class="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
+                  class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
                   :disabled="recoveryCompletingId === incident.id"
                   @click="openRecoveryConfirmation('complete', incident)"
                 >

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { fetchDriverOverview, fetchJobHighlights } from '@/services/jobs';
-import { formatSentenceStatus, formatStatusLabel } from '@/utils/statusLabels';
+import { formatSentenceStatus } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 const jobs = ref([]);
@@ -53,15 +53,6 @@ const postedJobs = computed(() => {
   return Array.isArray(list) ? [...list] : [];
 });
 
-const completedJobs = computed(() => {
-  const list = Array.isArray(auth.completedJobs) ? auth.completedJobs : auth.jobs?.completed;
-  return Array.isArray(list) ? [...list] : [];
-});
-
-const openStatuses = ['open', 'pending'];
-const activeStatuses = ['accepted', 'in_progress', 'collected', 'in_transit', 'completion_pending'];
-const deliveredStatuses = ['delivered'];
-const completedStatuses = ['completed', 'closed'];
 const sortByRecentActivity = (items) =>
   [...items].sort((a, b) => {
     const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
@@ -69,17 +60,10 @@ const sortByRecentActivity = (items) =>
     return bTime - aTime;
   });
 
-const dealerOpenJobs = computed(() =>
-  sortByRecentActivity(postedJobs.value.filter((job) => openStatuses.includes(String(job?.status || '').toLowerCase())))
-);
-const dealerActiveJobs = computed(() =>
-  sortByRecentActivity(postedJobs.value.filter((job) => activeStatuses.includes(String(job?.status || '').toLowerCase())))
-);
-const dealerDeliveredJobs = computed(() =>
-  sortByRecentActivity(postedJobs.value.filter((job) => deliveredStatuses.includes(String(job?.status || '').toLowerCase())))
-);
-const dealerCompletedJobs = computed(() =>
-  sortByRecentActivity(completedJobs.value.filter((job) => completedStatuses.includes(String(job?.status || '').toLowerCase())))
+const dealerApplicationJobs = computed(() =>
+  sortByRecentActivity(
+    postedJobs.value.filter((job) => Number(job?.pending_applications_count ?? job?.applications_count ?? 0) > 0)
+  )
 );
 const driverUpcomingRuns = computed(() => sortByRecentActivity(driverActiveJobs.value).slice(0, 3));
 const driverCurrentJob = computed(() => driverUpcomingRuns.value[0] || null);
@@ -142,27 +126,20 @@ const quickLinks = computed(() => {
   ];
 });
 
-const liveBoardMode = ref('open');
 const liveBoardJobs = computed(() => {
   if (auth.role === 'dealer') {
-    if (liveBoardMode.value === 'active') return dealerActiveJobs.value;
-    if (liveBoardMode.value === 'delivered') return dealerDeliveredJobs.value;
-    if (liveBoardMode.value === 'completed') return dealerCompletedJobs.value;
-    return dealerOpenJobs.value;
+    return dealerApplicationJobs.value;
   }
 
   return jobsToDisplay.value;
 });
 const liveBoardTitle = computed(() => {
-  if (auth.role === 'dealer') return 'Your runs';
+  if (auth.role === 'dealer') return 'Driver applications';
   return 'Open runs';
 });
 const liveBoardEmptyText = computed(() => {
   if (auth.role === 'dealer') {
-    if (liveBoardMode.value === 'active') return 'No active runs yet.';
-    if (liveBoardMode.value === 'delivered') return 'No delivered runs awaiting completion yet.';
-    if (liveBoardMode.value === 'completed') return 'No completed runs yet.';
-    return 'No open runs yet. Create your first run to start receiving driver requests.';
+    return 'No driver applications to review right now.';
   }
 
   return openJobsEmptyText.value;
@@ -173,23 +150,6 @@ const liveBoardCountText = computed(() => {
 });
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
-
-function formatDate(value) {
-  if (!value) return '--';
-
-  try {
-    return new Intl.DateTimeFormat('en-GB', {
-      day: 'numeric',
-      month: 'short'
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-function paymentLabel(job) {
-  return formatStatusLabel(job?.payment_status, 'Unpaid');
-}
 
 const openJobsEmptyText = computed(() => {
   if (auth.role === 'driver') {
@@ -325,43 +285,6 @@ const openJobsEmptyText = computed(() => {
           </span>
         </div>
 
-        <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'open' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
-            @click="liveBoardMode = 'open'"
-          >
-            {{ auth.role === 'dealer' ? 'Open' : 'Open runs' }}
-          </button>
-          <button
-            v-if="auth.role === 'dealer'"
-            type="button"
-            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'active' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
-            @click="liveBoardMode = 'active'"
-          >
-            Active
-          </button>
-          <button
-            v-if="auth.role === 'dealer'"
-            type="button"
-            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'delivered' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
-            @click="liveBoardMode = 'delivered'"
-          >
-            Delivered
-          </button>
-          <button
-            v-if="auth.role === 'dealer'"
-            type="button"
-            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
-            :class="liveBoardMode === 'completed' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
-            @click="liveBoardMode = 'completed'"
-          >
-            Completed
-          </button>
-        </div>
       </div>
 
       <div class="mt-5 space-y-3">
@@ -369,19 +292,19 @@ const openJobsEmptyText = computed(() => {
           v-for="job in liveBoardJobs"
           :key="job.id"
           :to="`/jobs/${job.id}`"
-          class="block rounded-2xl border border-white/10 bg-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
+          class="block rounded-2xl border border-white/10 bg-white/[0.06] p-3 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
         >
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="flex items-center justify-between gap-3">
             <div class="min-w-0">
-              <p class="font-semibold text-white">
-                {{ job.pickup_label || job.pickup_postcode || 'Pickup' }}
-                <span class="text-slate-500">to</span>
-                {{ job.dropoff_label || job.dropoff_postcode || 'Drop-off' }}
+              <p class="truncate text-sm font-black text-white">
+                {{ job.title || `Run #${job.id}` }}
               </p>
-              <p class="mt-1 text-xs text-slate-400">{{ formatSentenceStatus(job.status) }}</p>
+              <p class="mt-0.5 truncate text-xs text-slate-400">
+                {{ job.pickup_postcode || 'Pickup' }} to {{ job.dropoff_postcode || 'Drop-off' }}
+              </p>
             </div>
-            <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
-              {{ priceFormatter.format(Number(job.price || 0)) }}
+            <span class="shrink-0 rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950 dark:text-slate-950">
+              {{ Number(job?.pending_applications_count ?? job?.applications_count ?? 0) }} waiting
             </span>
           </div>
         </RouterLink>

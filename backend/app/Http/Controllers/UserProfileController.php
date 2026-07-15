@@ -46,6 +46,12 @@ class UserProfileController extends Controller
 
         if ($user->isDealer() || $user->isAdmin()) {
             $postedJobs = $user->postedJobs()
+                ->withCount([
+                    'applications',
+                    'applications as pending_applications_count' => function ($query) {
+                        $query->where('status', 'pending');
+                    },
+                ])
                 ->select([
                     'id',
                     'title',

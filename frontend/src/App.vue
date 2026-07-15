@@ -286,7 +286,7 @@ function isNavActive(item) {
 const mainContainerClass = computed(() => [
   baseMainClasses,
   route.name === 'messages'
-    ? 'overflow-hidden pb-[calc(7.25rem+env(safe-area-inset-bottom))] md:pb-6'
+    ? 'overflow-hidden pb-[calc(6.25rem+env(safe-area-inset-bottom))] md:pb-6'
     : 'overflow-y-auto',
   route.name !== 'messages' && bottomNavItems.value.length
     ? 'pb-[calc(7rem+env(safe-area-inset-bottom))] sm:pb-10'

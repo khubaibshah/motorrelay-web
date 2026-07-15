@@ -120,7 +120,6 @@ async function loadMessages(threadId = selectedThreadId.value) {
     const data = await fetchThreadMessages(threadId);
     messages.value = Array.isArray(data?.data) ? data.data : [];
     await syncViewReceipts();
-    scrollMessagesToBottom();
   } catch (error) {
     console.error('Failed to load messages', error);
     messagesError.value = 'Unable to load messages right now.';
@@ -128,6 +127,8 @@ async function loadMessages(threadId = selectedThreadId.value) {
   } finally {
     messagesLoading.value = false;
   }
+
+  scrollMessagesToBottom();
 }
 
 function handleAttachmentChange(event) {
@@ -275,9 +276,11 @@ function updateThreadSummary(summary) {
 
 function scrollMessagesToBottom() {
   nextTick(() => {
-    if (messageContainer.value) {
-      messageContainer.value.scrollTop = messageContainer.value.scrollHeight;
-    }
+    requestAnimationFrame(() => {
+      if (messageContainer.value) {
+        messageContainer.value.scrollTop = messageContainer.value.scrollHeight;
+      }
+    });
   });
 }
 </script>
@@ -493,24 +496,23 @@ function scrollMessagesToBottom() {
               placeholder="Write your update..."
             />
 
-            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-emerald-100">
-              <label class="flex items-center gap-2">
-                <input type="file" multiple accept=".png,.jpg,.jpeg,.pdf" class="hidden" @change="handleAttachmentChange" />
-                <span class="rounded-2xl border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:text-emerald-100 dark:hover:bg-white/10">
-                  Attach files
-                </span>
-              </label>
-              <span v-if="composer.attachments.length">{{ composer.attachments.length }} file(s) ready</span>
-            </div>
-
             <p v-if="composer.error" class="text-sm text-amber-600">
               {{ composer.error }}
             </p>
 
-            <div class="flex justify-end">
+            <div class="flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-emerald-100">
+              <label class="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100 dark:hover:bg-white/10" aria-label="Attach files">
+                <input type="file" multiple accept=".png,.jpg,.jpeg,.pdf" class="hidden" @change="handleAttachmentChange" />
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m21.44 11.05-8.49 8.49a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.19 9.19a2 2 0 1 1-2.83-2.83l8.49-8.49" />
+                </svg>
+              </label>
+              <span class="min-w-0 flex-1 truncate text-left">
+                <span v-if="composer.attachments.length">{{ composer.attachments.length }} file(s) ready</span>
+              </span>
               <button
                 type="submit"
-                class="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                class="h-11 shrink-0 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="composer.sending"
               >
                 <span v-if="composer.sending">Sending...</span>

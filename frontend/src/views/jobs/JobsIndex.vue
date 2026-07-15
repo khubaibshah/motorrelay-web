@@ -814,58 +814,46 @@ onMounted(async () => {
       {{ successMessage }}
     </p>
 
-    <section v-if="isDriver" class="section-card order-1 space-y-4 dark:border-white/10 dark:bg-slate-950">
-      <header class="space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section v-if="isDriver" class="section-card order-1 space-y-3 p-4 dark:border-white/10 dark:bg-slate-950 sm:p-5">
+      <header class="space-y-3">
+        <div class="flex items-start justify-between gap-3">
           <div>
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run marketplace</p>
-            <h2 class="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-emerald-300">Runs</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-emerald-100">
-              Browse open runs and request the ones that work for you. Your active work is managed on the Driver page.
-            </p>
+            <h2 class="mt-1 text-lg font-black tracking-tight text-slate-950 dark:text-emerald-300">Available runs</h2>
           </div>
           <span class="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-emerald-100">
             {{ selectedDriverJobs.length }} shown
           </span>
         </div>
 
-        <form class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.06] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_auto]" @submit.prevent="submitDriverSearch">
+        <form class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/[0.06] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_auto]" @submit.prevent="submitDriverSearch">
           <label class="block min-w-0">
-            <span class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Search</span>
             <input
               v-model="driverSearch"
               type="search"
               placeholder="Postcode, route, vehicle..."
-              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
+              class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
             >
           </label>
           <label class="block min-w-0">
-            <span class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">Transport</span>
             <select
               v-model="driverTransportFilter"
-              class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
+              class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
             >
               <option value="all">Any transport</option>
               <option value="drive_away">Drive-away</option>
               <option value="trailer">Trailer</option>
             </select>
           </label>
-          <div class="grid gap-2 sm:self-end">
-            <button type="submit" class="btn-primary px-4 py-3 text-sm">
+          <div class="flex gap-2 sm:self-stretch">
+            <button type="submit" class="btn-primary min-h-0 flex-1 px-4 py-2 text-sm sm:flex-none">
               Search
             </button>
-            <button type="button" class="text-xs font-bold text-slate-500 hover:text-emerald-700 dark:text-emerald-100 dark:hover:text-emerald-300" @click="clearDriverSearch">
+            <button type="button" class="rounded-2xl px-3 py-2 text-xs font-bold text-slate-500 hover:bg-white hover:text-emerald-700 dark:text-emerald-100 dark:hover:bg-white/10 dark:hover:text-emerald-300" @click="clearDriverSearch">
               Clear
             </button>
           </div>
         </form>
-
-        <div class="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3 dark:bg-white/[0.06]">
-          <span class="text-sm font-black text-slate-950 dark:text-emerald-300">Available runs</span>
-          <span class="badge bg-white text-slate-700 dark:bg-white/10 dark:text-emerald-100">
-            {{ visibleJobs.length }} shown
-          </span>
-        </div>
       </header>
 
       <p v-if="selectedDriverError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
@@ -880,61 +868,37 @@ onMounted(async () => {
         {{ selectedDriverEmptyMessage }}
       </div>
 
-      <div v-else class="space-y-3">
+      <div v-else class="space-y-2">
         <article
           v-for="job in selectedDriverJobs"
           :key="`${driverRunsTab}-${job.id}`"
-          class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-xl sm:p-5 dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.09]"
+          class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-xl dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.09]"
         >
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="flex items-start justify-between gap-3">
             <button type="button" class="min-w-0 flex-1 text-left" @click="openJob(job)">
-              <div class="mb-3 flex flex-wrap gap-2">
-                <span class="badge" :class="statusClass(job)">{{ formatStatusLabel(job.status) }}</span>
-                <span v-if="driverRunsTab !== 'available'" class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
-                <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">{{ formatTransportType(job.transport_type) }}</span>
-              </div>
-
-              <p class="text-xl font-black text-slate-950 dark:text-white">
-                <template v-if="driverRunsTab === 'available'">
-                  {{ priceFormatter.format(visibleAmountForJob(job)) }}
-                </template>
-                <template v-else>
-                  {{ job.title || `Run #${job.id}` }}
-                </template>
+              <p class="truncate text-base font-black text-slate-950 dark:text-white">
+                {{ job.pickup_postcode || job.pickup_label || '--' }} to {{ job.dropoff_postcode || job.dropoff_label || '--' }}
               </p>
-
-              <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
-                <template v-if="driverRunsTab === 'available'">
-                  {{ job.company || 'Customer' }} - {{ job.vehicle_make || 'Vehicle' }}
-                </template>
-                <template v-else>
-                  {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
-                </template>
-              </p>
-              <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
-                {{ job.pickup_postcode || '--' }} to {{ job.dropoff_postcode || '--' }}
+              <p class="mt-1 truncate text-xs font-semibold text-slate-600 dark:text-emerald-100">
+                {{ job.company || 'Customer' }} · {{ job.vehicle_make || 'Vehicle' }} · {{ formatTransportType(job.transport_type) }}
               </p>
             </button>
 
-            <div
-              v-if="driverRunsTab !== 'available'"
-              class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right dark:bg-emerald-400 dark:text-slate-950"
-            >
-              <p class="text-xs font-black uppercase tracking-wide text-slate-400 dark:text-slate-900">Driver payout</p>
-              <div class="mt-1 text-2xl font-black">
+            <div class="shrink-0 text-right">
+              <p class="text-lg font-black text-emerald-600 dark:text-emerald-300">
                 {{ priceFormatter.format(visibleAmountForJob(job)) }}
-              </div>
-              <p v-if="driverRunsTab === 'completed'" class="mt-1 text-xs font-semibold text-slate-400 dark:text-slate-900">
-                Completed {{ formatDate(job.completed_at || job.updated_at || job.created_at) }}
               </p>
+              <span class="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-600 dark:bg-white/10 dark:text-emerald-100">
+                {{ formatStatusLabel(job.status) }}
+              </span>
             </div>
           </div>
 
-          <div class="mt-4 grid gap-2 sm:flex sm:flex-wrap">
+          <div class="mt-3 flex gap-2">
             <button
               v-if="driverRunsTab === 'available'"
               type="button"
-              class="btn-primary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
+              class="btn-primary min-h-0 flex-1 px-3 py-2 text-xs disabled:opacity-60"
               :disabled="hasApplied(job.id)"
               @click.stop="handleApply(job)"
             >
@@ -943,7 +907,7 @@ onMounted(async () => {
             </button>
             <button
               type="button"
-              class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+              class="btn-secondary min-h-0 flex-1 px-3 py-2 text-xs"
               @click="openJob(job)"
             >
               View details

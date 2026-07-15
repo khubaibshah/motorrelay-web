@@ -217,7 +217,6 @@ async function shareLiveLocation() {
       trackingState.lastUpdate = response.job.last_tracked_at;
     }
     trackingState.shared = true;
-    navigationModalOpen.value = true;
   } catch (error) {
     console.error("Failed to share live location", error);
     trackingState.locationServicesOff = isLocationServicesDisabledError(error);

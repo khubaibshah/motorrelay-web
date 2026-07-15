@@ -1,17 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { fetchJobHighlights, fetchJobs } from '@/services/jobs';
+import { fetchDriverOverview, fetchJobHighlights } from '@/services/jobs';
 import { formatSentenceStatus, formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
-const router = useRouter();
 const jobs = ref([]);
 const driverActiveJobs = ref([]);
+const driverOverview = ref(null);
 const loading = ref(false);
-const driverSearchPostcode = ref('');
-const driverSearchTransport = ref('all');
 
 const priceFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -30,18 +28,14 @@ onMounted(async () => {
     jobs.value = Array.isArray(payload?.jobs) ? payload.jobs : [];
 
     if (auth.role === 'driver') {
-      const activePayload = await fetchJobs({ scope: 'current' });
-      const activeList = Array.isArray(activePayload?.data)
-        ? activePayload.data
-        : Array.isArray(activePayload?.jobs)
-          ? activePayload.jobs
-          : [];
-      driverActiveJobs.value = activeList;
+      driverOverview.value = await fetchDriverOverview();
+      driverActiveJobs.value = Array.isArray(driverOverview.value?.active) ? driverOverview.value.active : [];
     }
   } catch (error) {
     console.error('Failed to load highlight jobs', error);
     jobs.value = [];
     driverActiveJobs.value = [];
+    driverOverview.value = null;
   } finally {
     loading.value = false;
   }
@@ -80,8 +74,18 @@ const dealerActiveJobs = computed(() =>
   sortByRecentActivity(postedJobs.value.filter((job) => activeStatuses.includes(String(job?.status || '').toLowerCase())))
 );
 const dealerCompletedJobs = computed(() => sortByRecentActivity(completedJobs.value));
-const driverCurrentJob = computed(() => sortByRecentActivity(driverActiveJobs.value)[0] || null);
+const driverUpcomingRuns = computed(() => sortByRecentActivity(driverActiveJobs.value).slice(0, 3));
+const driverCurrentJob = computed(() => driverUpcomingRuns.value[0] || null);
 const hasDriverCurrentJob = computed(() => Boolean(driverCurrentJob.value));
+const driverPendingApplications = computed(() => {
+  const applications = driverOverview.value?.applications ?? [];
+  return Array.isArray(applications) ? applications : [];
+});
+const driverCompletedRuns = computed(() => {
+  const runs = driverOverview.value?.completed ?? [];
+  return Array.isArray(runs) ? runs : [];
+});
+const driverStats = computed(() => driverOverview.value?.stats ?? {});
 
 const primaryAction = computed(() => {
   if (auth.role === 'driver' && driverCurrentJob.value) return { to: `/jobs/${driverCurrentJob.value.id}`, label: 'Continue current run' };
@@ -161,17 +165,6 @@ const liveBoardCountText = computed(() => {
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
-function submitDriverJobSearch() {
-  router.push({
-    name: 'jobs',
-    query: {
-      ...(driverSearchPostcode.value.trim() ? { search: driverSearchPostcode.value.trim() } : {}),
-      ...(driverSearchTransport.value !== 'all' ? { transport_type: driverSearchTransport.value } : {}),
-      tab: 'available'
-    }
-  });
-}
-
 function formatDate(value) {
   if (!value) return '--';
 
@@ -230,47 +223,84 @@ const openJobsEmptyText = computed(() => {
     </section>
 
     <aside v-if="auth.role === 'driver'" class="rounded-3xl bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20 sm:p-5">
-      <div class="flex flex-col gap-5">
+      <div class="flex flex-col gap-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Driver workspace</p>
-            <h2 class="mt-1 text-xl font-bold text-emerald-300">
-              {{ hasDriverCurrentJob ? 'Current run' : 'Run opportunities' }}
-            </h2>
+            <h2 class="mt-1 text-xl font-bold text-emerald-300">Your next runs</h2>
           </div>
           <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
-            {{ loading ? 'Syncing' : hasDriverCurrentJob ? '1 active' : 'Search runs' }}
+            {{ loading ? 'Syncing' : `${driverUpcomingRuns.length} upcoming` }}
           </span>
         </div>
 
-        <form class="rounded-2xl border border-white/10 bg-white/[0.06] p-4" @submit.prevent="submitDriverJobSearch">
-          <p class="text-sm font-bold text-white">Find a run</p>
-          <div class="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
-            <label class="block min-w-0">
-              <span class="text-xs font-black uppercase tracking-wide text-slate-400">Postcode or route</span>
-              <input
-                v-model="driverSearchPostcode"
-                type="search"
-                placeholder="e.g. M1, LS1, London"
-                class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-emerald-100 outline-none transition placeholder:text-emerald-100/40 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20"
-              >
-            </label>
-            <label class="block min-w-0">
-              <span class="text-xs font-black uppercase tracking-wide text-slate-400">Transport</span>
-              <select
-                v-model="driverSearchTransport"
-                class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-emerald-100 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20"
-              >
-                <option value="all">Any transport</option>
-                <option value="drive_away">Drive-away</option>
-                <option value="trailer">Trailer</option>
-              </select>
-            </label>
+        <RouterLink
+          v-if="driverCurrentJob"
+          :to="`/jobs/${driverCurrentJob.id}`"
+          class="block rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-4 transition hover:-translate-y-0.5 hover:bg-emerald-400/15"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Next run</p>
+              <p class="mt-1 truncate text-lg font-black text-white">
+                {{ driverCurrentJob.title || `Run #${driverCurrentJob.id}` }}
+              </p>
+              <p class="mt-1 truncate text-sm text-emerald-100">
+                {{ driverCurrentJob.pickup_postcode || driverCurrentJob.pickup_label || 'Pickup' }}
+                to
+                {{ driverCurrentJob.dropoff_postcode || driverCurrentJob.dropoff_label || 'Drop-off' }}
+              </p>
+            </div>
+            <span class="shrink-0 rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
+              {{ priceFormatter.format(Number(driverCurrentJob.driver_payout_amount || driverCurrentJob.price || 0)) }}
+            </span>
           </div>
-          <button type="submit" class="mt-3 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-bold text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-300 dark:text-slate-950">
-            Search available runs
-          </button>
-        </form>
+        </RouterLink>
+
+        <div v-if="driverUpcomingRuns.length > 1" class="space-y-2">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Upcoming</p>
+          <RouterLink
+            v-for="job in driverUpcomingRuns.slice(1)"
+            :key="job.id"
+            :to="`/jobs/${job.id}`"
+            class="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2.5 transition hover:bg-white/[0.1]"
+          >
+            <div class="min-w-0">
+              <p class="truncate text-sm font-black text-white">{{ job.title || `Run #${job.id}` }}</p>
+              <p class="mt-0.5 truncate text-xs text-slate-300">
+                {{ job.pickup_postcode || 'Pickup' }} to {{ job.dropoff_postcode || 'Drop-off' }}
+              </p>
+            </div>
+            <span class="shrink-0 text-xs font-bold text-emerald-300">{{ formatSentenceStatus(job.status) }}</span>
+          </RouterLink>
+        </div>
+
+        <div
+          v-if="!loading && !driverUpcomingRuns.length"
+          class="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-300"
+        >
+          No upcoming runs right now.
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="rounded-2xl border border-white/10 bg-white/[0.06] p-3">
+            <p class="text-xs font-black uppercase tracking-wide text-slate-400">Pending</p>
+            <p class="mt-1 text-xl font-black text-white">{{ driverPendingApplications.length }}</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/[0.06] p-3">
+            <p class="text-xs font-black uppercase tracking-wide text-slate-400">Completed</p>
+            <p class="mt-1 text-xl font-black text-white">{{ driverStats.completed_count ?? driverCompletedRuns.length }}</p>
+          </div>
+        </div>
+
+        <div class="grid gap-2 sm:grid-cols-2">
+          <RouterLink :to="primaryAction.to" class="rounded-xl bg-emerald-400 px-4 py-3 text-center text-sm font-bold text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-300 dark:text-slate-950">
+            {{ hasDriverCurrentJob ? 'Open next run' : 'Browse marketplace' }}
+          </RouterLink>
+          <RouterLink to="/driver" class="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-center text-sm font-bold text-emerald-100 transition hover:bg-white/[0.1]">
+            Driver page
+          </RouterLink>
+        </div>
 
       </div>
     </aside>

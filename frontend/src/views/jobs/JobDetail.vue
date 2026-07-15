@@ -25,6 +25,7 @@ import {
   applyForJob,
   requestJobLocationUpdate
 } from "@/services/jobs";
+import { fetchThreadMessages, fetchThreads, sendMessage } from "@/services/messages";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { useAuthStore } from "@/stores/auth";
 import { AppLauncher } from "@capacitor/app-launcher";
@@ -76,6 +77,13 @@ const proofDownloading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
 const driverModeOpen = ref(false);
+const driverChatOpen = ref(false);
+const driverChatLoading = ref(false);
+const driverChatSending = ref(false);
+const driverChatError = ref("");
+const driverChatThread = ref(null);
+const driverChatMessages = ref([]);
+const driverChatBody = ref("");
 const jobRequestLoading = ref(false);
 const jobRequestError = ref("");
 const incidentModalOpen = ref(false);
@@ -302,6 +310,68 @@ function closeNavigationModal() {
   navigationModalOpen.value = false;
 }
 
+async function openDriverChatModal() {
+  if (!job.value?.id) return;
+
+  driverChatOpen.value = true;
+  driverChatError.value = "";
+  driverChatLoading.value = true;
+
+  try {
+    const payload = await fetchThreads();
+    const threads = Array.isArray(payload?.data) ? payload.data : [];
+    const thread = threads.find((item) => Number(item.job_id) === Number(job.value.id)) ?? null;
+    driverChatThread.value = thread;
+
+    if (thread?.id) {
+      const messagePayload = await fetchThreadMessages(thread.id);
+      driverChatMessages.value = Array.isArray(messagePayload?.data) ? messagePayload.data : [];
+    } else {
+      driverChatMessages.value = [];
+    }
+  } catch (error) {
+    console.error("Failed to open driver chat", error);
+    driverChatError.value = "Unable to load chat right now.";
+  } finally {
+    driverChatLoading.value = false;
+  }
+}
+
+async function sendDriverChatMessage() {
+  if (!job.value?.id || !driverChatBody.value.trim() || driverChatSending.value) return;
+
+  driverChatSending.value = true;
+  driverChatError.value = "";
+
+  try {
+    const payload = driverChatThread.value?.id
+      ? {
+          thread_id: driverChatThread.value.id,
+          body: driverChatBody.value.trim()
+        }
+      : {
+          job_id: job.value.id,
+          recipient_id: job.value.posted_by_id,
+          subject: job.value.title || `Run #${job.value.id}`,
+          body: driverChatBody.value.trim()
+        };
+
+    const response = await sendMessage(payload);
+    if (response?.thread) {
+      driverChatThread.value = response.thread;
+    }
+    if (response?.message) {
+      driverChatMessages.value.push(response.message);
+    }
+    driverChatBody.value = "";
+  } catch (error) {
+    console.error("Failed to send driver chat message", error);
+    driverChatError.value = error?.response?.data?.message || "Unable to send message right now.";
+  } finally {
+    driverChatSending.value = false;
+  }
+}
+
 function resetExpenseForm() {
   expenseForm.description = "";
   expenseForm.amount = "";
@@ -456,6 +526,34 @@ const driverModeDestinationLabel = computed(() => {
   }
 
   return job.value.dropoff_label || job.value.dropoff_postcode || "Drop-off";
+});
+
+const driverModeNavigationDestination = computed(() => {
+  if (!job.value) return "";
+  const status = String(job.value.status || "").toLowerCase();
+  const parts = ["accepted", "in_progress"].includes(status)
+    ? [job.value.pickup_label, job.value.pickup_postcode]
+    : [job.value.dropoff_label, job.value.dropoff_postcode];
+
+  return parts.filter(Boolean).join(", ");
+});
+
+const driverModeNavigationLinks = computed(() => {
+  const destination = driverModeNavigationDestination.value;
+  if (!destination) return [];
+  const encoded = encodeURIComponent(destination);
+  return [
+    {
+      id: "google",
+      label: "Google Maps",
+      href: `https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`
+    },
+    {
+      id: "waze",
+      label: "Waze",
+      href: `https://waze.com/ul?q=${encoded}&navigate=yes`
+    }
+  ];
 });
 
 const driverModePrimaryAction = computed(() => {
@@ -2752,7 +2850,7 @@ watch(
             <button
               v-if="canShareTracking && !trackingState.shared"
               type="button"
-              class="w-full rounded-3xl border border-emerald-300/40 bg-emerald-400/10 px-5 py-4 text-left text-base font-black text-emerald-100"
+              class="w-full rounded-3xl bg-emerald-400 px-5 py-4 text-left text-base font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
               :disabled="trackingState.sending"
               @click="shareLiveLocation"
             >
@@ -2761,7 +2859,7 @@ watch(
 
             <div class="grid gap-3 sm:grid-cols-2">
               <a
-                v-for="link in navigationLinks"
+                v-for="link in driverModeNavigationLinks"
                 :key="`driver-mode-${link.id}`"
                 :href="link.href"
                 target="_blank"
@@ -2773,18 +2871,18 @@ watch(
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2">
-              <RouterLink
-                :to="{ name: 'messages' }"
+              <button
+                type="button"
                 class="rounded-3xl border border-white/10 bg-white/[0.06] px-5 py-4 text-center text-base font-black text-white"
-                @click="driverModeOpen = false"
+                @click="openDriverChatModal"
               >
                 Open chat
-              </RouterLink>
+              </button>
               <button
                 v-if="canReportIncident"
                 type="button"
                 class="rounded-3xl border border-amber-300/40 bg-amber-400/10 px-5 py-4 text-base font-black text-amber-100"
-                @click="driverModeOpen = false; openIncidentModal()"
+                @click="openIncidentModal"
               >
                 Report issue
               </button>
@@ -2804,7 +2902,7 @@ watch(
     <transition name="fade">
       <div
         v-if="incidentModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 px-4"
         @click.self="closeIncidentModal"
       >
         <form class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950" @submit.prevent="handleIncidentSubmit">
@@ -2879,6 +2977,65 @@ watch(
             </button>
           </div>
         </form>
+      </div>
+    </transition>
+
+    <transition name="fade">
+      <div
+        v-if="driverChatOpen"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 px-4"
+        @click.self="driverChatOpen = false"
+      >
+        <div class="flex max-h-[88vh] w-full max-w-lg flex-col rounded-3xl bg-white p-4 shadow-2xl dark:bg-slate-950">
+          <header class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 dark:border-white/10">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Driver chat</p>
+              <h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">{{ job.title || `Run #${job.id}` }}</h3>
+            </div>
+            <button type="button" class="btn-secondary px-3 py-2 text-sm" @click="driverChatOpen = false">
+              Close
+            </button>
+          </header>
+
+          <div class="min-h-0 flex-1 overflow-y-auto py-3">
+            <p v-if="driverChatLoading" class="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-emerald-100">
+              Loading chat...
+            </p>
+            <p v-else-if="driverChatError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+              {{ driverChatError }}
+            </p>
+            <div v-else-if="!driverChatMessages.length" class="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-emerald-100">
+              No messages yet. Send a quick update to the dealer below.
+            </div>
+            <div v-else class="space-y-2">
+              <article
+                v-for="message in driverChatMessages"
+                :key="message.id"
+                class="rounded-2xl p-3 text-sm"
+                :class="message.user?.id === auth.user?.id
+                  ? 'ml-8 bg-emerald-600 text-white'
+                  : 'mr-8 bg-slate-100 text-slate-800 dark:bg-white/[0.08] dark:text-emerald-100'"
+              >
+                <p class="text-[11px] font-black uppercase tracking-wide opacity-70">{{ message.user?.name || 'User' }}</p>
+                <p class="mt-1 whitespace-pre-wrap">{{ message.body || 'Update sent.' }}</p>
+              </article>
+            </div>
+          </div>
+
+          <form class="border-t border-slate-100 pt-3 dark:border-white/10" @submit.prevent="sendDriverChatMessage">
+            <textarea
+              v-model="driverChatBody"
+              rows="3"
+              placeholder="Send the dealer a quick update..."
+              class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100"
+            ></textarea>
+            <div class="mt-2 flex justify-end">
+              <button type="submit" class="btn-primary px-4 py-2 text-sm" :disabled="driverChatSending || !driverChatBody.trim()">
+                {{ driverChatSending ? 'Sending...' : 'Send message' }}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </transition>
 

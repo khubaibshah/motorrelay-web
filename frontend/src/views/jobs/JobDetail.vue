@@ -23,6 +23,7 @@ import {
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { useAuthStore } from "@/stores/auth";
+import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -702,17 +703,6 @@ function applicationBadgeClass(status) {
   return 'bg-white text-emerald-700 ring-emerald-200';
 }
 
-const transportLabel = computed(() => {
-  const raw = (job.value?.transport_type || '').toString().toLowerCase();
-  if (raw === 'drive_away') {
-    return 'Drive-away';
-  }
-  if (raw === 'trailer') {
-    return 'Trailer';
-  }
-  return job.value?.transport_type || '--';
-});
-
 async function loadJob() {
   const jobId = route.params.id;
   if (!jobId) {
@@ -1276,38 +1266,7 @@ watch(
         </p>
       </section>
 
-      <section class="tile space-y-3 p-4">
-          <div class="grid items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-            <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Pickup</h2>
-              <p class="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">{{ job.pickup_label || job.pickup_postcode || 'Pickup location' }}</p>
-              <p v-if="job.pickup_label && job.pickup_label !== job.pickup_postcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ job.pickup_postcode || '--' }}</p>
-            </div>
-
-            <div class="flex items-center justify-center">
-              <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
-                to
-              </span>
-            </div>
-
-            <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Drop-off</h2>
-              <p class="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">{{ job.dropoff_label || job.dropoff_postcode || 'Drop-off location' }}</p>
-              <p v-if="job.dropoff_label && job.dropoff_label !== job.dropoff_postcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ job.dropoff_postcode || '--' }}</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 text-sm">
-            <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Distance</p>
-              <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ job.distance_mi ? `${job.distance_mi} mi` : '--' }}</p>
-            </div>
-            <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-              <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Transport</p>
-              <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ transportLabel }}</p>
-            </div>
-          </div>
-      </section>
+      <RunRouteSummary :job="job" />
 
       <section v-if="showCompactCompletionPanel" class="tile space-y-3 p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">

@@ -122,6 +122,11 @@ class Job extends Model
         return $this->hasMany(JobIncident::class);
     }
 
+    public function inspectionPhotos(): HasMany
+    {
+        return $this->hasMany(JobInspectionPhoto::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function scopeVisibleTo($query, User $user)
     {
         if ($user->isAdmin()) {

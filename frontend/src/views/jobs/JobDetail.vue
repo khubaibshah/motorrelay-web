@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import {
   fetchJob,
@@ -12,10 +12,13 @@ import {
   reviewJobExpense,
   submitJobCompletion,
   uploadJobInspection,
+  approveJobInspection,
+  requestJobInspectionChanges,
   approveJobCompletion,
   rejectJobCompletion,
   downloadExpenseReceipt,
   downloadDeliveryProof,
+  downloadInspectionPhoto,
   updateJobLocation,
   markJobCollected,
   markJobDelivered,
@@ -74,6 +77,9 @@ const completionError = ref("");
 const completionSubmitting = ref(false);
 const completionDecisionLoading = ref(false);
 const proofDownloading = ref(false);
+const inspectionReviewLoading = ref("");
+const inspectionPhotoPreviews = ref({});
+const inspectionPreviewLoading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
 const driverModeOpen = ref(false);
@@ -686,6 +692,12 @@ const shouldShowGoLiveBanner = computed(
   () => isDealerForJob.value && isAwaitingGoLive.value
 );
 const completionStatus = computed(() => job.value?.completion_status ?? "not_submitted");
+const completionStatusLabel = computed(() => formatStatusLabel(completionStatus.value));
+const inspectionPhotos = computed(() => {
+  const photos = job.value?.inspection_photos ?? job.value?.inspectionPhotos ?? [];
+  return Array.isArray(photos) ? photos : [];
+});
+const hasInspectionPhotos = computed(() => inspectionPhotos.value.length > 0);
 
 const canUploadInspection = computed(() => {
   if (!isAssignedDriver.value) return false;
@@ -698,6 +710,7 @@ const canSubmitCompletion = computed(() => {
   if (!isAssignedDriver.value) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (!hasDeliveryProof.value) return false;
+  if (completionStatus.value !== 'inspection_approved') return false;
   if (['submitted', 'approved'].includes(String(completionStatus.value || '').toLowerCase())) return false;
   if (String(job.value?.status || '').toLowerCase() !== 'delivered') return false;
   return !job.value?.finalized_invoice_id;
@@ -706,6 +719,7 @@ const canMarkCollected = computed(() => {
   if (!isAssignedDriver.value) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (!hasDeliveryProof.value) return false;
+  if (completionStatus.value !== 'inspection_approved') return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
 });
 const canMarkDeliveredFromDetail = computed(() => {
@@ -724,6 +738,9 @@ const driverNextActionText = computed(() => {
   if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
   if (paymentStatus.value === 'checkout_pending') return 'Waiting for the dealer to finish confirming this run.';
   if (canUploadInspection.value) return 'Upload inspection photos before you collect the vehicle.';
+  if (hasDeliveryProof.value && completionStatus.value !== 'inspection_approved' && ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase())) {
+    return 'Inspection photos are uploaded. Wait for the dealer to approve them before collection.';
+  }
   if (canMarkCollected.value) return 'Collect the vehicle, then tap Mark collected.';
   if (canMarkDeliveredFromDetail.value) return 'Deliver the vehicle, then tap “Mark delivered”.';
   if (canSubmitCompletion.value) return 'Submit completion so the dealer can review and approve the run.';
@@ -741,7 +758,27 @@ const canApproveCompletion = computed(() => {
   return completionStatus.value === "submitted";
 });
 
-const hasDeliveryProof = computed(() => Boolean(job.value?.delivery_proof_path));
+const hasDeliveryProof = computed(() => Boolean(job.value?.delivery_proof_path || hasInspectionPhotos.value));
+const canReviewInspection = computed(() => {
+  if (!(currentRole.value === "admin" || isDealerForJob.value)) return false;
+  if (!hasDeliveryProof.value) return false;
+  if (job.value?.finalized_invoice_id) return false;
+  return ['not_submitted', 'rejected', 'inspection_approved'].includes(String(completionStatus.value || '').toLowerCase());
+});
+const canApproveInspection = computed(() => canReviewInspection.value && completionStatus.value !== 'inspection_approved');
+const canRequestInspectionChanges = computed(() => canReviewInspection.value);
+const inspectionReviewTitle = computed(() => {
+  if (!hasDeliveryProof.value) return 'Waiting for photos';
+  if (completionStatus.value === 'inspection_approved') return 'Inspection approved';
+  if (completionStatus.value === 'rejected') return 'More photos requested';
+  return 'Inspection ready to review';
+});
+const inspectionReviewDescription = computed(() => {
+  if (!hasDeliveryProof.value) return 'The driver must upload inspection photos before collection.';
+  if (completionStatus.value === 'inspection_approved') return 'The driver can collect the vehicle and continue the run.';
+  if (completionStatus.value === 'rejected') return 'The previous upload was rejected. The driver needs to upload a fresh set.';
+  return 'Check the photos, then approve them or ask the driver for clearer images.';
+});
 
 const invoiceFinalized = computed(() => Boolean(job.value?.finalized_invoice_id));
 const jobInvoiceLink = computed(() => ({
@@ -1012,6 +1049,7 @@ async function loadJob() {
     job.value = payload?.data ?? payload ?? null;
     syncExpensesFromJob();
     trackingState.lastUpdate = job.value?.last_tracked_at ?? null;
+    await loadInspectionPhotoPreviews();
   } catch (error) {
     console.error("Failed to load run", error);
     errorMessage.value = "We could not load this run.";
@@ -1019,6 +1057,7 @@ async function loadJob() {
     expenses.value = [];
     updateExpenseSummary([]);
     trackingState.lastUpdate = null;
+    clearInspectionPhotoPreviews();
   } finally {
     loading.value = false;
   }
@@ -1035,6 +1074,47 @@ async function loadJob() {
   } else {
     expenses.value = [];
     updateExpenseSummary([]);
+  }
+}
+
+function isImageInspectionPhoto(photo) {
+  const mime = String(photo?.mime_type || '').toLowerCase();
+  const name = String(photo?.original_name || photo?.path || '').toLowerCase();
+  return mime.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|heic|heif)$/.test(name);
+}
+
+function clearInspectionPhotoPreviews() {
+  Object.values(inspectionPhotoPreviews.value).forEach((url) => {
+    if (url) URL.revokeObjectURL(url);
+  });
+  inspectionPhotoPreviews.value = {};
+}
+
+async function loadInspectionPhotoPreviews() {
+  clearInspectionPhotoPreviews();
+
+  if (!job.value?.id || !inspectionPhotos.value.length) {
+    return;
+  }
+
+  inspectionPreviewLoading.value = true;
+  const previews = {};
+
+  try {
+    await Promise.all(
+      inspectionPhotos.value
+        .filter((photo) => photo?.id && isImageInspectionPhoto(photo))
+        .map(async (photo) => {
+          const response = await downloadInspectionPhoto(job.value.id, photo.id);
+          const contentType = response.headers?.["content-type"] || photo.mime_type || "image/jpeg";
+          previews[photo.id] = URL.createObjectURL(new Blob([response.data], { type: contentType }));
+        })
+    );
+    inspectionPhotoPreviews.value = previews;
+  } catch (error) {
+    console.error("Failed to load inspection photo previews", error);
+  } finally {
+    inspectionPreviewLoading.value = false;
   }
 }
 
@@ -1300,6 +1380,38 @@ async function handleRejectCompletion() {
     alert(error.response?.data?.message || "Unable to reject completion.");
   } finally {
     completionDecisionLoading.value = false;
+  }
+}
+
+async function handleApproveInspection() {
+  if (!job.value?.id || !canApproveInspection.value) return;
+
+  inspectionReviewLoading.value = "approve";
+  try {
+    await approveJobInspection(job.value.id);
+    await loadJob();
+  } catch (error) {
+    console.error("Failed to approve inspection", error);
+    alert(error.response?.data?.message || "Unable to approve inspection photos.");
+  } finally {
+    inspectionReviewLoading.value = "";
+  }
+}
+
+async function handleRequestInspectionChanges() {
+  if (!job.value?.id || !canRequestInspectionChanges.value) return;
+  const reason = window.prompt("Tell the driver what extra photos you need (optional)", "");
+  if (reason === null) return;
+
+  inspectionReviewLoading.value = "changes";
+  try {
+    await requestJobInspectionChanges(job.value.id, { reason });
+    await loadJob();
+  } catch (error) {
+    console.error("Failed to request inspection changes", error);
+    alert(error.response?.data?.message || "Unable to request more inspection photos.");
+  } finally {
+    inspectionReviewLoading.value = "";
   }
 }
 
@@ -1588,6 +1700,10 @@ onMounted(async () => {
   }
 });
 
+onBeforeUnmount(() => {
+  clearInspectionPhotoPreviews();
+});
+
 watch(
   () => route.params.id,
   () => {
@@ -1811,7 +1927,7 @@ watch(
             </p>
           </div>
           <span class="badge bg-emerald-100 text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
-            {{ completionStatus }}
+            {{ completionStatusLabel }}
           </span>
         </div>
 
@@ -2606,7 +2722,7 @@ watch(
               Drivers upload inspection photos as soon as they arrive. Dealers review them later as the run progresses.
             </p>
           </div>
-          <span class="badge bg-slate-100 text-slate-800 uppercase">{{ completionStatus }}</span>
+          <span class="badge bg-slate-100 text-slate-800 uppercase dark:bg-white/[0.08] dark:text-emerald-100">{{ completionStatusLabel }}</span>
         </header>
 
         <div class="grid gap-3 text-xs text-slate-600 sm:grid-cols-2">
@@ -2687,24 +2803,90 @@ watch(
 
         <div
           v-if="hasDeliveryProof"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600"
+          class="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-emerald-100"
         >
-          <div>
-            <span class="font-semibold text-slate-500 uppercase tracking-wide">Inspection photos</span>
-            <p class="text-sm text-slate-900">
-              {{ completionStatus === 'submitted' ? `Completion submitted ${formatDateTime(job?.completion_submitted_at)}` : 'Uploaded before collection' }}
-            </p>
+          <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <span class="font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Inspection photos</span>
+              <h3 class="mt-1 text-lg font-black text-slate-950 dark:text-white">{{ inspectionReviewTitle }}</h3>
+              <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
+                {{ inspectionReviewDescription }}
+              </p>
+              <p v-if="job?.completion_notes" class="mt-2 text-xs text-slate-500 dark:text-emerald-100">
+                Notes: {{ job.completion_notes }}
+              </p>
+            </div>
+            <span class="badge bg-white text-slate-800 dark:bg-white/[0.08] dark:text-emerald-100">
+              {{ inspectionPhotos.length || 1 }} file{{ (inspectionPhotos.length || 1) === 1 ? '' : 's' }}
+            </span>
           </div>
-          <button
-            type="button"
-            class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-          :disabled="proofDownloading"
-          @click="handleDownloadProof"
-        >
-          <span v-if="proofDownloading">Downloading...</span>
-          <span v-else>Download inspection</span>
-        </button>
-      </div>
+
+          <div v-if="inspectionPreviewLoading" class="rounded-2xl border border-dashed border-slate-300 p-4 text-sm dark:border-white/10">
+            Loading inspection photos...
+          </div>
+
+          <div v-else-if="inspectionPhotos.length" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <article
+              v-for="(photo, index) in inspectionPhotos"
+              :key="photo.id"
+              class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/50"
+            >
+              <img
+                v-if="inspectionPhotoPreviews[photo.id]"
+                :src="inspectionPhotoPreviews[photo.id]"
+                :alt="photo.original_name || `Inspection photo ${index + 1}`"
+                class="h-44 w-full object-cover"
+              />
+              <div v-else class="flex h-44 items-center justify-center bg-slate-100 text-sm font-bold text-slate-500 dark:bg-white/[0.05] dark:text-emerald-100">
+                {{ photo.mime_type === 'application/pdf' ? 'PDF file' : 'Preview unavailable' }}
+              </div>
+              <div class="space-y-1 p-3">
+                <p class="truncate text-sm font-black text-slate-950 dark:text-white">
+                  {{ photo.original_name || `Inspection file ${index + 1}` }}
+                </p>
+                <p class="text-xs text-slate-500 dark:text-emerald-100">
+                  Uploaded {{ formatDateTime(photo.created_at) }}
+                </p>
+              </div>
+            </article>
+          </div>
+
+          <div v-else class="rounded-2xl border border-dashed border-slate-300 p-4 text-sm dark:border-white/10">
+            Inspection file uploaded. Use download if the preview is not available.
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-if="canApproveInspection"
+              type="button"
+              class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+              :disabled="Boolean(inspectionReviewLoading)"
+              @click="handleApproveInspection"
+            >
+              <span v-if="inspectionReviewLoading === 'approve'">Approving...</span>
+              <span v-else>Approve inspection</span>
+            </button>
+            <button
+              v-if="canRequestInspectionChanges"
+              type="button"
+              class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+              :disabled="Boolean(inspectionReviewLoading)"
+              @click="handleRequestInspectionChanges"
+            >
+              <span v-if="inspectionReviewLoading === 'changes'">Sending...</span>
+              <span v-else>Request more photos</span>
+            </button>
+            <button
+              type="button"
+              class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+              :disabled="proofDownloading"
+              @click="handleDownloadProof"
+            >
+              <span v-if="proofDownloading">Downloading...</span>
+              <span v-else>Download inspection</span>
+            </button>
+          </div>
+        </div>
 
         <div v-if="canApproveCompletion" class="flex flex-wrap gap-2">
           <button

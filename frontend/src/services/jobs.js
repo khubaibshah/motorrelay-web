@@ -123,6 +123,16 @@ export async function uploadJobInspection(jobId, payload) {
   return data;
 }
 
+export async function approveJobInspection(jobId) {
+  const { data } = await api.post(`/jobs/${jobId}/inspection/approve`);
+  return data;
+}
+
+export async function requestJobInspectionChanges(jobId, payload = {}) {
+  const { data } = await api.post(`/jobs/${jobId}/inspection/request-changes`, payload);
+  return data;
+}
+
 export async function approveJobCompletion(jobId) {
   const { data } = await api.post(`/jobs/${jobId}/completion/approve`);
   return data;
@@ -135,6 +145,13 @@ export async function rejectJobCompletion(jobId, payload = {}) {
 
 export async function downloadDeliveryProof(jobId) {
   const response = await api.get(`/jobs/${jobId}/delivery-proof`, {
+    responseType: 'blob'
+  });
+  return response;
+}
+
+export async function downloadInspectionPhoto(jobId, photoId) {
+  const response = await api.get(`/jobs/${jobId}/inspection-photos/${photoId}`, {
     responseType: 'blob'
   });
   return response;

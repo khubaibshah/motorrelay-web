@@ -241,6 +241,7 @@ class JobController extends Controller
             'postedBy:id,name,email',
             'assignedTo:id,name,email',
             'finalizedInvoice:id,job_id,status,number,total,currency,issued_at',
+            'inspectionPhotos:id,job_id,uploaded_by_id,disk,path,original_name,mime_type,size,sort_order,created_at',
         ]);
 
         if ($user) {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\Job;
 use App\Models\JobApplication;
+use App\Models\JobInspectionPhoto;
 use App\Notifications\JobStatusNotification;
 use App\Services\AwsS3Service;
 use App\Services\Invoices\InvoiceFinalizer;
@@ -70,6 +71,10 @@ class JobWorkflowController extends Controller
 
         if (!$job->delivery_proof_path) {
             abort(422, 'Upload the pre-delivery inspection photos before marking this run as collected.');
+        }
+
+        if ($job->completion_status !== 'inspection_approved') {
+            abort(422, 'The dealer must approve the inspection photos before collection.');
         }
 
         $job->update([
@@ -180,7 +185,7 @@ class JobWorkflowController extends Controller
         }
 
         if ($job->delivery_proof_path) {
-            $this->deleteProof($job);
+            $this->deleteProofs($job);
         }
 
         $job->update([
@@ -236,6 +241,10 @@ class JobWorkflowController extends Controller
             abort(422, 'Upload the pre-delivery inspection photos before submitting completion.');
         }
 
+        if ($job->completion_status !== 'inspection_approved') {
+            abort(422, 'The dealer must approve the inspection photos before completion can be submitted.');
+        }
+
         $updates = [
             'status' => 'completion_pending',
             'completion_status' => 'submitted',
@@ -244,7 +253,7 @@ class JobWorkflowController extends Controller
         ];
 
         if ($request->hasFile('proof')) {
-            $updates['delivery_proof_path'] = $this->storeProofFile($request, $job);
+            $updates['delivery_proof_path'] = $this->storeProofFile($request, $job)[0] ?? $job->delivery_proof_path;
             $updates['delivery_proof_disk'] = config('invoices.proof_disk');
         }
 
@@ -322,6 +331,75 @@ class JobWorkflowController extends Controller
         return response()->json($job->fresh());
     }
 
+    public function approveInspection(Request $request, Job $job): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
+            abort(403, 'Only the posting dealer can approve inspection photos.');
+        }
+
+        if (!$job->delivery_proof_path) {
+            abort(422, 'Inspection photos are required before approval.');
+        }
+
+        if ($job->finalized_invoice_id) {
+            abort(422, 'This job has already been finalized.');
+        }
+
+        if (!in_array($job->completion_status, ['not_submitted', 'rejected', 'inspection_approved'], true)) {
+            abort(422, 'This inspection cannot be reviewed at this stage.');
+        }
+
+        $job->update([
+            'completion_status' => 'inspection_approved',
+            'completion_rejected_at' => null,
+        ]);
+
+        if ($job->assignedTo) {
+            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'inspection_approved'));
+        }
+
+        return response()->json($job->fresh(['inspectionPhotos']));
+    }
+
+    public function requestInspectionChanges(Request $request, Job $job): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
+            abort(403, 'Only the posting dealer can request more inspection photos.');
+        }
+
+        if (!$job->delivery_proof_path) {
+            abort(422, 'There are no inspection photos to review.');
+        }
+
+        if ($job->finalized_invoice_id) {
+            abort(422, 'This job has already been finalized.');
+        }
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $this->deleteProofs($job);
+
+        $job->update([
+            'completion_status' => 'rejected',
+            'completion_rejected_at' => now(),
+            'completion_notes' => $validated['reason'] ?? $job->completion_notes,
+            'delivery_proof_path' => null,
+            'delivery_proof_disk' => null,
+        ]);
+
+        if ($job->assignedTo) {
+            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'inspection_changes_requested', [
+                'reason' => $validated['reason'] ?? null,
+            ]));
+        }
+
+        return response()->json($job->fresh(['inspectionPhotos']));
+    }
+
     public function dealerComplete(Request $request, Job $job, InvoiceFinalizer $finalizer): JsonResponse
     {
         $user = $request->user();
@@ -392,24 +470,60 @@ class JobWorkflowController extends Controller
         return $storage->response($job->delivery_proof_path, $filename, [], 'inline');
     }
 
-    protected function deleteProof(Job $job): void
+    public function inspectionPhoto(Request $request, Job $job, JobInspectionPhoto $photo)
     {
-        if (!$job->delivery_proof_path) {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        if ((int) $photo->job_id !== (int) $job->id) {
+            abort(404);
+        }
+
+        if (!$user->isAdmin() && $job->posted_by_id !== $user->id && $job->assigned_to_id !== $user->id) {
+            abort(403, 'You cannot view this inspection photo.');
+        }
+
+        $storage = Storage::disk($photo->disk ?? config('invoices.proof_disk'));
+        if (!$storage->exists($photo->path)) {
+            abort(404, 'Inspection photo not found.');
+        }
+
+        $filename = $photo->original_name ?: sprintf('job-%d-inspection-%d', $job->id, $photo->id);
+
+        return $storage->response($photo->path, $filename, [], 'inline');
+    }
+
+    protected function deleteProofs(Job $job): void
+    {
+        $photos = $job->inspectionPhotos()->get();
+
+        if ($photos->isEmpty() && !$job->delivery_proof_path) {
             return;
         }
 
-        $disk = $job->delivery_proof_disk ?? config('invoices.proof_disk');
-        $storage = Storage::disk($disk);
-        if ($storage->exists($job->delivery_proof_path)) {
-            $storage->delete($job->delivery_proof_path);
+        foreach ($photos as $photo) {
+            $storage = Storage::disk($photo->disk ?? config('invoices.proof_disk'));
+            if ($storage->exists($photo->path)) {
+                $storage->delete($photo->path);
+            }
         }
+
+        if ($photos->isEmpty() && $job->delivery_proof_path) {
+            $disk = $job->delivery_proof_disk ?? config('invoices.proof_disk');
+            $storage = Storage::disk($disk);
+            if ($storage->exists($job->delivery_proof_path)) {
+                $storage->delete($job->delivery_proof_path);
+            }
+        }
+
+        $job->inspectionPhotos()->delete();
     }
 
-    protected function storeProofFile(Request $request, Job $job): string
+    protected function storeProofFile(Request $request, Job $job): array
     {
-        $paths = $this->storeProofFiles($request, $job);
-
-        return $paths[0];
+        return $this->storeProofFiles($request, $job);
     }
 
     protected function storeProofFiles(Request $request, Job $job): array
@@ -422,7 +536,7 @@ class JobWorkflowController extends Controller
         }
 
         if ($job->delivery_proof_path) {
-            $this->deleteProof($job);
+            $this->deleteProofs($job);
         }
 
         return $files
@@ -433,7 +547,20 @@ class JobWorkflowController extends Controller
                 $extension = $file->getClientOriginalExtension() ?: 'jpg';
                 $filename = sprintf('%s-%02d-%s.%s', now()->format('YmdHis'), $index + 1, Str::ulid(), $extension);
 
-                return app(AwsS3Service::class)->uploadFile($file, $directory, $filename, $proofDisk);
+                $path = app(AwsS3Service::class)->uploadFile($file, $directory, $filename, $proofDisk);
+
+                JobInspectionPhoto::create([
+                    'job_id' => $job->id,
+                    'uploaded_by_id' => request()->user()?->id,
+                    'disk' => $proofDisk,
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName() ?: $filename,
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'sort_order' => $index + 1,
+                ]);
+
+                return $path;
             })
             ->all();
     }

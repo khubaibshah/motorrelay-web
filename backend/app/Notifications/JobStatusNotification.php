@@ -123,6 +123,18 @@ class JobStatusNotification extends Notification
                 'action_label' => 'Review inspection',
                 'url' => $route,
             ],
+            'inspection_approved' => [
+                'title' => 'Inspection approved',
+                'body' => sprintf('The dealer approved the inspection photos for %s.', $jobLabel),
+                'action_label' => 'Open job',
+                'url' => $route,
+            ],
+            'inspection_changes_requested' => [
+                'title' => 'More photos needed',
+                'body' => sprintf('The dealer requested more inspection photos for %s.', $jobLabel),
+                'action_label' => 'Upload photos',
+                'url' => $route,
+            ],
             'completion_approved' => [
                 'title' => 'Completion approved',
                 'body' => sprintf('Completion was approved for %s.', $jobLabel),

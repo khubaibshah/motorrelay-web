@@ -75,6 +75,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/delivered', [JobWorkflowController::class, 'delivered']);
     Route::post('/jobs/{job}/cancel', [JobWorkflowController::class, 'cancel']);
     Route::post('/jobs/{job}/inspection', [JobWorkflowController::class, 'inspection']);
+    Route::post('/jobs/{job}/inspection/approve', [JobWorkflowController::class, 'approveInspection']);
+    Route::post('/jobs/{job}/inspection/request-changes', [JobWorkflowController::class, 'requestInspectionChanges']);
     Route::post('/jobs/{job}/complete', [JobWorkflowController::class, 'complete']);
     Route::post('/jobs/{job}/completion/approve', [JobWorkflowController::class, 'approveCompletion']);
     Route::post('/jobs/{job}/completion/reject', [JobWorkflowController::class, 'rejectCompletion']);
@@ -85,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/incidents/{incident}/recovery-sent', [JobIncidentController::class, 'recoverySent']);
     Route::post('/jobs/{job}/incidents/{incident}/recovery-completed', [JobIncidentController::class, 'recoveryCompleted']);
     Route::get('/jobs/{job}/delivery-proof', [JobWorkflowController::class, 'deliveryProof']);
+    Route::get('/jobs/{job}/inspection-photos/{photo}', [JobWorkflowController::class, 'inspectionPhoto']);
 
     Route::get('/messages', [MessageController::class, 'index']);
     Route::post('/messages', [MessageController::class, 'store']);

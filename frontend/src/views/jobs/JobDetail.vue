@@ -703,7 +703,7 @@ const hasInspectionPhotos = computed(() => inspectionPhotos.value.length > 0);
 const canUploadInspection = computed(() => {
   if (!isAssignedDriver.value) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
-  if (hasDeliveryProof.value) return false;
+  if (completionStatus.value === 'inspection_approved') return false;
   if (job.value?.finalized_invoice_id) return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
 });

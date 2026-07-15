@@ -131,6 +131,12 @@ function formatDateTime(value) {
   }
 }
 
+function formatStatusLabel(value) {
+  return String(value || "open")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function getCurrentPosition(options = {}) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -1288,7 +1294,7 @@ watch(
             </p>
           </div>
           <span class="badge bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-emerald-100">
-            {{ job.status || 'open' }}
+            {{ formatStatusLabel(job.status) }}
           </span>
         </div>
 

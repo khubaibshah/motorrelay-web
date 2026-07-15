@@ -189,12 +189,30 @@ async function shareLiveLocation() {
   } catch (error) {
     console.error("Failed to share live location", error);
     trackingState.error =
-      error?.message ||
       error?.response?.data?.message ||
+      geolocationErrorMessage(error) ||
       "We could not determine your current location. Please try again.";
   } finally {
     trackingState.sending = false;
   }
+}
+
+function geolocationErrorMessage(error) {
+  if (!error) return "";
+
+  if (error.code === 1) {
+    return "Location permission is blocked. Please allow location access for MotorRelay in your iPhone settings, then try again.";
+  }
+
+  if (error.code === 2) {
+    return "Your current location is unavailable right now. Check signal/location services and try again.";
+  }
+
+  if (error.code === 3) {
+    return "Location lookup timed out. Try again somewhere with better GPS signal.";
+  }
+
+  return error.message || "";
 }
 
 function closeNavigationModal() {

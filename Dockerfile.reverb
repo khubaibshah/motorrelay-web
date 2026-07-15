@@ -14,9 +14,9 @@ RUN apt-get update \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+WORKDIR /app/backend
 
-COPY composer.json composer.lock ./
+COPY backend/composer.json backend/composer.lock ./
 RUN composer install \
     --no-dev \
     --prefer-dist \
@@ -25,7 +25,7 @@ RUN composer install \
     --no-scripts \
     --optimize-autoloader
 
-COPY . .
+COPY backend/ ./
 
 RUN composer dump-autoload --no-dev --optimize \
     && php artisan package:discover --ansi

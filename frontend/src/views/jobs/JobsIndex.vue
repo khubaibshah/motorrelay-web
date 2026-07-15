@@ -150,8 +150,7 @@ async function submitDriverSearch() {
     name: 'jobs',
     query: {
       ...(driverSearch.value.trim() ? { search: driverSearch.value.trim() } : {}),
-      ...(driverTransportFilter.value !== 'all' ? { transport_type: driverTransportFilter.value } : {}),
-      tab: 'available'
+      ...(driverTransportFilter.value !== 'all' ? { transport_type: driverTransportFilter.value } : {})
     }
   });
   await loadJobs();
@@ -161,7 +160,7 @@ async function clearDriverSearch() {
   driverSearch.value = '';
   driverTransportFilter.value = 'all';
   driverRunsTab.value = 'available';
-  await router.replace({ name: 'jobs', query: { tab: 'available' } });
+  await router.replace({ name: 'jobs' });
   await loadJobs();
 }
 
@@ -191,27 +190,19 @@ const visibleJobs = computed(() => {
 const isDriver = computed(() => auth.role === 'driver');
 const isDealer = computed(() => auth.role === 'dealer');
 const isAdmin = computed(() => auth.role === 'admin');
-const driverRunsTab = ref(route.query.tab === 'active' ? 'active' : 'available');
-const showActiveSection = computed(() => isDriver.value || isAdmin.value);
+const driverRunsTab = ref('available');
+const showActiveSection = computed(() => isAdmin.value);
 const showCompletedSection = computed(() => isDealer.value);
-const driverRunTabs = computed(() => [
-  { key: 'available', label: 'Available', count: visibleJobs.value.length },
-  { key: 'active', label: 'Active', count: activeJobs.value.length }
-]);
 const selectedDriverJobs = computed(() => {
-  if (driverRunsTab.value === 'active') return activeJobs.value;
   return visibleJobs.value;
 });
 const selectedDriverLoading = computed(() => {
-  if (driverRunsTab.value === 'active') return activeLoading.value;
   return availableLoading.value;
 });
 const selectedDriverError = computed(() => {
-  if (driverRunsTab.value === 'active') return activeErrorMessage.value;
   return errorMessage.value;
 });
 const selectedDriverEmptyMessage = computed(() => {
-  if (driverRunsTab.value === 'active') return activeEmptyMessage.value;
   return availableEmptyMessage.value;
 });
 const dealerPipelineJobs = computed(() => {
@@ -830,7 +821,7 @@ onMounted(async () => {
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run marketplace</p>
             <h2 class="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-emerald-300">Runs</h2>
             <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-emerald-100">
-              Browse open runs, manage assigned work, and review completed delivery history from one place.
+              Browse open runs and request the ones that work for you. Your active work is managed on the Driver page.
             </p>
           </div>
           <span class="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-emerald-100">
@@ -869,18 +860,11 @@ onMounted(async () => {
           </div>
         </form>
 
-        <div class="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.06]">
-          <button
-            v-for="tab in driverRunTabs"
-            :key="tab.key"
-            type="button"
-            class="rounded-xl px-3 py-2.5 text-center text-xs font-bold transition sm:text-sm"
-            :class="driverRunsTab === tab.key ? 'bg-slate-950 text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-white hover:text-slate-950 dark:text-emerald-100 dark:hover:bg-white/10 dark:hover:text-emerald-300'"
-            @click="driverRunsTab = tab.key"
-          >
-            {{ tab.label }}
-            <span class="ml-1 opacity-80">({{ tab.count }})</span>
-          </button>
+        <div class="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3 dark:bg-white/[0.06]">
+          <span class="text-sm font-black text-slate-950 dark:text-emerald-300">Available runs</span>
+          <span class="badge bg-white text-slate-700 dark:bg-white/10 dark:text-emerald-100">
+            {{ visibleJobs.length }} shown
+          </span>
         </div>
       </header>
 

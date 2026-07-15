@@ -1896,6 +1896,22 @@ watch(
           </div>
           <div class="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
             <button
+              v-if="canRequestJob"
+              type="button"
+              class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+              :disabled="jobRequestLoading"
+              @click="handleRequestJob"
+            >
+              <span v-if="jobRequestLoading">Sending request...</span>
+              <span v-else>Request this run</span>
+            </button>
+            <span
+              v-else-if="showDriverRequestPanel && myApplication"
+              class="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 sm:w-auto dark:bg-emerald-400 dark:text-slate-950 dark:ring-emerald-400"
+            >
+              {{ formatStatusLabel(myApplication.status, 'Request sent') }}
+            </span>
+            <button
               v-if="canUseDriverMode"
               type="button"
               class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
@@ -1932,7 +1948,7 @@ watch(
       </section>
 
       <section
-        v-if="showDriverRequestPanel"
+        v-if="false"
         class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm"
       >
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

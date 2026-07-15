@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Job;
 use App\Models\JobApplication;
 use App\Notifications\JobStatusNotification;
+use App\Services\AwsS3Service;
 use App\Services\Invoices\InvoiceFinalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -432,7 +433,7 @@ class JobWorkflowController extends Controller
                 $extension = $file->getClientOriginalExtension() ?: 'jpg';
                 $filename = sprintf('%s-%02d-%s.%s', now()->format('YmdHis'), $index + 1, Str::ulid(), $extension);
 
-                return $file->storeAs($directory, $filename, $proofDisk);
+                return app(AwsS3Service::class)->uploadFile($file, $directory, $filename, $proofDisk);
             })
             ->all();
     }

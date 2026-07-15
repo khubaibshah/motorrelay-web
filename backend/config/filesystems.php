@@ -3,6 +3,7 @@
 return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
+    'cdn_url' => env('AWS_CLOUDFRONT_URL'),
 
     'disks' => [
         'local' => [

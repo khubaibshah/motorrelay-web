@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Job;
+use App\Models\JobIncident;
 use App\Services\Jobs\JobIncidentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,5 +35,17 @@ class JobIncidentController extends Controller
             'data' => $incidents->report($job, $request->user(), $validated),
             'message' => 'Issue reported. The dealer has been notified.',
         ], 201);
+    }
+
+    public function recoverySent(Request $request, Job $job, JobIncident $incident, JobIncidentService $incidents): JsonResponse
+    {
+        if ((int) $incident->job_id !== (int) $job->id) {
+            abort(404);
+        }
+
+        return response()->json([
+            'data' => $incidents->markRecoverySent($job, $incident, $request->user()),
+            'message' => 'Recovery marked as sent. The driver has been notified.',
+        ]);
     }
 }

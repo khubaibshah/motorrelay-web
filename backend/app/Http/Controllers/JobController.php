@@ -276,7 +276,7 @@ class JobController extends Controller
                 ->orderByDesc('created_at')
                 ->get();
             $incidents = $job->incidents()
-                ->with(['reportedBy:id,name'])
+                ->with(['reportedBy:id,name', 'recoverySentBy:id,name'])
                 ->orderByDesc('created_at')
                 ->get();
 

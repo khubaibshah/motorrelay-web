@@ -19,6 +19,7 @@ import {
   updateJobLocation,
   markJobCollected,
   markJobDelivered,
+  markIncidentRecoverySent,
   reportJobIncident,
   applyForJob
 } from "@/services/jobs";
@@ -73,6 +74,8 @@ const jobRequestError = ref("");
 const incidentModalOpen = ref(false);
 const incidentSubmitting = ref(false);
 const incidentError = ref("");
+const recoverySendingId = ref(null);
+const recoverySendError = ref("");
 const incidentForm = reactive({
   type: "vehicle_breakdown",
   recovery_required: true,
@@ -442,6 +445,7 @@ const canReportIncident = computed(() => {
   if (!isAssignedDriver.value) return false;
   return ['accepted', 'in_progress', 'collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
 });
+const canSendRecovery = computed(() => currentRole.value === "admin" || isDealerForJob.value);
 const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
   if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
@@ -1119,6 +1123,23 @@ async function handleIncidentSubmit() {
   }
 }
 
+async function handleRecoverySent(incident) {
+  if (!job.value?.id || !incident?.id || !canSendRecovery.value) return;
+
+  recoverySendingId.value = incident.id;
+  recoverySendError.value = "";
+
+  try {
+    await markIncidentRecoverySent(job.value.id, incident.id);
+    await loadJob();
+  } catch (error) {
+    console.error("Failed to mark recovery as sent", error);
+    recoverySendError.value = error.response?.data?.message || "Unable to mark recovery as sent.";
+  } finally {
+    recoverySendingId.value = null;
+  }
+}
+
 async function handleCheckout() {
   if (!job.value?.id) return;
 
@@ -1361,6 +1382,9 @@ watch(
             {{ job.incidents.length }} logged
           </span>
         </div>
+        <p v-if="recoverySendError" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-100">
+          {{ recoverySendError }}
+        </p>
         <div class="space-y-2">
           <article
             v-for="incident in job.incidents"
@@ -1374,12 +1398,31 @@ watch(
                   Reported by {{ incident.reported_by?.name || 'driver' }} · {{ formatDateTime(incident.created_at) }}
                 </p>
               </div>
-              <span v-if="incident.recovery_required" class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">
-                Recovery requested
-              </span>
+              <div v-if="incident.recovery_required" class="flex flex-wrap items-center justify-end gap-2">
+                <span
+                  class="rounded-full px-2.5 py-1 text-xs font-bold"
+                  :class="incident.recovery_sent_at
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-300 dark:text-slate-950'
+                    : 'bg-rose-100 text-rose-700 dark:bg-rose-400/20 dark:text-rose-100'"
+                >
+                  {{ incident.recovery_sent_at ? 'Recovery sent' : 'Recovery requested' }}
+                </span>
+                <button
+                  v-if="canSendRecovery && !incident.recovery_sent_at"
+                  type="button"
+                  class="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
+                  :disabled="recoverySendingId === incident.id"
+                  @click="handleRecoverySent(incident)"
+                >
+                  {{ recoverySendingId === incident.id ? 'Sending...' : 'Recovery sent' }}
+                </button>
+              </div>
             </div>
             <p v-if="incident.description" class="mt-2 text-slate-700 dark:text-emerald-100">{{ incident.description }}</p>
             <p v-if="incident.location_label" class="mt-1 text-xs text-slate-500 dark:text-emerald-100">Location: {{ incident.location_label }}</p>
+            <p v-if="incident.recovery_sent_at" class="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-200">
+              Recovery confirmed by {{ incident.recovery_sent_by?.name || 'dealer' }} · {{ formatDateTime(incident.recovery_sent_at) }}
+            </p>
           </article>
         </div>
       </section>

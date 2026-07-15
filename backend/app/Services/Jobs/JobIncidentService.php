@@ -34,6 +34,30 @@ class JobIncidentService
         return $incident->fresh(['reportedBy:id,name']);
     }
 
+    public function markRecoverySent(Job $job, JobIncident $incident, User $dealer): JobIncident
+    {
+        $this->assertCanSendRecovery($job, $dealer);
+
+        if (! $incident->recovery_required) {
+            abort(422, 'Recovery was not requested for this issue.');
+        }
+
+        if ($incident->recovery_sent_at) {
+            return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name']);
+        }
+
+        $incident->forceFill([
+            'status' => 'recovery_sent',
+            'recovery_sent_by_id' => $dealer->id,
+            'recovery_sent_at' => now(),
+        ])->save();
+
+        $this->createRecoverySentMessage($job, $dealer, $incident);
+        $this->notifyDriverRecoverySent($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $dealer, $incident);
+
+        return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name']);
+    }
+
     private function assertCanReport(Job $job, User $reporter): void
     {
         if ($reporter->isAdmin()) {
@@ -47,6 +71,17 @@ class JobIncidentService
         $activeStatuses = ['accepted', 'in_progress', 'collected', 'in_transit'];
         if (! in_array(strtolower((string) $job->status), $activeStatuses, true)) {
             abort(422, 'Issues can only be reported while the run is active.');
+        }
+    }
+
+    private function assertCanSendRecovery(Job $job, User $dealer): void
+    {
+        if ($dealer->isAdmin()) {
+            return;
+        }
+
+        if ((int) $job->posted_by_id !== (int) $dealer->id) {
+            abort(403, 'Only the dealer can mark recovery as sent for this run.');
         }
     }
 
@@ -66,6 +101,23 @@ class JobIncidentService
         ]);
 
         $this->createReceipts($thread, $message, $reporter->id);
+        $thread->touch();
+    }
+
+    private function createRecoverySentMessage(Job $job, User $dealer, JobIncident $incident): void
+    {
+        $thread = $this->resolveThread($job, $dealer);
+
+        $message = $thread->messages()->create([
+            'user_id' => $dealer->id,
+            'body' => 'Recovery sent by dealer. Please wait somewhere safe and keep the dealer updated if your location changes.',
+            'meta' => [
+                'type' => 'job_recovery_sent',
+                'incident_id' => $incident->id,
+            ],
+        ]);
+
+        $this->createReceipts($thread, $message, $dealer->id);
         $thread->touch();
     }
 
@@ -128,6 +180,21 @@ class JobIncidentService
             'reported_by' => [
                 'id' => $reporter->id,
                 'name' => $reporter->name,
+            ],
+        ]));
+    }
+
+    private function notifyDriverRecoverySent(Job $job, User $dealer, JobIncident $incident): void
+    {
+        if (! $job->assignedTo) {
+            return;
+        }
+
+        Notification::send($job->assignedTo, new JobStatusNotification($job, 'job_recovery_sent', [
+            'incident_id' => $incident->id,
+            'sent_by' => [
+                'id' => $dealer->id,
+                'name' => $dealer->name,
             ],
         ]));
     }

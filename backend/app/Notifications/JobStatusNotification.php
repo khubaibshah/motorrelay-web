@@ -153,6 +153,12 @@ class JobStatusNotification extends Notification
                 'action_label' => 'Review issue',
                 'url' => $route,
             ],
+            'job_recovery_sent' => [
+                'title' => 'Recovery sent',
+                'body' => sprintf('The dealer has sent recovery for %s.', $jobLabel),
+                'action_label' => 'Open job',
+                'url' => $route,
+            ],
             default => [
                 'title' => 'Job update',
                 'body' => sprintf('There was an update on %s.', $jobLabel),

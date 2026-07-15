@@ -13,9 +13,11 @@ class JobIncident extends Model
     protected $fillable = [
         'job_id',
         'reported_by_id',
+        'recovery_sent_by_id',
         'type',
         'status',
         'recovery_required',
+        'recovery_sent_at',
         'vehicle_safe',
         'blocking_road',
         'location_label',
@@ -31,6 +33,7 @@ class JobIncident extends Model
         'blocking_road' => 'boolean',
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
+        'recovery_sent_at' => 'datetime',
         'resolved_at' => 'datetime',
     ];
 
@@ -42,5 +45,10 @@ class JobIncident extends Model
     public function reportedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reported_by_id');
+    }
+
+    public function recoverySentBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recovery_sent_by_id');
     }
 }

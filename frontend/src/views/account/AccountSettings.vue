@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { submitAccountChangeRequest, fetchAccountChangeRequests } from '@/services/account';
 import { useAuthStore } from '@/stores/auth';
 import BackButton from '@/components/BackButton.vue';
+import { formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 
@@ -445,7 +446,7 @@ watch(
                     'text-rose-600': request.status === 'rejected'
                   }"
                 >
-                  {{ request.status }}
+                  {{ formatStatusLabel(request.status) }}
                 </span>
               </p>
             </div>

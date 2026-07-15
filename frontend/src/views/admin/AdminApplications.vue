@@ -1,5 +1,6 @@
 <script setup>
 import { computed, inject, ref } from 'vue';
+import { formatStatusLabel } from '@/utils/statusLabels';
 
 const dashboard = inject('adminDashboard');
 const applications = computed(() => dashboard?.value?.applications || {});
@@ -76,7 +77,7 @@ function formatDate(value) {
               <td class="px-4 py-3 text-slate-600">{{ row.job_title || 'Run' }}</td>
               <td class="px-4 py-3">
                 <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold uppercase text-emerald-700">
-                  {{ row.status }}
+                  {{ formatStatusLabel(row.status) }}
                 </span>
               </td>
               <td class="px-4 py-3 text-sm text-slate-500">

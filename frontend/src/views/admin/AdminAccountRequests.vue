@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import { fetchAdminAccountRequests, decideAdminAccountRequest } from '@/services/account';
+import { formatStatusLabel } from '@/utils/statusLabels';
 
 const statusFilter = ref('pending');
 const requests = ref([]);
@@ -119,7 +120,7 @@ watch(statusFilter, loadRequests);
                 'bg-rose-100 text-rose-700': request.status === 'rejected'
               }"
             >
-              {{ request.status }}
+              {{ formatStatusLabel(request.status) }}
             </span>
           </header>
 

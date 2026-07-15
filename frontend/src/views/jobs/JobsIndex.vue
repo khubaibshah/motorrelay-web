@@ -3,6 +3,7 @@ import { computed, onMounted, ref, reactive } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { fetchJobs, applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
 import { useAuthStore } from '@/stores/auth';
+import { formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -402,8 +403,7 @@ function dealerMovingTo(job) {
 }
 
 function paymentLabel(job) {
-  const status = String(job?.payment_status || 'unpaid').replace(/_/g, ' ');
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  return formatStatusLabel(job?.payment_status, 'Unpaid');
 }
 
 function statusClass(job) {
@@ -708,7 +708,7 @@ onMounted(async () => {
                   {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
                 </p>
               </div>
-              <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
+              <span class="badge bg-emerald-100 text-emerald-700">{{ formatStatusLabel(job.status) }}</span>
             </div>
 
             <div class="mt-3 flex items-center justify-between gap-3">
@@ -756,7 +756,7 @@ onMounted(async () => {
                   <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
                 </td>
                 <td class="px-4 py-4 align-top">
-                  <span class="badge bg-emerald-100 text-emerald-700">{{ job.status || 'Open' }}</span>
+                  <span class="badge bg-emerald-100 text-emerald-700">{{ formatStatusLabel(job.status) }}</span>
                 </td>
                 <td class="px-4 py-4 align-top">
                   <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">{{ paymentLabel(job) }}</span>
@@ -905,7 +905,7 @@ onMounted(async () => {
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <button type="button" class="min-w-0 flex-1 text-left" @click="openJob(job)">
               <div class="mb-3 flex flex-wrap gap-2">
-                <span class="badge" :class="statusClass(job)">{{ job.status || 'open' }}</span>
+                <span class="badge" :class="statusClass(job)">{{ formatStatusLabel(job.status) }}</span>
                 <span v-if="driverRunsTab !== 'available'" class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
                 <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">{{ formatTransportType(job.transport_type) }}</span>
               </div>
@@ -1025,7 +1025,7 @@ onMounted(async () => {
         >
           <div v-if="isDealer" class="space-y-4">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="badge" :class="statusClass(job)">{{ job.status }}</span>
+              <span class="badge" :class="statusClass(job)">{{ formatStatusLabel(job.status) }}</span>
               <span class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
             </div>
 
@@ -1071,7 +1071,7 @@ onMounted(async () => {
           <div v-else class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div class="min-w-0 flex-1">
               <div class="mb-3 flex flex-wrap gap-2">
-                <span class="badge" :class="statusClass(job)">{{ job.status }}</span>
+                <span class="badge" :class="statusClass(job)">{{ formatStatusLabel(job.status) }}</span>
                 <span class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
                 <span class="badge bg-slate-100 text-slate-700">{{ formatTransportType(job.transport_type) }}</span>
               </div>
@@ -1098,7 +1098,7 @@ onMounted(async () => {
                 </div>
                 <div class="rounded-2xl bg-slate-50 p-3">
                   <p class="text-xs font-black uppercase tracking-wide text-slate-500">Next action</p>
-                  <p class="mt-1 font-semibold text-emerald-700">{{ job.status }}</p>
+                  <p class="mt-1 font-semibold text-emerald-700">{{ formatStatusLabel(job.status) }}</p>
                 </div>
               </div>
             </div>
@@ -1108,7 +1108,7 @@ onMounted(async () => {
               <div class="mt-1 text-3xl font-black">
                 {{ priceFormatter.format(visibleAmountForJob(job)) }}
               </div>
-              <span class="badge mt-3 bg-emerald-100 text-emerald-700">{{ job.status }}</span>
+              <span class="badge mt-3 bg-emerald-100 text-emerald-700">{{ formatStatusLabel(job.status) }}</span>
             </div>
           </div>
 
@@ -1195,7 +1195,7 @@ onMounted(async () => {
               <span class="text-lg font-black text-slate-950">
                 {{ priceFormatter.format(driverPayoutForJob(job)) }}
               </span>
-              <span class="badge bg-slate-900 text-white">{{ job.status }}</span>
+              <span class="badge bg-slate-900 text-white">{{ formatStatusLabel(job.status) }}</span>
             </div>
           </div>
         </RouterLink>
@@ -1245,7 +1245,7 @@ onMounted(async () => {
             <span
               class="badge bg-slate-100 text-slate-800"
             >
-              {{ job.status }}
+              {{ formatStatusLabel(job.status) }}
             </span>
           </div>
 

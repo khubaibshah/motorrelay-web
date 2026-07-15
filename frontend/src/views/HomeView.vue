@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { fetchJobHighlights, fetchJobs } from '@/services/jobs';
+import { formatSentenceStatus, formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -185,8 +186,7 @@ function formatDate(value) {
 }
 
 function paymentLabel(job) {
-  const status = String(job?.payment_status || 'unpaid').replace(/_/g, ' ');
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  return formatStatusLabel(job?.payment_status, 'Unpaid');
 }
 
 const openJobsEmptyText = computed(() => {
@@ -333,7 +333,7 @@ const openJobsEmptyText = computed(() => {
                 <span class="text-slate-500">to</span>
                 {{ job.dropoff_label || job.dropoff_postcode || 'Drop-off' }}
               </p>
-              <p class="mt-1 text-xs text-slate-400">{{ job.status || 'open' }}</p>
+              <p class="mt-1 text-xs text-slate-400">{{ formatSentenceStatus(job.status) }}</p>
             </div>
             <span class="w-fit rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950 dark:text-slate-950">
               {{ priceFormatter.format(Number(job.price || 0)) }}

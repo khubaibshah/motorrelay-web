@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { fetchDriverOverview } from '@/services/jobs';
 import { useAuthStore } from '@/stores/auth';
+import { formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 
@@ -82,7 +83,7 @@ const selectedTabEmptyText = computed(() => {
 });
 
 function jobStatusLabel(status) {
-  return (status || 'in progress').toString().replace(/_/g, ' ');
+  return formatStatusLabel(status, 'In Progress');
 }
 
 function currentJobAction(job) {
@@ -225,7 +226,7 @@ onMounted(async () => {
                 <div class="text-lg font-bold text-emerald-600 dark:text-emerald-300">
                   {{ formatDriverPayout(application.job) }}
                 </div>
-                <span class="badge bg-amber-100 text-amber-700">{{ application.status }}</span>
+                <span class="badge bg-amber-100 text-amber-700">{{ formatStatusLabel(application.status, 'Pending') }}</span>
               </div>
             </div>
             <p v-if="application.message" class="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/10 dark:text-emerald-100">

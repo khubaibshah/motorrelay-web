@@ -26,6 +26,7 @@ import {
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { useAuthStore } from "@/stores/auth";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
+import { formatStatusLabel } from "@/utils/statusLabels";
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -129,12 +130,6 @@ function formatDateTime(value) {
   } catch {
     return value;
   }
-}
-
-function formatStatusLabel(value) {
-  return String(value || "open")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function getCurrentPosition(options = {}) {
@@ -1346,7 +1341,7 @@ watch(
                 class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ring-1"
                 :class="applicationBadgeClass(myApplication.status)"
               >
-                {{ myApplication.status }}
+                {{ formatStatusLabel(myApplication.status, 'Pending') }}
               </span>
             </div>
             <p class="mt-1 text-sm text-emerald-900">{{ requestPanelText }}</p>
@@ -1622,7 +1617,7 @@ watch(
                   'bg-slate-200 text-slate-700': application.status === 'declined'
                 }"
               >
-                {{ application.status }}
+                {{ formatStatusLabel(application.status, 'Pending') }}
               </span>
             </div>
 
@@ -2112,7 +2107,7 @@ watch(
                   'bg-rose-100 text-rose-700': expense.status === 'rejected'
                 }"
               >
-                {{ expense.status }}
+                {{ formatStatusLabel(expense.status, 'Submitted') }}
               </span>
             </div>
 
@@ -2373,7 +2368,7 @@ watch(
                   'bg-slate-200 text-slate-700': application.status === 'declined'
                 }"
               >
-                {{ application.status }}
+                {{ formatStatusLabel(application.status, 'Pending') }}
               </span>
             </div>
 

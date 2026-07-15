@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { startDriverPayoutOnboarding } from '@/services/payments';
+import { formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 const payoutSetupLoading = ref(false);
@@ -281,7 +282,7 @@ async function handlePayoutSetup() {
                   </p>
                 </div>
                 <span class="badge bg-slate-200 text-slate-800">
-                  {{ job.status }}
+                  {{ formatStatusLabel(job.status) }}
                 </span>
               </div>
               <p class="mt-2 text-sm text-slate-700">

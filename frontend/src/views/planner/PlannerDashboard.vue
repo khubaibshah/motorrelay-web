@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { formatStatusLabel } from '@/utils/statusLabels';
 
 const weeks = ref([
   {
@@ -60,7 +61,7 @@ const weeks = ref([
                 </p>
               </div>
               <span class="badge bg-slate-100 text-slate-700">
-                {{ run.status }}
+                {{ formatStatusLabel(run.status) }}
               </span>
             </RouterLink>
             <div
@@ -74,7 +75,7 @@ const weeks = ref([
                 </p>
               </div>
               <span class="badge bg-slate-100 text-slate-700">
-                {{ run.status }}
+                {{ formatStatusLabel(run.status) }}
               </span>
             </div>
           </li>

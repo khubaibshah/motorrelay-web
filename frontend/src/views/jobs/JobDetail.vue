@@ -67,7 +67,7 @@ const receiptDownloadingId = ref(null);
 
 const completionForm = reactive({
   notes: "",
-  proof: null
+  proof: []
 });
 const completionFormKey = ref(0);
 const completionError = ref("");
@@ -77,6 +77,8 @@ const proofDownloading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
 const driverModeOpen = ref(false);
+const driverModeInspectionInput = ref(null);
+const driverModeUploadedPhotos = ref([]);
 const driverChatOpen = ref(false);
 const driverChatLoading = ref(false);
 const driverChatSending = ref(false);
@@ -384,7 +386,7 @@ function resetExpenseForm() {
 
 function resetCompletionForm() {
   completionForm.notes = "";
-  completionForm.proof = null;
+  completionForm.proof = [];
   completionError.value = "";
   completionFormKey.value += 1;
 }
@@ -557,6 +559,14 @@ const driverModeNavigationLinks = computed(() => {
 });
 
 const driverModePrimaryAction = computed(() => {
+  if (canUploadInspection.value) {
+    return {
+      label: completionSubmitting.value ? "Uploading photos..." : "Upload pre-inspection photos",
+      disabled: completionSubmitting.value,
+      handler: openDriverModeInspectionPicker
+    };
+  }
+
   if (canMarkCollected.value) {
     return {
       label: driverActionLoading.value === "collected" ? "Updating..." : "Mark collected",
@@ -1203,13 +1213,36 @@ function deliveryProofDownloadName() {
 }
 
 function onCompletionProofChange(event) {
-  const [file] = event.target?.files ?? [];
-  completionForm.proof = file ?? null;
+  completionForm.proof = Array.from(event.target?.files ?? []);
+}
+
+function openDriverModeInspectionPicker() {
+  completionError.value = "";
+  driverModeInspectionInput.value?.click();
+}
+
+async function onDriverModeInspectionChange(event) {
+  const files = Array.from(event.target?.files ?? []);
+  completionForm.proof = files;
+
+  driverModeUploadedPhotos.value.forEach((photo) => {
+    if (photo.previewUrl) {
+      URL.revokeObjectURL(photo.previewUrl);
+    }
+  });
+  driverModeUploadedPhotos.value = files.map((file) => ({
+    name: file.name,
+    previewUrl: file.type?.startsWith("image/") ? URL.createObjectURL(file) : "",
+  }));
+
+  if (!files.length) return;
+
+  await handleCompletionSubmit();
 }
 
 async function handleCompletionSubmit() {
   if (!job.value) return;
-  if (canUploadInspection.value && !completionForm.proof) {
+  if (canUploadInspection.value && !completionForm.proof.length) {
     completionError.value = "Please upload inspection photos before collection.";
     return;
   }
@@ -1220,7 +1253,7 @@ async function handleCompletionSubmit() {
     if (canUploadInspection.value) {
       await uploadJobInspection(job.value.id, {
         notes: completionForm.notes,
-        proof: completionForm.proof
+        proofs: completionForm.proof
       });
     } else {
       await submitJobCompletion(job.value.id, {
@@ -2628,7 +2661,8 @@ watch(
             <input
               :key="completionFormKey"
               type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
+              accept="image/*,.pdf"
+              capture="environment"
               class="mt-1 w-full text-sm text-slate-600"
               multiple
               required
@@ -2819,11 +2853,41 @@ watch(
             >
               {{ driverModePrimaryAction.label }}
             </button>
+            <input
+              ref="driverModeInspectionInput"
+              type="file"
+              accept="image/*,.pdf"
+              capture="environment"
+              multiple
+              class="hidden"
+              @change="onDriverModeInspectionChange"
+            >
             <div
-              v-else-if="trackingState.shared"
+              v-if="!driverModePrimaryAction && trackingState.shared"
               class="mt-5 rounded-3xl bg-slate-800 px-5 py-4 text-center text-lg font-black text-slate-300"
             >
               Live location shared
+            </div>
+            <p v-if="completionError" class="mt-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm font-bold text-amber-100">
+              {{ completionError }}
+            </p>
+            <div v-if="driverModeUploadedPhotos.length" class="mt-4 grid grid-cols-2 gap-3">
+              <div
+                v-for="photo in driverModeUploadedPhotos"
+                :key="photo.name"
+                class="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]"
+              >
+                <img
+                  v-if="photo.previewUrl"
+                  :src="photo.previewUrl"
+                  :alt="photo.name"
+                  class="h-28 w-full object-cover"
+                >
+                <div v-else class="flex h-28 items-center justify-center px-3 text-center text-xs font-bold text-emerald-100">
+                  {{ photo.name }}
+                </div>
+                <p class="truncate px-3 py-2 text-xs font-bold text-emerald-100">{{ photo.name }}</p>
+              </div>
             </div>
           </section>
 

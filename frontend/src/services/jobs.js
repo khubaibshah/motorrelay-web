@@ -61,6 +61,10 @@ function toFormData(payload = {}) {
     if (value === undefined || value === null) {
       return;
     }
+    if (Array.isArray(value)) {
+      value.forEach((item) => formData.append(`${key}[]`, item));
+      return;
+    }
     formData.append(key, value);
   });
   return formData;

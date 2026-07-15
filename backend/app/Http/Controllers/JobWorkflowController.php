@@ -117,16 +117,21 @@ class JobWorkflowController extends Controller
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:2000'],
-            'proof' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
+            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
+            'proofs' => ['nullable', 'array', 'min:1'],
+            'proofs.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
         ]);
 
-        $path = $this->storeProofFile($request, $job);
+        $paths = $this->storeProofFiles($request, $job);
+        if (empty($paths)) {
+            abort(422, 'Upload inspection photos before collection.');
+        }
 
         $job->update([
             'completion_notes' => $validated['notes'] ?? $job->completion_notes,
             'completion_status' => $job->completion_status === 'rejected' ? 'not_submitted' : $job->completion_status,
             'completion_rejected_at' => null,
-            'delivery_proof_path' => $path,
+            'delivery_proof_path' => $paths[0],
             'delivery_proof_disk' => config('invoices.proof_disk'),
         ]);
 
@@ -401,18 +406,43 @@ class JobWorkflowController extends Controller
 
     protected function storeProofFile(Request $request, Job $job): string
     {
+        $paths = $this->storeProofFiles($request, $job);
+
+        return $paths[0];
+    }
+
+    protected function storeProofFiles(Request $request, Job $job): array
+    {
         $proofDisk = config('invoices.proof_disk');
-        $file = $request->file('proof');
-        $directory = sprintf('jobs/%d/inspection', $job->id);
-        $extension = $file->getClientOriginalExtension() ?: 'pdf';
-        $filename = sprintf('%s-%s.%s', now()->format('YmdHis'), Str::ulid(), $extension);
-        $path = $file->storeAs($directory, $filename, $proofDisk);
+        $files = collect($request->file('proofs', []));
+
+        if ($request->hasFile('proof')) {
+            $files->prepend($request->file('proof'));
+        }
 
         if ($job->delivery_proof_path) {
             $this->deleteProof($job);
         }
 
-        return $path;
+        return $files
+            ->filter()
+            ->values()
+            ->map(function ($file, int $index) use ($job, $proofDisk) {
+                $directory = $this->inspectionDirectory($job);
+                $extension = $file->getClientOriginalExtension() ?: 'jpg';
+                $filename = sprintf('%s-%02d-%s.%s', now()->format('YmdHis'), $index + 1, Str::ulid(), $extension);
+
+                return $file->storeAs($directory, $filename, $proofDisk);
+            })
+            ->all();
+    }
+
+    protected function inspectionDirectory(Job $job): string
+    {
+        $reference = Str::lower((string) ($job->title ?: sprintf('job-%d', $job->id)));
+        $reference = preg_replace('/[^a-z0-9]+/', '', $reference) ?: sprintf('job%d', $job->id);
+
+        return sprintf('%s/inspection', $reference);
     }
 
     protected function notifyDealer(Job $job, string $event, ?array $meta = null): void

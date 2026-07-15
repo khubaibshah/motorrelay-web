@@ -48,4 +48,16 @@ class JobIncidentController extends Controller
             'message' => 'Recovery marked as sent. The driver has been notified.',
         ]);
     }
+
+    public function recoveryCompleted(Request $request, Job $job, JobIncident $incident, JobIncidentService $incidents): JsonResponse
+    {
+        if ((int) $incident->job_id !== (int) $job->id) {
+            abort(404);
+        }
+
+        return response()->json([
+            'data' => $incidents->markRecoveryCompleted($job, $incident, $request->user()),
+            'message' => 'Recovery marked as completed. The dealer has been notified.',
+        ]);
+    }
 }

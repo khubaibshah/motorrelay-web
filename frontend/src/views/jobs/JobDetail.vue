@@ -20,6 +20,7 @@ import {
   markJobCollected,
   markJobDelivered,
   markIncidentRecoverySent,
+  markIncidentRecoveryCompleted,
   reportJobIncident,
   applyForJob
 } from "@/services/jobs";
@@ -77,6 +78,13 @@ const incidentSubmitting = ref(false);
 const incidentError = ref("");
 const recoverySendingId = ref(null);
 const recoverySendError = ref("");
+const recoveryCompletingId = ref(null);
+const recoveryCompleteError = ref("");
+const recoveryConfirmation = reactive({
+  open: false,
+  mode: "",
+  incident: null
+});
 const incidentForm = reactive({
   type: "vehicle_breakdown",
   recovery_required: true,
@@ -447,6 +455,7 @@ const canReportIncident = computed(() => {
   return ['accepted', 'in_progress', 'collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
 });
 const canSendRecovery = computed(() => currentRole.value === "admin" || isDealerForJob.value);
+const canConfirmRecoveryCompleted = computed(() => currentRole.value === "admin" || isAssignedDriver.value);
 const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
   if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
@@ -1124,6 +1133,33 @@ async function handleIncidentSubmit() {
   }
 }
 
+function openRecoveryConfirmation(mode, incident) {
+  recoverySendError.value = "";
+  recoveryCompleteError.value = "";
+  recoveryConfirmation.mode = mode;
+  recoveryConfirmation.incident = incident;
+  recoveryConfirmation.open = true;
+}
+
+function closeRecoveryConfirmation() {
+  if (recoverySendingId.value || recoveryCompletingId.value) return;
+  recoveryConfirmation.open = false;
+  recoveryConfirmation.mode = "";
+  recoveryConfirmation.incident = null;
+}
+
+async function confirmRecoveryAction() {
+  const incident = recoveryConfirmation.incident;
+  if (recoveryConfirmation.mode === "send") {
+    await handleRecoverySent(incident);
+    return;
+  }
+
+  if (recoveryConfirmation.mode === "complete") {
+    await handleRecoveryCompleted(incident);
+  }
+}
+
 async function handleRecoverySent(incident) {
   if (!job.value?.id || !incident?.id || !canSendRecovery.value) return;
 
@@ -1132,12 +1168,35 @@ async function handleRecoverySent(incident) {
 
   try {
     await markIncidentRecoverySent(job.value.id, incident.id);
+    recoveryConfirmation.open = false;
+    recoveryConfirmation.mode = "";
+    recoveryConfirmation.incident = null;
     await loadJob();
   } catch (error) {
     console.error("Failed to mark recovery as sent", error);
     recoverySendError.value = error.response?.data?.message || "Unable to mark recovery as sent.";
   } finally {
     recoverySendingId.value = null;
+  }
+}
+
+async function handleRecoveryCompleted(incident) {
+  if (!job.value?.id || !incident?.id || !canConfirmRecoveryCompleted.value) return;
+
+  recoveryCompletingId.value = incident.id;
+  recoveryCompleteError.value = "";
+
+  try {
+    await markIncidentRecoveryCompleted(job.value.id, incident.id);
+    recoveryConfirmation.open = false;
+    recoveryConfirmation.mode = "";
+    recoveryConfirmation.incident = null;
+    await loadJob();
+  } catch (error) {
+    console.error("Failed to confirm recovery happened", error);
+    recoveryCompleteError.value = error.response?.data?.message || "Unable to confirm recovery happened.";
+  } finally {
+    recoveryCompletingId.value = null;
   }
 }
 
@@ -1386,6 +1445,9 @@ watch(
         <p v-if="recoverySendError" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-100">
           {{ recoverySendError }}
         </p>
+        <p v-if="recoveryCompleteError" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-100">
+          {{ recoveryCompleteError }}
+        </p>
         <div class="space-y-2">
           <article
             v-for="incident in job.incidents"
@@ -1402,20 +1464,31 @@ watch(
               <div v-if="incident.recovery_required" class="flex flex-wrap items-center justify-end gap-2">
                 <span
                   class="rounded-full px-2.5 py-1 text-xs font-bold"
-                  :class="incident.recovery_sent_at
+                  :class="incident.recovery_completed_at
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
+                    : incident.recovery_sent_at
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-300 dark:text-slate-950'
                     : 'bg-rose-100 text-rose-700 dark:bg-rose-400/20 dark:text-rose-100'"
                 >
-                  {{ incident.recovery_sent_at ? 'Recovery sent' : 'Recovery requested' }}
+                  {{ incident.recovery_completed_at ? 'Recovery happened' : incident.recovery_sent_at ? 'Recovery sent' : 'Recovery requested' }}
                 </span>
                 <button
                   v-if="canSendRecovery && !incident.recovery_sent_at"
                   type="button"
                   class="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
                   :disabled="recoverySendingId === incident.id"
-                  @click="handleRecoverySent(incident)"
+                  @click="openRecoveryConfirmation('send', incident)"
                 >
                   {{ recoverySendingId === incident.id ? 'Sending...' : 'Send recovery' }}
+                </button>
+                <button
+                  v-if="canConfirmRecoveryCompleted && incident.recovery_sent_at && !incident.recovery_completed_at"
+                  type="button"
+                  class="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
+                  :disabled="recoveryCompletingId === incident.id"
+                  @click="openRecoveryConfirmation('complete', incident)"
+                >
+                  {{ recoveryCompletingId === incident.id ? 'Confirming...' : 'Recovery happened' }}
                 </button>
               </div>
             </div>
@@ -1423,6 +1496,9 @@ watch(
             <p v-if="incident.location_label" class="mt-1 text-xs text-slate-500 dark:text-emerald-100">Location: {{ incident.location_label }}</p>
             <p v-if="incident.recovery_sent_at" class="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-200">
               Recovery confirmed by {{ incident.recovery_sent_by?.name || 'dealer' }} · {{ formatDateTime(incident.recovery_sent_at) }}
+            </p>
+            <p v-if="incident.recovery_completed_at" class="mt-1 text-xs font-bold text-slate-700 dark:text-emerald-100">
+              Recovery happened confirmed by {{ incident.recovery_completed_by?.name || 'driver' }} · {{ formatDateTime(incident.recovery_completed_at) }}
             </p>
           </article>
         </div>
@@ -2477,6 +2553,61 @@ watch(
             </button>
           </div>
         </form>
+      </div>
+    </transition>
+
+    <transition name="fade">
+      <div
+        v-if="recoveryConfirmation.open"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4"
+        @click.self="closeRecoveryConfirmation"
+      >
+        <div class="w-full max-w-md space-y-4 rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950">
+          <header>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+              {{ recoveryConfirmation.mode === 'send' ? 'Send recovery' : 'Confirm recovery' }}
+            </p>
+            <h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">
+              {{ recoveryConfirmation.mode === 'send' ? 'Confirm recovery is being sent?' : 'Has recovery happened?' }}
+            </h3>
+            <p class="mt-2 text-sm text-slate-600 dark:text-emerald-100">
+              <template v-if="recoveryConfirmation.mode === 'send'">
+                This will tell the driver that recovery has been sent and add the update to the job chat.
+              </template>
+              <template v-else>
+                This will tell the dealer recovery has happened and mark the reported issue as handled.
+              </template>
+            </p>
+          </header>
+
+          <div v-if="recoveryConfirmation.incident" class="rounded-2xl bg-slate-50 p-3 text-sm dark:bg-white/[0.06]">
+            <p class="font-black capitalize text-slate-950 dark:text-white">
+              {{ String(recoveryConfirmation.incident.type || '').replaceAll('_', ' ') }}
+            </p>
+            <p v-if="recoveryConfirmation.incident.description" class="mt-1 text-slate-600 dark:text-emerald-100">
+              {{ recoveryConfirmation.incident.description }}
+            </p>
+          </div>
+
+          <div class="flex flex-wrap justify-end gap-2">
+            <button type="button" class="btn-secondary px-4 py-2 text-sm" @click="closeRecoveryConfirmation">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary px-4 py-2 text-sm"
+              :disabled="Boolean(recoverySendingId || recoveryCompletingId)"
+              @click="confirmRecoveryAction"
+            >
+              <template v-if="recoveryConfirmation.mode === 'send'">
+                {{ recoverySendingId ? 'Sending...' : 'Send recovery' }}
+              </template>
+              <template v-else>
+                {{ recoveryCompletingId ? 'Confirming...' : 'Yes, recovery happened' }}
+              </template>
+            </button>
+          </div>
+        </div>
       </div>
     </transition>
 

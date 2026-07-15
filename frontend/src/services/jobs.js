@@ -30,6 +30,11 @@ export async function markIncidentRecoverySent(jobId, incidentId) {
   return data;
 }
 
+export async function markIncidentRecoveryCompleted(jobId, incidentId) {
+  const { data } = await api.post(`/jobs/${jobId}/incidents/${incidentId}/recovery-completed`);
+  return data;
+}
+
 export async function applyForJob(jobId, payload = {}) {
   const { data } = await api.post(`/jobs/${jobId}/applications`, payload);
   return data;

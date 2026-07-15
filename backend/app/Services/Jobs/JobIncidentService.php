@@ -43,7 +43,7 @@ class JobIncidentService
         }
 
         if ($incident->recovery_sent_at) {
-            return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name']);
+            return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name', 'recoveryCompletedBy:id,name']);
         }
 
         $incident->forceFill([
@@ -55,7 +55,32 @@ class JobIncidentService
         $this->createRecoverySentMessage($job, $dealer, $incident);
         $this->notifyDriverRecoverySent($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $dealer, $incident);
 
-        return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name']);
+        return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name', 'recoveryCompletedBy:id,name']);
+    }
+
+    public function markRecoveryCompleted(Job $job, JobIncident $incident, User $driver): JobIncident
+    {
+        $this->assertCanCompleteRecovery($job, $driver);
+
+        if (! $incident->recovery_sent_at) {
+            abort(422, 'Recovery must be sent before the driver can confirm it happened.');
+        }
+
+        if ($incident->recovery_completed_at) {
+            return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name', 'recoveryCompletedBy:id,name']);
+        }
+
+        $incident->forceFill([
+            'status' => 'recovery_completed',
+            'recovery_completed_by_id' => $driver->id,
+            'recovery_completed_at' => now(),
+            'resolved_at' => now(),
+        ])->save();
+
+        $this->createRecoveryCompletedMessage($job, $driver, $incident);
+        $this->notifyDealerRecoveryCompleted($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $driver, $incident);
+
+        return $incident->fresh(['reportedBy:id,name', 'recoverySentBy:id,name', 'recoveryCompletedBy:id,name']);
     }
 
     private function assertCanReport(Job $job, User $reporter): void
@@ -82,6 +107,17 @@ class JobIncidentService
 
         if ((int) $job->posted_by_id !== (int) $dealer->id) {
             abort(403, 'Only the dealer can mark recovery as sent for this run.');
+        }
+    }
+
+    private function assertCanCompleteRecovery(Job $job, User $driver): void
+    {
+        if ($driver->isAdmin()) {
+            return;
+        }
+
+        if ((int) $job->assigned_to_id !== (int) $driver->id) {
+            abort(403, 'Only the assigned driver can confirm recovery happened.');
         }
     }
 
@@ -118,6 +154,23 @@ class JobIncidentService
         ]);
 
         $this->createReceipts($thread, $message, $dealer->id);
+        $thread->touch();
+    }
+
+    private function createRecoveryCompletedMessage(Job $job, User $driver, JobIncident $incident): void
+    {
+        $thread = $this->resolveThread($job, $driver);
+
+        $message = $thread->messages()->create([
+            'user_id' => $driver->id,
+            'body' => 'Recovery completed. The driver has confirmed the recovery has happened.',
+            'meta' => [
+                'type' => 'job_recovery_completed',
+                'incident_id' => $incident->id,
+            ],
+        ]);
+
+        $this->createReceipts($thread, $message, $driver->id);
         $thread->touch();
     }
 
@@ -195,6 +248,21 @@ class JobIncidentService
             'sent_by' => [
                 'id' => $dealer->id,
                 'name' => $dealer->name,
+            ],
+        ]));
+    }
+
+    private function notifyDealerRecoveryCompleted(Job $job, User $driver, JobIncident $incident): void
+    {
+        if (! $job->postedBy) {
+            return;
+        }
+
+        Notification::send($job->postedBy, new JobStatusNotification($job, 'job_recovery_completed', [
+            'incident_id' => $incident->id,
+            'confirmed_by' => [
+                'id' => $driver->id,
+                'name' => $driver->name,
             ],
         ]));
     }

@@ -159,6 +159,12 @@ class JobStatusNotification extends Notification
                 'action_label' => 'Open job',
                 'url' => $route,
             ],
+            'job_recovery_completed' => [
+                'title' => 'Recovery completed',
+                'body' => sprintf('The driver confirmed recovery has happened for %s.', $jobLabel),
+                'action_label' => 'Open job',
+                'url' => $route,
+            ],
             default => [
                 'title' => 'Job update',
                 'body' => sprintf('There was an update on %s.', $jobLabel),

@@ -59,7 +59,9 @@ const completedJobs = computed(() => {
 });
 
 const openStatuses = ['open', 'pending'];
-const activeStatuses = ['accepted', 'in_progress', 'collected', 'in_transit', 'completion_pending', 'delivered'];
+const activeStatuses = ['accepted', 'in_progress', 'collected', 'in_transit', 'completion_pending'];
+const deliveredStatuses = ['delivered'];
+const completedStatuses = ['completed', 'closed'];
 const sortByRecentActivity = (items) =>
   [...items].sort((a, b) => {
     const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
@@ -73,7 +75,12 @@ const dealerOpenJobs = computed(() =>
 const dealerActiveJobs = computed(() =>
   sortByRecentActivity(postedJobs.value.filter((job) => activeStatuses.includes(String(job?.status || '').toLowerCase())))
 );
-const dealerCompletedJobs = computed(() => sortByRecentActivity(completedJobs.value));
+const dealerDeliveredJobs = computed(() =>
+  sortByRecentActivity(postedJobs.value.filter((job) => deliveredStatuses.includes(String(job?.status || '').toLowerCase())))
+);
+const dealerCompletedJobs = computed(() =>
+  sortByRecentActivity(completedJobs.value.filter((job) => completedStatuses.includes(String(job?.status || '').toLowerCase())))
+);
 const driverUpcomingRuns = computed(() => sortByRecentActivity(driverActiveJobs.value).slice(0, 3));
 const driverCurrentJob = computed(() => driverUpcomingRuns.value[0] || null);
 const hasDriverCurrentJob = computed(() => Boolean(driverCurrentJob.value));
@@ -139,6 +146,7 @@ const liveBoardMode = ref('open');
 const liveBoardJobs = computed(() => {
   if (auth.role === 'dealer') {
     if (liveBoardMode.value === 'active') return dealerActiveJobs.value;
+    if (liveBoardMode.value === 'delivered') return dealerDeliveredJobs.value;
     if (liveBoardMode.value === 'completed') return dealerCompletedJobs.value;
     return dealerOpenJobs.value;
   }
@@ -152,6 +160,7 @@ const liveBoardTitle = computed(() => {
 const liveBoardEmptyText = computed(() => {
   if (auth.role === 'dealer') {
     if (liveBoardMode.value === 'active') return 'No active runs yet.';
+    if (liveBoardMode.value === 'delivered') return 'No delivered runs awaiting completion yet.';
     if (liveBoardMode.value === 'completed') return 'No completed runs yet.';
     return 'No open runs yet. Create your first run to start receiving driver requests.';
   }
@@ -208,9 +217,6 @@ const openJobsEmptyText = computed(() => {
             <h1 class="text-3xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
               {{ heroTitle }}
             </h1>
-            <p v-if="auth.role !== 'driver'" class="max-w-2xl text-sm leading-6 text-slate-600 sm:text-lg sm:leading-7">
-              {{ heroText }}
-            </p>
           </div>
 
           <div v-if="auth.role !== 'driver'" class="grid gap-3 sm:flex sm:flex-wrap">
@@ -336,6 +342,15 @@ const openJobsEmptyText = computed(() => {
             @click="liveBoardMode = 'active'"
           >
             Active
+          </button>
+          <button
+            v-if="auth.role === 'dealer'"
+            type="button"
+            class="rounded-full px-3 py-1.5 text-xs font-bold transition"
+            :class="liveBoardMode === 'delivered' ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/10 text-slate-200 hover:bg-white/15'"
+            @click="liveBoardMode = 'delivered'"
+          >
+            Delivered
           </button>
           <button
             v-if="auth.role === 'dealer'"

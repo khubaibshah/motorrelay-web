@@ -2924,25 +2924,6 @@ watch(
               @change="onCompletionProofChange"
             />
             <p class="mt-1 text-xs text-slate-500">Upload at least {{ minInspectionPhotoCount }} images before collecting the vehicle. You can add extra damage or tyre photos too.</p>
-            <div v-if="driverModeUploadedPhotos.length" class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              <button
-                v-for="(photo, index) in driverModeUploadedPhotos"
-                :key="`form-preview-${photo.id}`"
-                type="button"
-                class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.06]"
-                @click="openInspectionGallery(index)"
-              >
-                <img
-                  v-if="photo.previewUrl"
-                  :src="photo.previewUrl"
-                  :alt="photo.name"
-                  class="h-20 w-full object-cover"
-                >
-                <span class="absolute bottom-1 right-1 rounded-full bg-slate-950/80 px-2 py-0.5 text-[10px] font-black text-white">
-                  {{ index + 1 }}
-                </span>
-              </button>
-            </div>
           </div>
           <div v-else class="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
             Inspection is uploaded. Submit completion after delivery so the dealer can approve and generate the invoice.

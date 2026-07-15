@@ -8,8 +8,12 @@ function createDefaultFormState() {
     title: '',
     pickup_postcode: '',
     pickup_label: '',
+    pickup_latitude: null,
+    pickup_longitude: null,
     dropoff_postcode: '',
     dropoff_label: '',
+    dropoff_latitude: null,
+    dropoff_longitude: null,
     vehicle_make: '',
     price: '',
     transport_type: 'drive_away',
@@ -26,8 +30,12 @@ function hasDraftContent(draft) {
       draft.form?.title ||
       draft.form?.pickup_postcode ||
       draft.form?.pickup_label ||
+      draft.form?.pickup_latitude ||
+      draft.form?.pickup_longitude ||
       draft.form?.dropoff_postcode ||
       draft.form?.dropoff_label ||
+      draft.form?.dropoff_latitude ||
+      draft.form?.dropoff_longitude ||
       draft.form?.vehicle_make ||
       draft.form?.price ||
       draft.form?.pickup_at ||

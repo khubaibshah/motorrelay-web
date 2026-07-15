@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Job extends Model
 {
@@ -20,11 +19,15 @@ class Job extends Model
         'company',
         'pickup_label',
         'pickup_postcode',
+        'pickup_latitude',
+        'pickup_longitude',
         'pickup_notes',
         'pickup_ready_at',
         'delivery_due_at',
         'dropoff_label',
         'dropoff_postcode',
+        'dropoff_latitude',
+        'dropoff_longitude',
         'dropoff_notes',
         'distance_mi',
         'current_latitude',
@@ -59,6 +62,10 @@ class Job extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'distance_mi' => 'decimal:1',
+        'pickup_latitude' => 'decimal:7',
+        'pickup_longitude' => 'decimal:7',
+        'dropoff_latitude' => 'decimal:7',
+        'dropoff_longitude' => 'decimal:7',
         'current_latitude' => 'decimal:7',
         'current_longitude' => 'decimal:7',
         'goes_live_at' => 'datetime',

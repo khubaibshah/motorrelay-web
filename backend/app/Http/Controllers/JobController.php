@@ -145,8 +145,12 @@ class JobController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'pickup_postcode' => ['required', 'string', 'max:20'],
             'pickup_label' => ['required', 'string', 'max:255'],
+            'pickup_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'pickup_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'dropoff_postcode' => ['required', 'string', 'max:20'],
             'dropoff_label' => ['required', 'string', 'max:255'],
+            'dropoff_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'dropoff_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'vehicle_make' => ['nullable', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0'],
             'transport_type' => ['required', Rule::in(['drive_away', 'trailer'])],
@@ -198,8 +202,18 @@ class JobController extends Controller
             'title' => $vehicle['registration'],
             'pickup_postcode' => $data['pickup_postcode'],
             'pickup_label' => $data['pickup_label'],
+            'pickup_latitude' => $data['pickup_latitude'] ?? null,
+            'pickup_longitude' => $data['pickup_longitude'] ?? null,
             'dropoff_postcode' => $data['dropoff_postcode'],
             'dropoff_label' => $data['dropoff_label'],
+            'dropoff_latitude' => $data['dropoff_latitude'] ?? null,
+            'dropoff_longitude' => $data['dropoff_longitude'] ?? null,
+            'distance_mi' => $this->calculateDistanceMiles(
+                $data['pickup_latitude'] ?? null,
+                $data['pickup_longitude'] ?? null,
+                $data['dropoff_latitude'] ?? null,
+                $data['dropoff_longitude'] ?? null
+            ),
             'vehicle_make' => $vehicle['display_name'],
             'vehicle_type' => $vehicle['vehicle_type'],
             'price' => $data['price'],
@@ -294,8 +308,12 @@ class JobController extends Controller
             'price' => ['sometimes', 'numeric', 'min:0'],
             'pickup_postcode' => ['sometimes', 'string', 'max:20'],
             'pickup_label' => ['sometimes', 'string', 'max:255'],
+            'pickup_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'pickup_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'dropoff_postcode' => ['sometimes', 'string', 'max:20'],
             'dropoff_label' => ['sometimes', 'string', 'max:255'],
+            'dropoff_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'dropoff_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'vehicle_make' => ['nullable', 'string', 'max:255'],
             'transport_type' => ['sometimes', Rule::in(['drive_away', 'trailer'])],
             'pickup_ready_at' => ['sometimes', 'nullable', 'date'],
@@ -338,6 +356,17 @@ class JobController extends Controller
         if (array_key_exists('delivery_due_at', $updates)) {
             $updates['delivery_due_at'] = $updates['delivery_due_at'] ? Carbon::parse($updates['delivery_due_at']) : null;
         }
+
+        $pickupLatitude = $updates['pickup_latitude'] ?? $job->pickup_latitude;
+        $pickupLongitude = $updates['pickup_longitude'] ?? $job->pickup_longitude;
+        $dropoffLatitude = $updates['dropoff_latitude'] ?? $job->dropoff_latitude;
+        $dropoffLongitude = $updates['dropoff_longitude'] ?? $job->dropoff_longitude;
+        $updates['distance_mi'] = $this->calculateDistanceMiles(
+            $pickupLatitude,
+            $pickupLongitude,
+            $dropoffLatitude,
+            $dropoffLongitude
+        );
 
         $job->update($updates);
 
@@ -419,5 +448,28 @@ class JobController extends Controller
                 'views' => (int) $metric->views,
             ])->values(),
         ];
+    }
+
+    protected function calculateDistanceMiles(mixed $pickupLatitude, mixed $pickupLongitude, mixed $dropoffLatitude, mixed $dropoffLongitude): ?float
+    {
+        if (! is_numeric($pickupLatitude) || ! is_numeric($pickupLongitude) || ! is_numeric($dropoffLatitude) || ! is_numeric($dropoffLongitude)) {
+            return null;
+        }
+
+        $earthRadiusMiles = 3958.7613;
+        $pickupLat = deg2rad((float) $pickupLatitude);
+        $pickupLng = deg2rad((float) $pickupLongitude);
+        $dropoffLat = deg2rad((float) $dropoffLatitude);
+        $dropoffLng = deg2rad((float) $dropoffLongitude);
+
+        $latDelta = $dropoffLat - $pickupLat;
+        $lngDelta = $dropoffLng - $pickupLng;
+
+        $a = sin($latDelta / 2) ** 2
+            + cos($pickupLat) * cos($dropoffLat) * sin($lngDelta / 2) ** 2;
+
+        $distance = 2 * $earthRadiusMiles * atan2(sqrt($a), sqrt(1 - $a));
+
+        return round($distance, 1);
     }
 }

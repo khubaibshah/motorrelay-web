@@ -246,6 +246,8 @@ async function lookupAddresses(type) {
   state.addresses = [];
   state.selected = null;
   form[labelField] = '';
+  form[`${type}_latitude`] = null;
+  form[`${type}_longitude`] = null;
   validationState[postcodeField] = false;
   validationState[labelField] = false;
 
@@ -295,6 +297,8 @@ async function selectAddress(type, selectedId) {
     state.postcode = result.postcode || state.postcode || form[`${type}_postcode`];
     form[`${type}_postcode`] = state.postcode || form[`${type}_postcode`];
     form[`${type}_label`] = label;
+    form[`${type}_latitude`] = result.latitude ?? null;
+    form[`${type}_longitude`] = result.longitude ?? null;
     validationState[`${type}_postcode`] = false;
     validationState[`${type}_label`] = false;
   } catch (error) {
@@ -312,6 +316,8 @@ function changeAddress(type) {
   state.selected = null;
   state.postcode = '';
   form[`${type}_label`] = '';
+  form[`${type}_latitude`] = null;
+  form[`${type}_longitude`] = null;
   validationState[`${type}_postcode`] = false;
   validationState[`${type}_label`] = false;
 }
@@ -328,6 +334,8 @@ function usePostcodeOnly(type) {
 
   form[postcodeField] = postcode;
   form[`${type}_label`] = postcode;
+  form[`${type}_latitude`] = null;
+  form[`${type}_longitude`] = null;
   state.error = '';
   state.addresses = [];
   state.selected = { id: 'postcode-only', label: postcode };
@@ -341,6 +349,8 @@ function hydrateSelectedAddress(type, label, postcode) {
   state.addresses = [];
   state.postcode = normalisePostcode(postcode);
   state.selected = label ? { id: 'saved', label } : null;
+  form[`${type}_latitude`] = null;
+  form[`${type}_longitude`] = null;
   validationState[`${type}_postcode`] = false;
   validationState[`${type}_label`] = false;
 }
@@ -666,8 +676,12 @@ async function submit() {
         title: form.title,
         pickup_postcode: form.pickup_postcode,
         pickup_label: form.pickup_label,
+        pickup_latitude: form.pickup_latitude,
+        pickup_longitude: form.pickup_longitude,
         dropoff_postcode: form.dropoff_postcode,
         dropoff_label: form.dropoff_label,
+        dropoff_latitude: form.dropoff_latitude,
+        dropoff_longitude: form.dropoff_longitude,
         price: Number(normalisePrice(form.price) || 0),
         transport_type: form.transport_type,
         pickup_ready_at: buildDateTime(form.pickup_at),

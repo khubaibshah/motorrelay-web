@@ -102,6 +102,7 @@ const incidentForm = reactive({
 
 const trackingState = reactive({
   sending: false,
+  shared: false,
   requesting: false,
   error: "",
   requestError: "",
@@ -215,6 +216,7 @@ async function shareLiveLocation() {
       };
       trackingState.lastUpdate = response.job.last_tracked_at;
     }
+    trackingState.shared = true;
     navigationModalOpen.value = true;
   } catch (error) {
     console.error("Failed to share live location", error);
@@ -1420,6 +1422,7 @@ watch(
   () => {
     resetExpenseForm();
     resetCompletionForm();
+    trackingState.shared = false;
     loadJob();
   }
 );
@@ -2118,11 +2121,15 @@ watch(
           <button
             v-if="canShareTracking"
             type="button"
-            class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-            :disabled="trackingState.sending"
+            class="rounded-xl px-4 py-2 text-sm font-semibold shadow disabled:cursor-not-allowed"
+            :class="trackingState.shared
+              ? 'bg-slate-200 text-slate-600'
+              : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-300'"
+            :disabled="trackingState.sending || trackingState.shared"
             @click="shareLiveLocation"
           >
             <span v-if="trackingState.sending">Sharing location…</span>
+            <span v-else-if="trackingState.shared">Live location shared</span>
             <span v-else>Share live location</span>
           </button>
           <button

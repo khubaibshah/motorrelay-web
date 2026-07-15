@@ -1351,6 +1351,39 @@ watch(
 
       <RunRouteSummary :job="job" />
 
+      <section v-if="job.incidents?.length" class="tile space-y-3 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-200">Reported issues</p>
+            <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Incident history</h2>
+          </div>
+          <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-300 dark:text-slate-950">
+            {{ job.incidents.length }} logged
+          </span>
+        </div>
+        <div class="space-y-2">
+          <article
+            v-for="incident in job.incidents"
+            :key="incident.id"
+            class="rounded-2xl border border-amber-200 bg-white p-3 text-sm dark:border-amber-400/20 dark:bg-white/[0.06]"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p class="font-black capitalize text-slate-950 dark:text-white">{{ String(incident.type || '').replaceAll('_', ' ') }}</p>
+                <p class="mt-1 text-xs text-slate-600 dark:text-emerald-100">
+                  Reported by {{ incident.reported_by?.name || 'driver' }} · {{ formatDateTime(incident.created_at) }}
+                </p>
+              </div>
+              <span v-if="incident.recovery_required" class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">
+                Recovery requested
+              </span>
+            </div>
+            <p v-if="incident.description" class="mt-2 text-slate-700 dark:text-emerald-100">{{ incident.description }}</p>
+            <p v-if="incident.location_label" class="mt-1 text-xs text-slate-500 dark:text-emerald-100">Location: {{ incident.location_label }}</p>
+          </article>
+        </div>
+      </section>
+
       <section v-if="showCompactCompletionPanel" class="tile space-y-3 p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -1488,39 +1521,6 @@ watch(
         <p v-if="driverActionError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
           {{ driverActionError }}
         </p>
-      </section>
-
-      <section v-if="job.incidents?.length" class="tile space-y-3 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-200">Reported issues</p>
-            <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Incident history</h2>
-          </div>
-          <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-300 dark:text-slate-950">
-            {{ job.incidents.length }} logged
-          </span>
-        </div>
-        <div class="space-y-2">
-          <article
-            v-for="incident in job.incidents"
-            :key="incident.id"
-            class="rounded-2xl border border-amber-200 bg-white p-3 text-sm dark:border-amber-400/20 dark:bg-white/[0.06]"
-          >
-            <div class="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p class="font-black capitalize text-slate-950 dark:text-white">{{ String(incident.type || '').replaceAll('_', ' ') }}</p>
-                <p class="mt-1 text-xs text-slate-600 dark:text-emerald-100">
-                  Reported by {{ incident.reported_by?.name || 'driver' }} · {{ formatDateTime(incident.created_at) }}
-                </p>
-              </div>
-              <span v-if="incident.recovery_required" class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">
-                Recovery requested
-              </span>
-            </div>
-            <p v-if="incident.description" class="mt-2 text-slate-700 dark:text-emerald-100">{{ incident.description }}</p>
-            <p v-if="incident.location_label" class="mt-1 text-xs text-slate-500 dark:text-emerald-100">Location: {{ incident.location_label }}</p>
-          </article>
-        </div>
       </section>
 
       <section v-if="showApplicationsAtTop" class="tile space-y-4 border-emerald-200 bg-emerald-50/40 p-4">

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Expense;
+use App\Notifications\Channels\NativePushChannel;
 use App\Notifications\Channels\SafeBroadcastChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -12,13 +13,11 @@ class ExpenseReviewedNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(protected Expense $expense)
-    {
-    }
+    public function __construct(protected Expense $expense) {}
 
     public function via(object $notifiable): array
     {
-        return ['database', SafeBroadcastChannel::class];
+        return ['database', SafeBroadcastChannel::class, NativePushChannel::class];
     }
 
     public function toArray(object $notifiable): array
@@ -38,7 +37,7 @@ class ExpenseReviewedNotification extends Notification
             'title' => 'Expense reviewed',
             'body' => sprintf('Your expense for job #%d was reviewed.', $this->expense->job_id),
             'action_label' => 'Open job',
-            'url' => url('/jobs/' . $this->expense->job_id),
+            'url' => url('/jobs/'.$this->expense->job_id),
             'expense_id' => $this->expense->id,
             'job_id' => $this->expense->job_id,
             'status' => $this->expense->status,

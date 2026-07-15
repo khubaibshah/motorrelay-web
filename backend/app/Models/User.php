@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
@@ -89,7 +89,7 @@ class User extends Authenticatable
 
     public function getPlanSlugAttribute(): ?string
     {
-        if (!$this->plan) {
+        if (! $this->plan) {
             return null;
         }
 
@@ -128,6 +128,11 @@ class User extends Authenticatable
     public function accountChangeRequests(): HasMany
     {
         return $this->hasMany(AccountChangeRequest::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 
     public function getTradePolicyUrlAttribute(): ?string
@@ -177,7 +182,7 @@ class User extends Authenticatable
 
     protected function documentUrl(?string $path): ?string
     {
-        if (!$path) {
+        if (! $path) {
             return null;
         }
 

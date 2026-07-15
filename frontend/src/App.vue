@@ -198,6 +198,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationsStore } from '@/stores/notifications';
+import { startPushNotifications, stopPushNotifications } from '@/services/pushNotifications';
 import BottomNav from '@/components/BottomNav.vue';
 
 const auth = useAuthStore();
@@ -343,6 +344,7 @@ watch(
   async (isAuthenticated) => {
     notifications.stopPolling();
     notifications.stopRealtime();
+    await stopPushNotifications().catch(() => null);
 
     if (!isAuthenticated) {
       notifications.items = [];
@@ -354,6 +356,7 @@ watch(
     await notifications.refresh({ showToasts: true }).catch(() => null);
     notifications.startRealtime(auth.user?.id);
     notifications.startPolling();
+    await startPushNotifications().catch(() => null);
   },
   { immediate: true }
 );
@@ -366,5 +369,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown);
   notifications.stopPolling();
   notifications.stopRealtime();
+  stopPushNotifications().catch(() => null);
 });
 </script>

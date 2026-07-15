@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Job;
+use App\Notifications\Channels\NativePushChannel;
 use App\Notifications\Channels\SafeBroadcastChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -16,12 +17,11 @@ class JobStatusNotification extends Notification
         protected Job $job,
         protected string $event,
         protected ?array $meta = null
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
-        return ['database', SafeBroadcastChannel::class];
+        return ['database', SafeBroadcastChannel::class, NativePushChannel::class];
     }
 
     public function toArray(object $notifiable): array

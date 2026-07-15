@@ -160,8 +160,34 @@ const isEdit = computed(() => Boolean(jobId.value));
 
 const jobPrice = computed(() => Number(normalisePrice(form.price) || 0));
 const platformCommissionRate = 0.1;
+const pricingRules = {
+  baseFee: 35,
+  minimumPrice: 75,
+  driveAwayRatePerMile: 1.5,
+  trailerRatePerMile: 2.5
+};
+const lastAppliedSuggestedPrice = ref(null);
 const estimatedPlatformFee = computed(() => Math.max(jobPrice.value * platformCommissionRate, 0));
 const estimatedDriverPayout = computed(() => Math.max(jobPrice.value - estimatedPlatformFee.value, 0));
+const routeDistanceMiles = computed(() => calculateDistanceMiles(
+  form.pickup_latitude,
+  form.pickup_longitude,
+  form.dropoff_latitude,
+  form.dropoff_longitude
+));
+const suggestedJobPrice = computed(() => {
+  if (!routeDistanceMiles.value) return 0;
+
+  const rate = form.transport_type === 'trailer'
+    ? pricingRules.trailerRatePerMile
+    : pricingRules.driveAwayRatePerMile;
+
+  return Math.round(Math.max(
+    pricingRules.minimumPrice,
+    pricingRules.baseFee + (routeDistanceMiles.value * rate)
+  ) * 100) / 100;
+});
+const suggestedDriverPayout = computed(() => Math.max(suggestedJobPrice.value - (suggestedJobPrice.value * platformCommissionRate), 0));
 const moneyFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
   currency: 'GBP',
@@ -170,6 +196,46 @@ const moneyFormatter = new Intl.NumberFormat('en-GB', {
 function formatMoney(value) {
   const rawValue = value && typeof value === 'object' && 'value' in value ? value.value : value;
   return moneyFormatter.format(Number(rawValue || 0));
+}
+
+function calculateDistanceMiles(pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude) {
+  if (
+    !Number.isFinite(Number(pickupLatitude)) ||
+    !Number.isFinite(Number(pickupLongitude)) ||
+    !Number.isFinite(Number(dropoffLatitude)) ||
+    !Number.isFinite(Number(dropoffLongitude))
+  ) {
+    return null;
+  }
+
+  const earthRadiusMiles = 3958.7613;
+  const pickupLat = toRadians(Number(pickupLatitude));
+  const pickupLng = toRadians(Number(pickupLongitude));
+  const dropoffLat = toRadians(Number(dropoffLatitude));
+  const dropoffLng = toRadians(Number(dropoffLongitude));
+  const latDelta = dropoffLat - pickupLat;
+  const lngDelta = dropoffLng - pickupLng;
+  const a = Math.sin(latDelta / 2) ** 2
+    + Math.cos(pickupLat) * Math.cos(dropoffLat) * Math.sin(lngDelta / 2) ** 2;
+  const distance = 2 * earthRadiusMiles * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return Math.round(distance * 10) / 10;
+}
+
+function toRadians(value) {
+  return value * (Math.PI / 180);
+}
+
+function applySuggestedPrice(force = false) {
+  if (!suggestedJobPrice.value || isEdit.value) return;
+
+  const currentPrice = Number(normalisePrice(form.price) || 0);
+  const canApply = force || !currentPrice || currentPrice === lastAppliedSuggestedPrice.value;
+  if (!canApply) return;
+
+  form.price = String(suggestedJobPrice.value);
+  lastAppliedSuggestedPrice.value = suggestedJobPrice.value;
+  validationState.price = false;
 }
 
 function formatShortDateTime(value) {
@@ -197,7 +263,10 @@ const reviewSections = computed(() => [
   {
     key: 'route',
     label: 'Route',
-    value: `${form.pickup_label || form.pickup_postcode || '--'} → ${form.dropoff_label || form.dropoff_postcode || '--'}`,
+    lines: [
+      `${form.pickup_label || form.pickup_postcode || '--'} → ${form.dropoff_label || form.dropoff_postcode || '--'}`,
+      routeDistanceMiles.value ? `${routeDistanceMiles.value} miles` : 'Distance will calculate when exact addresses are selected'
+    ],
     step: 1
   },
   {
@@ -214,8 +283,9 @@ const reviewSections = computed(() => [
     label: 'Payment',
     lines: [
       `Driver receives ${formatMoney(estimatedDriverPayout.value)}`,
-      `Dealer pays ${formatMoney(jobPrice.value)}`
-    ],
+      `Dealer pays ${formatMoney(jobPrice.value)}`,
+      suggestedJobPrice.value ? `Suggested price ${formatMoney(suggestedJobPrice.value)}` : ''
+    ].filter(Boolean),
     step: 3
   }
 ]);
@@ -449,6 +519,14 @@ watch(
     if (next) {
       validationState.transport_type = false;
     }
+    applySuggestedPrice();
+  }
+);
+
+watch(
+  () => suggestedJobPrice.value,
+  () => {
+    applySuggestedPrice();
   }
 );
 
@@ -941,10 +1019,14 @@ watch(
             :validation-state="validationState"
             :job-price="jobPrice"
             :estimated-driver-payout="estimatedDriverPayout"
+            :route-distance-miles="routeDistanceMiles"
+            :suggested-price="suggestedJobPrice"
+            :suggested-driver-payout="suggestedDriverPayout"
             :submitting="submitting"
             :is-edit="isEdit"
             :format-money="formatMoney"
             @back="goBack"
+            @apply-suggested-price="applySuggestedPrice(true)"
             @next="goNext"
           />
 

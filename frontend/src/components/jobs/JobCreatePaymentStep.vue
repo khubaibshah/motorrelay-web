@@ -6,12 +6,15 @@ const props = defineProps({
   validationState: { type: Object, required: true },
   jobPrice: { type: Number, required: true },
   estimatedDriverPayout: { type: Number, required: true },
+  routeDistanceMiles: { type: Number, default: null },
+  suggestedPrice: { type: Number, default: 0 },
+  suggestedDriverPayout: { type: Number, default: 0 },
   submitting: { type: Boolean, default: false },
   isEdit: { type: Boolean, default: false },
   formatMoney: { type: Function, required: true }
 });
 
-defineEmits(['back', 'next']);
+defineEmits(['apply-suggested-price', 'back', 'next']);
 
 const editingPrice = ref(false);
 
@@ -73,6 +76,35 @@ function handlePriceBlur(event) {
         @blur="handlePriceBlur"
       />
     </label>
+
+    <div
+      v-if="suggestedPrice"
+      class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-100"
+    >
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+            Suggested price
+          </p>
+          <p class="mt-1 text-lg font-black">
+            {{ formatMoney(suggestedPrice) }}
+            <span v-if="routeDistanceMiles" class="text-sm font-semibold">
+              for {{ routeDistanceMiles }} miles
+            </span>
+          </p>
+          <p class="mt-1 text-xs font-semibold text-emerald-800 dark:text-emerald-100">
+            Estimated driver payout: {{ formatMoney(suggestedDriverPayout) }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-700 dark:bg-emerald-400 dark:text-slate-950"
+          @click="$emit('apply-suggested-price')"
+        >
+          Use suggested
+        </button>
+      </div>
+    </div>
 
     <dl class="grid min-w-0 gap-3 md:grid-cols-2">
       <div class="min-w-0 overflow-hidden rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">

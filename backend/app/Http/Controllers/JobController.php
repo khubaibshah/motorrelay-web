@@ -196,6 +196,18 @@ class JobController extends Controller
         $pickupReadyAt = ! empty($data['pickup_ready_at']) ? Carbon::parse($data['pickup_ready_at']) : null;
         $deliveryDueAt = ! empty($data['delivery_due_at']) ? Carbon::parse($data['delivery_due_at']) : null;
 
+        $distanceMiles = $this->calculateDistanceMiles(
+            $data['pickup_latitude'] ?? null,
+            $data['pickup_longitude'] ?? null,
+            $data['dropoff_latitude'] ?? null,
+            $data['dropoff_longitude'] ?? null
+        );
+
+        $jobPrice = (float) $data['price'];
+        if ($jobPrice <= 0 && $distanceMiles !== null) {
+            $jobPrice = $this->suggestedPrice($distanceMiles, $data['transport_type']);
+        }
+
         $job = Job::create([
             'status' => 'open',
             'posted_by_id' => $user->id,
@@ -208,15 +220,10 @@ class JobController extends Controller
             'dropoff_label' => $data['dropoff_label'],
             'dropoff_latitude' => $data['dropoff_latitude'] ?? null,
             'dropoff_longitude' => $data['dropoff_longitude'] ?? null,
-            'distance_mi' => $this->calculateDistanceMiles(
-                $data['pickup_latitude'] ?? null,
-                $data['pickup_longitude'] ?? null,
-                $data['dropoff_latitude'] ?? null,
-                $data['dropoff_longitude'] ?? null
-            ),
+            'distance_mi' => $distanceMiles,
             'vehicle_make' => $vehicle['display_name'],
             'vehicle_type' => $vehicle['vehicle_type'],
-            'price' => $data['price'],
+            'price' => $jobPrice,
             'transport_type' => $data['transport_type'],
             'pickup_ready_at' => $pickupReadyAt,
             'delivery_due_at' => $deliveryDueAt,
@@ -471,5 +478,17 @@ class JobController extends Controller
         $distance = 2 * $earthRadiusMiles * atan2(sqrt($a), sqrt(1 - $a));
 
         return round($distance, 1);
+    }
+
+    protected function suggestedPrice(float $distanceMiles, string $transportType): float
+    {
+        $pricing = config('jobs.pricing', []);
+        $baseFee = (float) ($pricing['base_fee'] ?? 35);
+        $minimumPrice = (float) ($pricing['minimum_price'] ?? 75);
+        $rate = $transportType === 'trailer'
+            ? (float) ($pricing['trailer_rate_per_mile'] ?? 2.5)
+            : (float) ($pricing['drive_away_rate_per_mile'] ?? 1.5);
+
+        return round(max($minimumPrice, $baseFee + ($distanceMiles * $rate)), 2);
     }
 }

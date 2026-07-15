@@ -3322,7 +3322,7 @@ watch(
     <transition name="fade">
       <div
         v-if="incidentModalOpen"
-        class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 px-4"
+        class="fixed inset-0 z-[140] flex items-center justify-center bg-slate-900/70 px-4"
         @click.self="closeIncidentModal"
       >
         <form class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950" @submit.prevent="handleIncidentSubmit">
@@ -3403,7 +3403,7 @@ watch(
     <transition name="fade">
       <div
         v-if="driverChatOpen"
-        class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 px-4"
+        class="fixed inset-0 z-[140] flex items-center justify-center bg-slate-900/70 px-4"
         @click.self="driverChatOpen = false"
       >
         <div class="flex max-h-[88vh] w-full max-w-lg flex-col rounded-3xl bg-white p-4 shadow-2xl dark:bg-slate-950">

@@ -3066,7 +3066,7 @@ watch(
             <button
               v-if="driverModePrimaryAction"
               type="button"
-              class="mt-5 w-full rounded-3xl bg-emerald-400 px-5 py-4 text-lg font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+              class="mt-5 w-full rounded-3xl bg-emerald-400 px-5 py-4 text-lg font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 dark:text-slate-950"
               :disabled="driverModePrimaryAction.disabled"
               @click="driverModePrimaryAction.handler"
             >
@@ -3133,7 +3133,7 @@ watch(
             <button
               v-if="canShareTracking && !trackingState.shared"
               type="button"
-              class="w-full rounded-3xl bg-emerald-400 px-5 py-4 text-left text-base font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+              class="w-full rounded-3xl bg-emerald-400 px-5 py-4 text-left text-base font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 dark:text-slate-950"
               :disabled="trackingState.sending"
               @click="shareLiveLocation"
             >

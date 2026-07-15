@@ -103,6 +103,7 @@ const trackingState = reactive({
   sending: false,
   error: "",
   locationBlocked: false,
+  locationServicesOff: false,
   lastUpdate: null
 });
 const navigationModalOpen = ref(false);
@@ -174,6 +175,7 @@ async function shareLiveLocation() {
   if (!job.value) return;
   trackingState.error = "";
   trackingState.locationBlocked = false;
+  trackingState.locationServicesOff = false;
   trackingState.sending = true;
   try {
     const position = await getCurrentPosition({
@@ -209,7 +211,8 @@ async function shareLiveLocation() {
     navigationModalOpen.value = true;
   } catch (error) {
     console.error("Failed to share live location", error);
-    trackingState.locationBlocked = error?.code === 1;
+    trackingState.locationServicesOff = isLocationServicesDisabledError(error);
+    trackingState.locationBlocked = !trackingState.locationServicesOff && isLocationPermissionBlockedError(error);
     trackingState.error =
       error?.response?.data?.message ||
       geolocationErrorMessage(error) ||
@@ -239,7 +242,11 @@ function createLocationPermissionError() {
 function geolocationErrorMessage(error) {
   if (!error) return "";
 
-  if (error.code === 1 || error.message?.toLowerCase().includes("denied")) {
+  if (isLocationServicesDisabledError(error)) {
+    return "Location Services are switched off on this iPhone. Turn them on in Settings > Privacy & Security > Location Services, then tap Share live location again.";
+  }
+
+  if (isLocationPermissionBlockedError(error)) {
     return "Location permission is blocked. Open MotorRelay settings, allow Location while using the app, then tap Share live location again.";
   }
 
@@ -252,6 +259,16 @@ function geolocationErrorMessage(error) {
   }
 
   return error.message || "";
+}
+
+function isLocationPermissionBlockedError(error) {
+  const message = String(error?.message || error?.errorMessage || "").toLowerCase();
+  return error?.code === 1 || message.includes("denied") || message.includes("permission");
+}
+
+function isLocationServicesDisabledError(error) {
+  const message = String(error?.message || error?.errorMessage || "").toLowerCase();
+  return error?.code === "OS-PLUG-GLOC-0007" || message.includes("location services are not enabled");
 }
 
 function closeNavigationModal() {
@@ -2072,6 +2089,9 @@ watch(
         </div>
         <p v-if="trackingState.error" class="text-xs text-rose-600">
           {{ trackingState.error }}
+        </p>
+        <p v-if="trackingState.locationServicesOff" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+          On iPhone, open Settings → Privacy & Security → Location Services, turn Location Services on, then return to MotorRelay.
         </p>
         <button
           v-if="trackingState.locationBlocked"

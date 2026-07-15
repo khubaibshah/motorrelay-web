@@ -342,6 +342,7 @@ watch(
   () => auth.isAuthenticated,
   async (isAuthenticated) => {
     notifications.stopPolling();
+    notifications.stopRealtime();
 
     if (!isAuthenticated) {
       notifications.items = [];
@@ -351,6 +352,7 @@ watch(
     }
 
     await notifications.refresh({ showToasts: true }).catch(() => null);
+    notifications.startRealtime(auth.user?.id);
     notifications.startPolling();
   },
   { immediate: true }
@@ -363,5 +365,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown);
   notifications.stopPolling();
+  notifications.stopRealtime();
 });
 </script>

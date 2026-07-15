@@ -4,7 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Job;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
 class JobStatusNotification extends Notification
@@ -20,10 +20,20 @@ class JobStatusNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
     }
 
     public function toArray(object $notifiable): array
+    {
+        return $this->payload();
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->payload());
+    }
+
+    protected function payload(): array
     {
         $job = $this->job->fresh(['postedBy:id,name', 'assignedTo:id,name']);
         $details = $this->detailsForEvent($job);

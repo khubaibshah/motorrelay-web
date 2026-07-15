@@ -6,6 +6,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead
 } from '@/services/notifications';
+import { createEchoClient, disconnectEchoClient } from '@/services/realtime';
 
 const SEEN_KEY = 'mr_seen_notification_ids';
 const TOAST_DURATION_MS = 6500;
@@ -45,6 +46,7 @@ export const useNotificationsStore = defineStore('notifications', {
     seenToastIds: readSeenIds(),
     initialized: false,
     pollHandle: null,
+    realtimeChannel: null,
     lastSyncedAt: null
   }),
   getters: {
@@ -96,6 +98,35 @@ export const useNotificationsStore = defineStore('notifications', {
           this.dismissToast(notification.id);
         }, TOAST_DURATION_MS)
       );
+    },
+    receiveRealtimeNotification(payload = {}) {
+      const notification = {
+        id: payload.id || payload.notification_id || `${payload.type || 'notification'}-${Date.now()}`,
+        type: payload.type || 'notification',
+        title: payload.title || 'Notification',
+        body: payload.body || '',
+        action_label: payload.action_label || (payload.url ? 'Open' : null),
+        url: payload.url || null,
+        read_at: null,
+        created_at: payload.created_at || new Date().toISOString(),
+        data: payload
+      };
+
+      const existingIndex = this.items.findIndex((item) => item.id === notification.id);
+      if (existingIndex >= 0) {
+        this.items.splice(existingIndex, 1, { ...this.items[existingIndex], ...notification });
+      } else {
+        this.items.unshift(notification);
+      }
+
+      this.items = this.items.slice(0, 50);
+      this.unreadCount = this.items.filter((item) => !item.read_at).length;
+      this.lastSyncedAt = new Date().toISOString();
+      this.enqueueToast(notification);
+
+      if (!payload.id) {
+        this.refresh({ showToasts: false }).catch(() => null);
+      }
     },
     dismissToast(notificationId) {
       clearToastTimer(notificationId);
@@ -158,6 +189,25 @@ export const useNotificationsStore = defineStore('notifications', {
         window.clearInterval(this.pollHandle);
       }
       this.pollHandle = null;
+    },
+    startRealtime(userId) {
+      if (!userId || this.realtimeChannel) return;
+
+      const echo = createEchoClient();
+      if (!echo) return;
+
+      this.realtimeChannel = `App.Models.User.${userId}`;
+      echo.private(this.realtimeChannel).notification((notification) => {
+        this.receiveRealtimeNotification(notification);
+      });
+    },
+    stopRealtime() {
+      if (this.realtimeChannel) {
+        const echo = createEchoClient();
+        echo?.leave(this.realtimeChannel);
+      }
+      this.realtimeChannel = null;
+      disconnectEchoClient();
     }
   }
 });

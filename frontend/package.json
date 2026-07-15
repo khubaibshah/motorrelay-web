@@ -13,7 +13,9 @@
     "@capacitor/core": "^7.4.4",
     "@capacitor/ios": "^7.6.8",
     "axios": "^1.7.7",
+    "laravel-echo": "^2.4.0",
     "pinia": "^2.1.7",
+    "pusher-js": "^8.5.0",
     "vue": "^3.5.13",
     "vue-router": "^4.3.2"
   },

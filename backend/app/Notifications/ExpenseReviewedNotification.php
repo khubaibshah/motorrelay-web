@@ -4,7 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Expense;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
 class ExpenseReviewedNotification extends Notification
@@ -17,10 +17,20 @@ class ExpenseReviewedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
     }
 
     public function toArray(object $notifiable): array
+    {
+        return $this->payload();
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->payload());
+    }
+
+    protected function payload(): array
     {
         return [
             'type' => 'expense.reviewed',

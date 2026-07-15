@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -17,7 +18,7 @@ class InvoiceReadyNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -35,6 +36,16 @@ class InvoiceReadyNotification extends Notification
     }
 
     public function toArray(object $notifiable): array
+    {
+        return $this->payload();
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->payload());
+    }
+
+    protected function payload(): array
     {
         return [
             'type' => 'invoice.ready',

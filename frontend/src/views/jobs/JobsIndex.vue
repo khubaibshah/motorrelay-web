@@ -410,37 +410,18 @@ async function getDriverCurrentPosition(options = {}) {
     driverLocationPermissionBlocked.value = false;
     const currentPermission = await Geolocation.checkPermissions();
 
-    if (!locationPermissionGranted(currentPermission)) {
+    if (currentPermission.location !== 'granted') {
       const requestedPermission = await Geolocation.requestPermissions({
         permissions: ['location']
       });
 
-      if (!locationPermissionGranted(requestedPermission)) {
+      if (requestedPermission.location !== 'granted') {
         driverLocationPermissionBlocked.value = true;
-        throw new Error('Location permission is blocked. Allow location for MotorRelay in iPhone Settings, then try again.');
+        throw createDriverLocationPermissionError();
       }
     }
 
     return Geolocation.getCurrentPosition(options);
-  }
-
-  if (!window.isSecureContext) {
-    throw new Error('Location only works on a secure website. Open MotorRelay using the https:// address and try again.');
-  }
-
-  if (navigator.permissions?.query) {
-    try {
-      const permission = await navigator.permissions.query({ name: 'geolocation' });
-
-      if (permission.state === 'denied') {
-        driverLocationPermissionBlocked.value = true;
-        throw new Error('Location permission is blocked for this website. Allow location for MotorRelay in your browser settings, then try again.');
-      }
-    } catch (error) {
-      if (driverLocationPermissionBlocked.value) {
-        throw error;
-      }
-    }
   }
 
   return new Promise((resolve, reject) => {
@@ -449,31 +430,14 @@ async function getDriverCurrentPosition(options = {}) {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(resolve, (error) => {
-      if (error?.code === 1) {
-        driverLocationPermissionBlocked.value = true;
-        reject(new Error('Location permission was denied. Allow location for MotorRelay in your browser settings, then try again.'));
-        return;
-      }
-
-      if (error?.code === 2) {
-        reject(new Error('Your current location is unavailable. Check Location Services and try again.'));
-        return;
-      }
-
-      if (error?.code === 3) {
-        reject(new Error('Finding your location took too long. Try again or search by postcode.'));
-        return;
-      }
-
-      reject(error);
-    }, options);
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
   });
 }
 
-function locationPermissionGranted(permission) {
-  return ['granted', 'limited'].includes(permission?.location)
-    || ['granted', 'limited'].includes(permission?.coarseLocation);
+function createDriverLocationPermissionError() {
+  const error = new Error('Location permission is blocked.');
+  error.code = 1;
+  return error;
 }
 
 async function ensureDriverLocation({ force = false } = {}) {
@@ -524,13 +488,47 @@ async function ensureDriverLocation({ force = false } = {}) {
     driverLocationPermissionBlocked.value = false;
   } catch (error) {
     console.warn('Driver marketplace location unavailable', error);
+    const permissionBlocked = isDriverLocationPermissionBlockedError(error);
     const wasPermissionBlocked = driverLocationPermissionBlocked.value;
     clearDriverLocation();
-    driverLocationPermissionBlocked.value = wasPermissionBlocked;
-    driverLocation.error = error.message || 'Location services are off. Enable location or search by postcode.';
+    driverLocationPermissionBlocked.value = wasPermissionBlocked || permissionBlocked;
+    driverLocationQuery.value = 'Current Location';
+    driverLocation.error = driverLocationErrorMessage(error) || 'Location services are off. Enable location or search by postcode.';
   } finally {
     driverLocation.loading = false;
   }
+}
+
+function driverLocationErrorMessage(error) {
+  if (!error) return '';
+
+  if (isDriverLocationServicesDisabledError(error)) {
+    return 'Location Services are switched off on this iPhone. Turn them on in Settings > Privacy & Security > Location Services, then tap Current Location again.';
+  }
+
+  if (isDriverLocationPermissionBlockedError(error)) {
+    return 'Location permission is blocked. Open MotorRelay settings, allow Location while using the app, then tap Current Location again.';
+  }
+
+  if (error.code === 2) {
+    return 'Your current location is unavailable right now. Check signal/location services and try again.';
+  }
+
+  if (error.code === 3) {
+    return 'Location lookup timed out. Try again somewhere with better GPS signal.';
+  }
+
+  return error.message || '';
+}
+
+function isDriverLocationPermissionBlockedError(error) {
+  const message = String(error?.message || error?.errorMessage || '').toLowerCase();
+  return error?.code === 1 || message.includes('denied') || message.includes('permission');
+}
+
+function isDriverLocationServicesDisabledError(error) {
+  const message = String(error?.message || error?.errorMessage || '').toLowerCase();
+  return error?.code === 'OS-PLUG-GLOC-0007' || message.includes('location services are not enabled');
 }
 
 function jobIsAwaitingLive(job) {

@@ -6,6 +6,7 @@ import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { formatStatusLabel } from '@/utils/statusLabels';
 import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -37,6 +38,7 @@ const driverLocation = reactive({
   loading: false,
   error: ''
 });
+const driverLocationPermissionBlocked = ref(false);
 const driverMarketplaceNearbyActive = ref(false);
 const actionState = reactive({
   id: null,
@@ -178,6 +180,9 @@ async function submitDriverSearch() {
 
   if (driverRadius.value === 'all') {
     clearDriverLocation();
+  } else if (isDriver.value && isCurrentLocationQuery(driverLocationQuery.value)) {
+    await useDriverLocation();
+    return;
   } else if (isDriver.value) {
     await resolveDriverLocationQuery();
   }
@@ -213,11 +218,20 @@ async function useDriverLocation() {
   driverLocationQuery.value = 'Current Location';
   driverLocationFocused.value = false;
   driverLocationAutocomplete.value = [];
+  if (driverRadius.value === 'all') {
+    driverRadius.value = defaultNearbyRadiusMiles;
+  }
+
+  await ensureDriverLocation({ force: true });
+
+  if (!driverHasLocation.value) {
+    return;
+  }
+
   await router.replace({
     name: 'jobs',
     query: driverMarketplaceQuery()
   });
-  await ensureDriverLocation({ force: true });
   await loadJobs();
 }
 
@@ -284,7 +298,16 @@ async function resolveDriverLocationQuery() {
     return;
   }
 
+  if (isCurrentLocationQuery(postcode)) {
+    await useDriverLocation();
+    return;
+  }
+
   await useDriverPostcode(postcode);
+}
+
+function isCurrentLocationQuery(value) {
+  return ['current location', 'current', 'my location', 'near me'].includes(String(value || '').trim().toLowerCase());
 }
 
 async function useDriverPostcode(postcode) {
@@ -380,6 +403,41 @@ function clearDriverLocation() {
   driverLocation.label = '';
   driverLocation.postcode = '';
   driverMarketplaceNearbyActive.value = false;
+  driverLocationPermissionBlocked.value = false;
+}
+
+async function getDriverCurrentPosition(options = {}) {
+  if (Capacitor.isNativePlatform()) {
+    driverLocationPermissionBlocked.value = false;
+    const currentPermission = await Geolocation.checkPermissions();
+
+    if (!locationPermissionGranted(currentPermission)) {
+      const requestedPermission = await Geolocation.requestPermissions({
+        permissions: ['location']
+      });
+
+      if (!locationPermissionGranted(requestedPermission)) {
+        driverLocationPermissionBlocked.value = true;
+        throw new Error('Location permission is blocked. Allow location for MotorRelay in iPhone Settings, then try again.');
+      }
+    }
+
+    return Geolocation.getCurrentPosition(options);
+  }
+
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Location is not supported in this browser.'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
+function locationPermissionGranted(permission) {
+  return ['granted', 'limited'].includes(permission?.location)
+    || ['granted', 'limited'].includes(permission?.coarseLocation);
 }
 
 async function ensureDriverLocation({ force = false } = {}) {
@@ -399,23 +457,9 @@ async function ensureDriverLocation({ force = false } = {}) {
   driverLocation.error = '';
 
   try {
-    const permission = await Geolocation.checkPermissions();
-    let locationPermission = permission.location;
-
-    if (locationPermission !== 'granted') {
-      const requested = await Geolocation.requestPermissions({
-        permissions: ['location']
-      });
-      locationPermission = requested.location;
-    }
-
-    if (locationPermission !== 'granted') {
-      throw new Error('Location permission is not enabled.');
-    }
-
-    const position = await Geolocation.getCurrentPosition({
+    const position = await getDriverCurrentPosition({
       enableHighAccuracy: true,
-      timeout: 10000,
+      timeout: 15000,
       maximumAge: 60000
     });
 
@@ -425,10 +469,14 @@ async function ensureDriverLocation({ force = false } = {}) {
     driverLocation.source = 'gps';
     driverLocation.label = 'your phone location';
     driverLocation.postcode = '';
+    driverLocationPermissionBlocked.value = false;
   } catch (error) {
     console.warn('Driver marketplace location unavailable', error);
+    const wasPermissionBlocked = driverLocationPermissionBlocked.value;
     clearDriverLocation();
-    driverLocation.error = 'Location is off. Turn it on or switch to All jobs.';
+    driverLocationPermissionBlocked.value = wasPermissionBlocked;
+    driverLocationQuery.value = 'Current Location';
+    driverLocation.error = error.message || 'Location services are off. Enable location or search by postcode.';
   } finally {
     driverLocation.loading = false;
   }
@@ -1222,7 +1270,7 @@ onMounted(async () => {
             </span>
             <span class="min-w-0">
               <span class="block truncate text-sm font-black" :class="suggestion.current ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white'">
-                {{ suggestion.label }}
+                {{ suggestion.current && driverLocation.loading ? 'Asking for location...' : suggestion.label }}
               </span>
               <span v-if="suggestion.sublabel" class="block truncate text-xs font-semibold text-slate-500 dark:text-emerald-100">
                 {{ suggestion.sublabel }}
@@ -1237,6 +1285,12 @@ onMounted(async () => {
         <p class="px-1 text-xs font-bold text-slate-500 dark:text-emerald-100">
           {{ driverMarketplaceLabel }}
         </p>
+        <div
+          v-if="driverLocationPermissionBlocked"
+          class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100"
+        >
+          Location permission is blocked. Open iPhone Settings, allow MotorRelay location access, or search by postcode instead.
+        </div>
       </header>
 
       <p v-if="selectedDriverError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">

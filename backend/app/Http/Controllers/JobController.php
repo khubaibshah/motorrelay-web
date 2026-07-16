@@ -103,7 +103,13 @@ class JobController extends Controller
                     ->select('jobs.*')
                     ->selectRaw("{$distanceSql} as driver_distance_mi", $distanceBindings)
                     ->where(function ($builder) use ($distanceSql, $distanceBindings, $nearbyRadiusMiles, $nearbyOutwardCode) {
-                        $builder->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $nearbyRadiusMiles]);
+                        $builder
+                            ->where(function ($distanceBuilder) use ($distanceSql, $distanceBindings, $nearbyRadiusMiles) {
+                                $distanceBuilder
+                                    ->whereNotNull('pickup_latitude')
+                                    ->whereNotNull('pickup_longitude')
+                                    ->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $nearbyRadiusMiles]);
+                            });
 
                         if ($nearbyOutwardCode !== '') {
                             $builder->orWhere(function ($postcodeBuilder) use ($nearbyOutwardCode) {

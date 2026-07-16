@@ -180,10 +180,7 @@ async function submitDriverSearch() {
 
   if (driverRadius.value === 'all') {
     clearDriverLocation();
-  } else if (isDriver.value && isCurrentLocationQuery(driverLocationQuery.value)) {
-    await useDriverLocation();
-    return;
-  } else if (isDriver.value) {
+  } else if (isDriver.value && !(driverLocation.source === 'gps' && driverHasLocation.value)) {
     await resolveDriverLocationQuery();
   }
 
@@ -235,11 +232,6 @@ async function useDriverLocation() {
 }
 
 async function chooseDriverLocationSuggestion(suggestion) {
-  if (suggestion.current) {
-    await useDriverLocation();
-    return;
-  }
-
   driverLocationFocused.value = false;
   driverLocationQuery.value = suggestion.label || suggestion.value || '';
 
@@ -297,16 +289,7 @@ async function resolveDriverLocationQuery() {
     return;
   }
 
-  if (isCurrentLocationQuery(postcode)) {
-    await useDriverLocation();
-    return;
-  }
-
   await useDriverPostcode(postcode);
-}
-
-function isCurrentLocationQuery(value) {
-  return ['current location', 'current', 'my location', 'near me'].includes(String(value || '').trim().toLowerCase());
 }
 
 async function useDriverPostcode(postcode) {
@@ -440,6 +423,25 @@ function createDriverLocationPermissionError() {
   return error;
 }
 
+function applyDriverGpsPosition(position) {
+  const coords = position?.coords || {};
+  const latitude = Number(coords.latitude);
+  const longitude = Number(coords.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error('No coordinates were returned from the phone.');
+  }
+
+  driverLocation.latitude = latitude;
+  driverLocation.longitude = longitude;
+  driverLocation.enabled = true;
+  driverLocation.source = 'gps';
+  driverLocation.label = 'your current location';
+  driverLocation.postcode = '';
+  driverLocationQuery.value = 'Using current location';
+  driverLocationPermissionBlocked.value = false;
+}
+
 async function ensureDriverLocation({ force = false } = {}) {
   if (driverLocation.loading) {
     return;
@@ -463,28 +465,23 @@ async function ensureDriverLocation({ force = false } = {}) {
       maximumAge: 60000
     });
 
-    driverLocation.latitude = position.coords.latitude;
-    driverLocation.longitude = position.coords.longitude;
-    driverLocation.enabled = true;
-    driverLocation.source = 'gps';
-    driverLocation.label = 'your phone location';
-    driverLocation.postcode = '';
+    applyDriverGpsPosition(position);
 
     try {
       const { data } = await api.get('/postcodes/reverse', {
         params: {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
+          latitude: driverLocation.latitude,
+          longitude: driverLocation.longitude
         }
       });
       const location = data?.data ?? {};
       driverLocation.postcode = location.outward_code || location.postcode || '';
       driverLocation.label = location.label || driverLocation.label;
+      driverLocationQuery.value = location.outward_code || location.postcode || location.locality || location.label || 'Using current location';
     } catch (error) {
       console.warn('Current location postcode unavailable', error);
     }
 
-    driverLocationQuery.value = 'Current Location';
     driverLocationPermissionBlocked.value = false;
   } catch (error) {
     console.warn('Driver marketplace location unavailable', error);
@@ -492,7 +489,7 @@ async function ensureDriverLocation({ force = false } = {}) {
     const wasPermissionBlocked = driverLocationPermissionBlocked.value;
     clearDriverLocation();
     driverLocationPermissionBlocked.value = wasPermissionBlocked || permissionBlocked;
-    driverLocationQuery.value = 'Current Location';
+    driverLocationQuery.value = '';
     driverLocation.error = driverLocationErrorMessage(error) || 'Location services are off. Enable location or search by postcode.';
   } finally {
     driverLocation.loading = false;
@@ -567,19 +564,20 @@ const visibleJobs = computed(() => {
   if (isDriver.value && driverHasLocation.value && driverRadius.value !== 'all') {
     jobs = jobs.filter((job) => {
       const distance = Number(job?.driver_distance_mi);
-      return (Number.isFinite(distance) && distance <= activeRadiusMiles.value) || isPostcodeAreaMatch(job);
+      return (Number.isFinite(distance) && distance <= activeRadiusMiles.value) || isPickupPostcodeAreaMatch(job);
     });
   }
 
   return jobs;
 });
 
-function isPostcodeAreaMatch(job) {
+function isPickupPostcodeAreaMatch(job) {
   const outward = (driverLocation.postcode || driverLocationQuery.value || '').trim().toUpperCase();
   const pickup = String(job?.pickup_postcode || '').trim().toUpperCase();
 
   return Boolean(outward && pickup.startsWith(outward));
 }
+
 const isDriver = computed(() => auth.role === 'driver');
 const isDealer = computed(() => auth.role === 'dealer');
 const isAdmin = computed(() => auth.role === 'admin');
@@ -611,20 +609,14 @@ const driverHomeLocation = computed(() => {
   };
 });
 const baseDriverLocationSuggestions = computed(() => [
-  { label: 'Current Location', value: 'current', icon: 'target', current: true },
   ...(driverHomeLocation.value ? [driverHomeLocation.value] : [])
 ]);
 const driverLocationSuggestions = computed(() => {
-  const baseSuggestions = baseDriverLocationSuggestions.value;
-
   if (driverLocationQuery.value.trim().length >= 2) {
-    return [
-      baseSuggestions[0],
-      ...driverLocationAutocomplete.value,
-    ];
+    return driverLocationAutocomplete.value;
   }
 
-  return baseSuggestions;
+  return baseDriverLocationSuggestions.value;
 });
 const dealerPipelineJobs = computed(() => {
   const byId = new Map();
@@ -939,10 +931,10 @@ function formatDriverDistance(job) {
   }
 
   if (distance < 1) {
-    return 'Under 1 mi away';
+    return 'Pickup under 1 mi away';
   }
 
-  return `${distance.toFixed(distance >= 10 ? 0 : 1)} mi away`;
+  return `Pickup ${distance.toFixed(distance >= 10 ? 0 : 1)} mi away`;
 }
 
 function formatDate(value) {
@@ -1271,6 +1263,23 @@ onMounted(async () => {
           </span>
         </div>
 
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-300/20 dark:bg-emerald-300/10">
+          <button
+            type="button"
+            class="btn-primary min-h-0 w-full px-4 py-2 text-sm disabled:cursor-wait disabled:opacity-60"
+            :disabled="driverLocation.loading"
+            @click="useDriverLocation"
+          >
+            {{ driverLocation.loading ? 'Getting phone location...' : driverLocation.source === 'gps' ? 'Using phone location' : 'Use phone location' }}
+          </button>
+          <p v-if="driverHasLocation && driverLocation.source === 'gps'" class="mt-2 text-xs font-black text-emerald-800 dark:text-emerald-100">
+            {{ driverLocationQuery }} · Lat {{ Number(driverLocation.latitude).toFixed(5) }} · Lng {{ Number(driverLocation.longitude).toFixed(5) }}
+          </p>
+          <p v-if="driverLocation.error" class="mt-2 text-xs font-black text-amber-700 dark:text-amber-200">
+            {{ driverLocation.error }}
+          </p>
+        </div>
+
         <form class="grid gap-2 rounded-3xl border-2 border-emerald-700/70 bg-white p-3 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-100 dark:border-emerald-300/40 dark:bg-white/[0.04] dark:focus-within:ring-emerald-300/10 sm:grid-cols-[minmax(0,1fr)_auto_auto]" @submit.prevent="submitDriverSearch">
           <label class="flex min-w-0 items-center gap-3">
             <span class="text-lg text-slate-700 dark:text-emerald-200">●</span>
@@ -1308,16 +1317,6 @@ onMounted(async () => {
           </button>
         </form>
 
-        <button
-          type="button"
-          class="flex w-fit items-center gap-2 rounded-xl px-2 py-1 text-sm font-black text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60 dark:text-emerald-300 dark:hover:bg-emerald-300/10"
-          :disabled="driverLocation.loading"
-          @click="useDriverLocation"
-        >
-          <span aria-hidden="true">⌾</span>
-          <span>{{ driverLocation.loading ? 'Asking for location...' : 'Use current location' }}</span>
-        </button>
-
         <div v-if="driverLocationFocused" class="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
           <p v-if="driverLocationAutocompleteLoading" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
             Finding places...
@@ -1330,11 +1329,11 @@ onMounted(async () => {
             @click="chooseDriverLocationSuggestion(suggestion)"
           >
             <span class="grid size-8 place-items-center rounded-full bg-slate-100 text-sm text-slate-700 dark:bg-slate-900 dark:text-emerald-100">
-              {{ suggestion.icon === 'target' ? '⌾' : suggestion.icon === 'home' ? '⌂' : '⌖' }}
+              {{ suggestion.icon === 'home' ? '⌂' : '⌖' }}
             </span>
             <span class="min-w-0">
-              <span class="block truncate text-sm font-black" :class="suggestion.current ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white'">
-                {{ suggestion.current && driverLocation.loading ? 'Asking for location...' : suggestion.label }}
+              <span class="block truncate text-sm font-black text-slate-900 dark:text-white">
+                {{ suggestion.label }}
               </span>
               <span v-if="suggestion.sublabel" class="block truncate text-xs font-semibold text-slate-500 dark:text-emerald-100">
                 {{ suggestion.sublabel }}
@@ -1381,7 +1380,7 @@ onMounted(async () => {
                 {{ job.pickup_postcode || job.pickup_label || '--' }} to {{ job.dropoff_postcode || job.dropoff_label || '--' }}
               </p>
               <p class="mt-1 truncate text-xs font-semibold text-slate-600 dark:text-emerald-100">
-                {{ job.company || 'Customer' }} · {{ job.vehicle_make || 'Vehicle' }} · {{ formatTransportType(job.transport_type) }}
+                {{ job.vehicle_make || 'Vehicle' }} · {{ formatTransportType(job.transport_type) }}
               </p>
               <p v-if="formatDriverDistance(job)" class="mt-1 text-xs font-black text-emerald-700 dark:text-emerald-300">
                 {{ formatDriverDistance(job) }}

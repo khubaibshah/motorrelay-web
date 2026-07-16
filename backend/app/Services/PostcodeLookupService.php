@@ -165,7 +165,6 @@ class PostcodeLookupService
             ->timeout(15)
             ->get(rtrim((string) config('postcodes.geocode_url'), '/'), [
                 'latlng' => $latitude.','.$longitude,
-                'result_type' => 'postal_code',
                 'language' => 'en-GB',
                 'key' => $apiKey,
             ]);
@@ -184,16 +183,23 @@ class PostcodeLookupService
             ));
         }
 
-        $result = collect($payload['results'] ?? [])->first(fn ($item) => is_array($item));
-        $postcode = $this->extractPostcode($result['address_components'] ?? []);
-        if (! $postcode) {
-            abort(422, 'No postcode was found for your current location.');
+        $results = collect($payload['results'] ?? [])->filter(fn ($item) => is_array($item))->values();
+        $result = $results->first(fn ($item) => $this->extractPostcode($item['address_components'] ?? []) !== null)
+            ?? $results->first();
+
+        if (! $result) {
+            abort(422, 'No nearby location was found for your current location.');
         }
+
+        $postcode = $this->extractPostcode($result['address_components'] ?? []);
+        $label = (string) ($result['formatted_address'] ?? '');
+        $locality = $this->extractLocality($result['address_components'] ?? []);
 
         return [
             'postcode' => $postcode,
-            'outward_code' => $this->outwardCode($postcode),
-            'label' => (string) ($result['formatted_address'] ?? $postcode),
+            'outward_code' => $postcode ? $this->outwardCode($postcode) : null,
+            'label' => $label !== '' ? $label : ($postcode ?: $locality ?: 'Current location'),
+            'locality' => $locality,
         ];
     }
 
@@ -322,6 +328,24 @@ class PostcodeLookupService
                 $postcode = strtoupper(trim((string) ($component['short_name'] ?? $component['long_name'] ?? '')));
 
                 return $postcode !== '' ? $postcode : null;
+            }
+        }
+
+        return null;
+    }
+
+    protected function extractLocality(array $components): ?string
+    {
+        $preferredTypes = ['postal_town', 'locality', 'administrative_area_level_2'];
+
+        foreach ($preferredTypes as $preferredType) {
+            foreach ($components as $component) {
+                $types = $component['types'] ?? [];
+                if (is_array($types) && in_array($preferredType, $types, true)) {
+                    $label = trim((string) ($component['long_name'] ?? $component['short_name'] ?? ''));
+
+                    return $label !== '' ? $label : null;
+                }
             }
         }
 

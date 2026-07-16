@@ -23,9 +23,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>MotorRelay uses your location while you are on an active run so the dealer can see live tracking updates.</string>
+	<string>MotoRelay uses your location to find nearby runs and to share tracking updates during an active run.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>MotorRelay uses your location while you are on an active run so the dealer can see live tracking updates.</string>
+	<string>MotoRelay uses your location to find nearby runs and to share tracking updates during an active run.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>MotorRelay uses your camera so drivers can upload vehicle inspection photos for a run.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

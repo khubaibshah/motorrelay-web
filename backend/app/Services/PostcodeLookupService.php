@@ -154,6 +154,49 @@ class PostcodeLookupService
         ];
     }
 
+    public function reverse(float $latitude, float $longitude): array
+    {
+        $apiKey = trim((string) config('postcodes.api_key'));
+        if (! $apiKey) {
+            abort(500, 'Postcode lookup API key is not configured.');
+        }
+
+        $response = Http::acceptJson()
+            ->timeout(15)
+            ->get(rtrim((string) config('postcodes.geocode_url'), '/'), [
+                'latlng' => $latitude.','.$longitude,
+                'result_type' => 'postal_code',
+                'language' => 'en-GB',
+                'key' => $apiKey,
+            ]);
+
+        $this->assertGoogleResponseSucceeded($response, 'Current location lookup');
+
+        $payload = $response->json() ?? [];
+        $status = $payload['status'] ?? 'OK';
+        if ($status === 'ZERO_RESULTS') {
+            abort(422, 'No postcode was found for your current location.');
+        }
+        if ($status !== 'OK') {
+            abort(422, sprintf(
+                'Current location lookup failed. %s',
+                trim((string) ($payload['error_message'] ?? $status))
+            ));
+        }
+
+        $result = collect($payload['results'] ?? [])->first(fn ($item) => is_array($item));
+        $postcode = $this->extractPostcode($result['address_components'] ?? []);
+        if (! $postcode) {
+            abort(422, 'No postcode was found for your current location.');
+        }
+
+        return [
+            'postcode' => $postcode,
+            'outward_code' => $this->outwardCode($postcode),
+            'label' => (string) ($result['formatted_address'] ?? $postcode),
+        ];
+    }
+
     protected function normalisePostcode(string $postcode): string
     {
         return strtoupper(trim(preg_replace('/\s+/', ' ', $postcode) ?? ''));

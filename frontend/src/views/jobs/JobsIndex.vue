@@ -215,7 +215,6 @@ function driverMarketplaceQuery() {
 }
 
 async function useDriverLocation() {
-  driverLocationQuery.value = 'Current Location';
   driverLocationFocused.value = false;
   driverLocationAutocomplete.value = [];
   if (driverRadius.value === 'all') {
@@ -506,13 +505,28 @@ async function ensureDriverLocation({ force = false } = {}) {
     driverLocation.source = 'gps';
     driverLocation.label = 'your phone location';
     driverLocation.postcode = '';
+
+    try {
+      const { data } = await api.get('/postcodes/reverse', {
+        params: {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        }
+      });
+      const location = data?.data ?? {};
+      driverLocation.postcode = location.outward_code || location.postcode || '';
+      driverLocation.label = location.label || driverLocation.label;
+    } catch (error) {
+      console.warn('Current location postcode unavailable', error);
+    }
+
+    driverLocationQuery.value = 'Current Location';
     driverLocationPermissionBlocked.value = false;
   } catch (error) {
     console.warn('Driver marketplace location unavailable', error);
     const wasPermissionBlocked = driverLocationPermissionBlocked.value;
     clearDriverLocation();
     driverLocationPermissionBlocked.value = wasPermissionBlocked;
-    driverLocationQuery.value = 'Current Location';
     driverLocation.error = error.message || 'Location services are off. Enable location or search by postcode.';
   } finally {
     driverLocation.loading = false;
@@ -1295,6 +1309,16 @@ onMounted(async () => {
             Search
           </button>
         </form>
+
+        <button
+          type="button"
+          class="flex w-fit items-center gap-2 rounded-xl px-2 py-1 text-sm font-black text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60 dark:text-emerald-300 dark:hover:bg-emerald-300/10"
+          :disabled="driverLocation.loading"
+          @click="useDriverLocation"
+        >
+          <span aria-hidden="true">⌾</span>
+          <span>{{ driverLocation.loading ? 'Asking for location...' : 'Use current location' }}</span>
+        </button>
 
         <div v-if="driverLocationFocused" class="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
           <p v-if="driverLocationAutocompleteLoading" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">

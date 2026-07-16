@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\PostcodeLookupService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PostcodeLookupController extends Controller
 {
@@ -25,6 +26,21 @@ class PostcodeLookupController extends Controller
     {
         return response()->json([
             'data' => $postcodes->coordinates($postcode),
+        ]);
+    }
+
+    public function reverse(Request $request, PostcodeLookupService $postcodes): JsonResponse
+    {
+        $coordinates = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        return response()->json([
+            'data' => $postcodes->reverse(
+                (float) $coordinates['latitude'],
+                (float) $coordinates['longitude']
+            ),
         ]);
     }
 }

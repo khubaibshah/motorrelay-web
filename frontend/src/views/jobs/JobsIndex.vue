@@ -425,13 +425,50 @@ async function getDriverCurrentPosition(options = {}) {
     return Geolocation.getCurrentPosition(options);
   }
 
+  if (!window.isSecureContext) {
+    throw new Error('Location only works on a secure website. Open MotorRelay using the https:// address and try again.');
+  }
+
+  if (navigator.permissions?.query) {
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' });
+
+      if (permission.state === 'denied') {
+        driverLocationPermissionBlocked.value = true;
+        throw new Error('Location permission is blocked for this website. Allow location for MotorRelay in your browser settings, then try again.');
+      }
+    } catch (error) {
+      if (driverLocationPermissionBlocked.value) {
+        throw error;
+      }
+    }
+  }
+
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Location is not supported in this browser.'));
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    navigator.geolocation.getCurrentPosition(resolve, (error) => {
+      if (error?.code === 1) {
+        driverLocationPermissionBlocked.value = true;
+        reject(new Error('Location permission was denied. Allow location for MotorRelay in your browser settings, then try again.'));
+        return;
+      }
+
+      if (error?.code === 2) {
+        reject(new Error('Your current location is unavailable. Check Location Services and try again.'));
+        return;
+      }
+
+      if (error?.code === 3) {
+        reject(new Error('Finding your location took too long. Try again or search by postcode.'));
+        return;
+      }
+
+      reject(error);
+    }, options);
   });
 }
 
@@ -566,11 +603,16 @@ const baseDriverLocationSuggestions = computed(() => [
   ...(driverHomeLocation.value ? [driverHomeLocation.value] : [])
 ]);
 const driverLocationSuggestions = computed(() => {
+  const baseSuggestions = baseDriverLocationSuggestions.value;
+
   if (driverLocationQuery.value.trim().length >= 2) {
-    return driverLocationAutocomplete.value;
+    return [
+      baseSuggestions[0],
+      ...driverLocationAutocomplete.value,
+    ];
   }
 
-  return baseDriverLocationSuggestions.value;
+  return baseSuggestions;
 });
 const dealerPipelineJobs = computed(() => {
   const byId = new Map();
@@ -1224,7 +1266,7 @@ onMounted(async () => {
               v-model="driverLocationQuery"
               type="text"
               inputmode="search"
-              autocomplete="postal-code"
+              autocomplete="off"
               placeholder="City, town, or postcode"
               class="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm font-black uppercase text-slate-900 outline-none placeholder:normal-case placeholder:font-semibold placeholder:text-slate-400 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
               @focus="driverLocationFocused = true"

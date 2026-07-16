@@ -93,6 +93,7 @@ class JobController extends Controller
                 max((float) $request->query('nearby_radius_miles', config('jobs.marketplace_nearby_radius_miles', 25)), 1),
                 250
             );
+            $nearbyOutwardCode = $this->outwardPostcode($request->string('nearby_postcode')->toString());
 
             if ($driverLatitude >= -90 && $driverLatitude <= 90 && $driverLongitude >= -180 && $driverLongitude <= 180) {
                 $sortedByDriverLocation = true;
@@ -101,7 +102,17 @@ class JobController extends Controller
                 $query
                     ->select('jobs.*')
                     ->selectRaw("{$distanceSql} as driver_distance_mi", $distanceBindings)
-                    ->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $nearbyRadiusMiles])
+                    ->where(function ($builder) use ($distanceSql, $distanceBindings, $nearbyRadiusMiles, $nearbyOutwardCode) {
+                        $builder->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $nearbyRadiusMiles]);
+
+                        if ($nearbyOutwardCode !== '') {
+                            $builder->orWhere(function ($postcodeBuilder) use ($nearbyOutwardCode) {
+                                $postcodeBuilder
+                                    ->whereNull('pickup_latitude')
+                                    ->where('pickup_postcode', 'like', $nearbyOutwardCode.'%');
+                            });
+                        }
+                    })
                     ->orderByRaw('pickup_latitude is null, pickup_longitude is null, driver_distance_mi asc');
             }
         }
@@ -517,6 +528,21 @@ class JobController extends Controller
         $distance = 2 * $earthRadiusMiles * atan2(sqrt($a), sqrt(1 - $a));
 
         return round($distance, 1);
+    }
+
+    protected function outwardPostcode(?string $postcode): string
+    {
+        $postcode = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $postcode) ?? ''));
+
+        if ($postcode === '') {
+            return '';
+        }
+
+        if (str_contains($postcode, ' ')) {
+            return trim(explode(' ', $postcode)[0]);
+        }
+
+        return strlen($postcode) > 3 ? substr($postcode, 0, -3) : $postcode;
     }
 
     protected function suggestedPrice(float $distanceMiles, string $transportType): float

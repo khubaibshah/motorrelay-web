@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, reactive } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { fetchJobs, applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
+import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { formatStatusLabel } from '@/utils/statusLabels';
 import { Geolocation } from '@capacitor/geolocation';
@@ -21,11 +22,18 @@ const activeErrorMessage = ref('');
 const completedErrorMessage = ref('');
 const successMessage = ref('');
 const appliedJobIds = ref(new Set());
-const driverMarketplaceMode = ref(route.query.marketplace === 'all' ? 'all' : 'nearby');
+const driverLocationQuery = ref(typeof route.query.location === 'string' ? route.query.location : '');
+const driverLocationFocused = ref(false);
+const driverLocationAutocomplete = ref([]);
+const driverLocationAutocompleteLoading = ref(false);
+const driverRadius = ref(route.query.radius === 'all' ? 'all' : Number(route.query.radius || 25));
 const driverLocation = reactive({
   latitude: null,
   longitude: null,
   enabled: false,
+  source: '',
+  label: '',
+  postcode: '',
   loading: false,
   error: ''
 });
@@ -48,7 +56,8 @@ const priceFormatter = new Intl.NumberFormat('en-GB', {
   currency: 'GBP',
   maximumFractionDigits: 0
 });
-const nearbyRadiusMiles = 25;
+const defaultNearbyRadiusMiles = 25;
+let driverLocationAutocompleteTimer = null;
 
 function driverPayoutForJob(job) {
   const storedPayout = Number(job?.driver_payout_amount || 0);
@@ -85,22 +94,14 @@ async function loadJobs() {
   completedErrorMessage.value = '';
   try {
     const availableParams = { scope: 'available' };
-    const search = driverSearch.value.trim();
-    if (isDriver.value && search) {
-      availableParams.search = search;
-    }
-    if (isDriver.value && driverMarketplaceMode.value === 'nearby') {
-      if (driverHasLocation.value) {
+    if (isDriver.value && driverHasLocation.value && driverRadius.value !== 'all') {
         availableParams.marketplace = 'nearby';
         availableParams.latitude = driverLocation.latitude;
         availableParams.longitude = driverLocation.longitude;
-        availableParams.nearby_radius_miles = nearbyRadiusMiles;
-      } else {
-        availableJobs.value = [];
-        appliedJobIds.value = new Set();
-        driverMarketplaceNearbyActive.value = false;
-        return;
-      }
+        availableParams.nearby_radius_miles = activeRadiusMiles.value;
+        if (driverLocation.postcode) {
+          availableParams.nearby_postcode = driverLocation.postcode;
+        }
     } else if (isDriver.value) {
       availableParams.marketplace = 'all';
     }
@@ -173,6 +174,14 @@ function openJob(job) {
 
 async function submitDriverSearch() {
   driverRunsTab.value = 'available';
+  driverLocationFocused.value = false;
+
+  if (driverRadius.value === 'all') {
+    clearDriverLocation();
+  } else if (isDriver.value) {
+    await resolveDriverLocationQuery();
+  }
+
   await router.replace({
     name: 'jobs',
     query: driverMarketplaceQuery()
@@ -181,8 +190,10 @@ async function submitDriverSearch() {
 }
 
 async function clearDriverSearch() {
-  driverSearch.value = '';
-  driverTransportFilter.value = 'all';
+  driverLocationQuery.value = '';
+  driverRadius.value = defaultNearbyRadiusMiles;
+  driverLocationAutocomplete.value = [];
+  clearDriverLocation();
   driverRunsTab.value = 'available';
   await router.replace({
     name: 'jobs',
@@ -193,24 +204,15 @@ async function clearDriverSearch() {
 
 function driverMarketplaceQuery() {
   return {
-    ...(driverSearch.value.trim() ? { search: driverSearch.value.trim() } : {}),
-    ...(driverTransportFilter.value !== 'all' ? { transport_type: driverTransportFilter.value } : {}),
-    ...(driverMarketplaceMode.value === 'all' ? { marketplace: 'all' } : {})
+    ...(driverLocationQuery.value.trim() ? { location: driverLocationQuery.value.trim() } : {}),
+    ...(driverRadius.value !== defaultNearbyRadiusMiles ? { radius: driverRadius.value } : {})
   };
 }
 
-async function setDriverMarketplaceMode(mode) {
-  driverMarketplaceMode.value = mode === 'all' ? 'all' : 'nearby';
-  driverRunsTab.value = 'available';
-  await router.replace({
-    name: 'jobs',
-    query: driverMarketplaceQuery()
-  });
-  await loadJobs();
-}
-
 async function useDriverLocation() {
-  driverMarketplaceMode.value = 'nearby';
+  driverLocationQuery.value = 'Current Location';
+  driverLocationFocused.value = false;
+  driverLocationAutocomplete.value = [];
   await router.replace({
     name: 'jobs',
     query: driverMarketplaceQuery()
@@ -219,8 +221,169 @@ async function useDriverLocation() {
   await loadJobs();
 }
 
+async function chooseDriverLocationSuggestion(suggestion) {
+  if (suggestion.current) {
+    await useDriverLocation();
+    return;
+  }
+
+  driverLocationFocused.value = false;
+  driverLocationQuery.value = suggestion.label || suggestion.value || '';
+
+  if (suggestion.placeId) {
+    await useDriverPlace(suggestion.placeId, suggestion.label);
+    return;
+  }
+
+  await useDriverPostcode(suggestion.value || suggestion.label || '');
+}
+
+function handleDriverLocationInput() {
+  driverLocationFocused.value = true;
+  clearDriverLocation();
+
+  if (driverLocationAutocompleteTimer) {
+    window.clearTimeout(driverLocationAutocompleteTimer);
+  }
+
+  driverLocationAutocompleteTimer = window.setTimeout(loadDriverLocationAutocomplete, 250);
+}
+
+async function loadDriverLocationAutocomplete() {
+  const query = driverLocationQuery.value.trim();
+
+  if (query.length < 2) {
+    driverLocationAutocomplete.value = [];
+    return;
+  }
+
+  driverLocationAutocompleteLoading.value = true;
+
+  try {
+    const { data } = await api.get(`/postcodes/${encodeURIComponent(query)}/addresses`);
+    const addresses = Array.isArray(data?.data?.addresses) ? data.data.addresses : [];
+    driverLocationAutocomplete.value = addresses.slice(0, 8).map((item) => ({
+      label: item.label,
+      sublabel: item.secondary,
+      placeId: item.id,
+      icon: 'place'
+    }));
+  } catch (error) {
+    console.warn('Location autocomplete failed', error);
+    driverLocationAutocomplete.value = [];
+  } finally {
+    driverLocationAutocompleteLoading.value = false;
+  }
+}
+
+async function resolveDriverLocationQuery() {
+  const postcode = driverLocationQuery.value.trim();
+
+  if (!postcode) {
+    clearDriverLocation();
+    return;
+  }
+
+  await useDriverPostcode(postcode);
+}
+
+async function useDriverPostcode(postcode) {
+  const normalisedPostcode = postcode.trim();
+
+  if (!normalisedPostcode) {
+    clearDriverLocation();
+    return;
+  }
+
+  driverLocation.loading = true;
+  driverLocation.error = '';
+
+  try {
+    const { data } = await api.get(`/postcodes/${encodeURIComponent(normalisedPostcode)}/coordinates`);
+    const result = data?.data ?? {};
+
+    if (!Number.isFinite(Number(result.latitude)) || !Number.isFinite(Number(result.longitude))) {
+      throw new Error('No coordinates were returned for that postcode.');
+    }
+
+    driverLocation.latitude = Number(result.latitude);
+    driverLocation.longitude = Number(result.longitude);
+    driverLocation.enabled = true;
+    driverLocation.source = 'postcode';
+    driverLocation.label = result.label || result.postcode || normalisedPostcode;
+    driverLocation.postcode = result.outward_code || result.postcode || normalisedPostcode;
+    driverLocationQuery.value = result.outward_code || result.postcode || normalisedPostcode;
+
+    await router.replace({
+      name: 'jobs',
+      query: driverMarketplaceQuery()
+    });
+    await loadJobs();
+  } catch (error) {
+    console.warn('Driver postcode location unavailable', error);
+    clearDriverLocation();
+    driverLocation.error = error.response?.data?.message || error.message || 'We could not use that postcode.';
+  } finally {
+    driverLocation.loading = false;
+  }
+}
+
+async function useDriverPlace(placeId, fallbackLabel = '') {
+  if (!placeId) return;
+
+  driverLocation.loading = true;
+  driverLocation.error = '';
+
+  try {
+    const { data } = await api.get(`/postcodes/places/${encodeURIComponent(placeId)}`);
+    const result = data?.data ?? {};
+
+    if (!Number.isFinite(Number(result.latitude)) || !Number.isFinite(Number(result.longitude))) {
+      throw new Error('No coordinates were returned for that place.');
+    }
+
+    driverLocation.latitude = Number(result.latitude);
+    driverLocation.longitude = Number(result.longitude);
+    driverLocation.enabled = true;
+    driverLocation.source = 'place';
+    driverLocation.label = result.label || fallbackLabel;
+    driverLocation.postcode = result.postcode || outwardPostcode(fallbackLabel);
+    driverLocationQuery.value = result.label || fallbackLabel;
+    driverLocationAutocomplete.value = [];
+
+    await router.replace({
+      name: 'jobs',
+      query: driverMarketplaceQuery()
+    });
+    await loadJobs();
+  } catch (error) {
+    console.warn('Driver place location unavailable', error);
+    clearDriverLocation();
+    driverLocation.error = error.response?.data?.message || error.message || 'We could not use that location.';
+  } finally {
+    driverLocation.loading = false;
+  }
+}
+
+function outwardPostcode(value) {
+  const postcode = String(value || '').trim().toUpperCase();
+  if (!postcode) return '';
+  if (postcode.includes(' ')) return postcode.split(' ')[0];
+  return postcode.length > 3 ? postcode.slice(0, -3) : postcode;
+}
+
+function clearDriverLocation() {
+  driverLocation.latitude = null;
+  driverLocation.longitude = null;
+  driverLocation.enabled = false;
+  driverLocation.source = '';
+  driverLocation.label = '';
+  driverLocation.postcode = '';
+  driverMarketplaceNearbyActive.value = false;
+}
+
 async function ensureDriverLocation({ force = false } = {}) {
-  if (driverMarketplaceMode.value !== 'nearby' || driverLocation.loading) {
+  if (driverLocation.loading) {
     return;
   }
 
@@ -259,11 +422,12 @@ async function ensureDriverLocation({ force = false } = {}) {
     driverLocation.latitude = position.coords.latitude;
     driverLocation.longitude = position.coords.longitude;
     driverLocation.enabled = true;
+    driverLocation.source = 'gps';
+    driverLocation.label = 'your phone location';
+    driverLocation.postcode = '';
   } catch (error) {
     console.warn('Driver marketplace location unavailable', error);
-    driverLocation.latitude = null;
-    driverLocation.longitude = null;
-    driverLocation.enabled = false;
+    clearDriverLocation();
     driverLocation.error = 'Location is off. Turn it on or switch to All jobs.';
   } finally {
     driverLocation.loading = false;
@@ -286,32 +450,39 @@ function formatGoLive(job) {
   }).format(new Date(job.goes_live_at));
 }
 
-const driverSearch = ref(typeof route.query.search === 'string' ? route.query.search : '');
-const driverTransportFilter = ref(typeof route.query.transport_type === 'string' ? route.query.transport_type : 'all');
 const driverHasLocation = computed(() => Number.isFinite(Number(driverLocation.latitude)) && Number.isFinite(Number(driverLocation.longitude)));
+const activeRadiusMiles = computed(() => driverRadius.value === 'all' ? null : Number(driverRadius.value || defaultNearbyRadiusMiles));
 const driverMarketplaceLabel = computed(() => {
-  if (driverMarketplaceMode.value === 'all') return 'Showing all open runs';
+  if (driverRadius.value === 'all') return 'Showing all open runs';
   if (driverLocation.loading) return 'Finding nearby runs...';
-  if (driverHasLocation.value && driverMarketplaceNearbyActive.value) return `Showing runs within ${nearbyRadiusMiles} miles of you`;
-  if (driverHasLocation.value) return 'Location found. Refreshing nearby runs...';
-  return driverLocation.error || `Tap “Use my location” to see runs within ${nearbyRadiusMiles} miles`;
+  if (driverHasLocation.value && driverMarketplaceNearbyActive.value) {
+    const place = driverLocation.source === 'gps'
+      ? 'you'
+      : (driverLocation.label || driverLocation.postcode || driverLocationQuery.value);
+    return `Showing runs within ${activeRadiusMiles.value} miles of ${place}`;
+  }
+  if (driverLocation.error) return driverLocation.error;
+  return 'Enter a location to search nearby runs, or choose All jobs.';
 });
 const visibleJobs = computed(() => {
-  const transport = driverTransportFilter.value;
   let jobs = availableJobs.value ?? [];
 
-  if (isDriver.value && driverMarketplaceMode.value === 'nearby') {
-    jobs = driverHasLocation.value
-      ? jobs.filter((job) => {
-          const distance = Number(job?.driver_distance_mi);
-          return Number.isFinite(distance) && distance <= nearbyRadiusMiles;
-        })
-      : [];
+  if (isDriver.value && driverHasLocation.value && driverRadius.value !== 'all') {
+    jobs = jobs.filter((job) => {
+      const distance = Number(job?.driver_distance_mi);
+      return (Number.isFinite(distance) && distance <= activeRadiusMiles.value) || isPostcodeAreaMatch(job);
+    });
   }
 
-  if (!isDriver.value || !transport || transport === 'all') return jobs;
-  return jobs.filter((job) => String(job?.transport_type || '').toLowerCase() === transport);
+  return jobs;
 });
+
+function isPostcodeAreaMatch(job) {
+  const outward = (driverLocation.postcode || driverLocationQuery.value || '').trim().toUpperCase();
+  const pickup = String(job?.pickup_postcode || '').trim().toUpperCase();
+
+  return Boolean(outward && pickup.startsWith(outward));
+}
 const isDriver = computed(() => auth.role === 'driver');
 const isDealer = computed(() => auth.role === 'dealer');
 const isAdmin = computed(() => auth.role === 'admin');
@@ -329,6 +500,29 @@ const selectedDriverError = computed(() => {
 });
 const selectedDriverEmptyMessage = computed(() => {
   return availableEmptyMessage.value;
+});
+const driverHomeLocation = computed(() => {
+  const postcode = auth.user?.postcode || auth.user?.profile?.postcode || '';
+
+  if (!postcode) return null;
+
+  return {
+    label: 'Home',
+    sublabel: postcode,
+    value: postcode,
+    icon: 'home'
+  };
+});
+const baseDriverLocationSuggestions = computed(() => [
+  { label: 'Current Location', value: 'current', icon: 'target', current: true },
+  ...(driverHomeLocation.value ? [driverHomeLocation.value] : [])
+]);
+const driverLocationSuggestions = computed(() => {
+  if (driverLocationQuery.value.trim().length >= 2) {
+    return driverLocationAutocomplete.value;
+  }
+
+  return baseDriverLocationSuggestions.value;
 });
 const dealerPipelineJobs = computed(() => {
   const byId = new Map();
@@ -463,11 +657,8 @@ const activeEmptyMessage = computed(() => {
   return 'No active runs right now.';
 });
 const availableEmptyMessage = computed(() => {
-  if (isDriver.value && driverMarketplaceMode.value === 'nearby' && !driverHasLocation.value) {
-    return `Use your location to see runs within ${nearbyRadiusMiles} miles, or switch to All jobs.`;
-  }
-  if (isDriver.value && driverMarketplaceMode.value === 'nearby' && driverHasLocation.value) {
-    return `No runs within ${nearbyRadiusMiles} miles right now. Switch to All jobs to see everything available.`;
+  if (isDriver.value && driverHasLocation.value && driverRadius.value !== 'all') {
+    return `No runs within ${activeRadiusMiles.value} miles right now. Increase the radius or choose All jobs.`;
   }
   if (isDriver.value) return 'No open runs right now. Check back later or ask a dealer to post a run.';
   if (isDealer.value) return 'No open runs visible. Create a run to start receiving driver requests.';
@@ -693,6 +884,13 @@ onMounted(async () => {
   if ((!auth.user || auth.role === 'dealer') && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
+
+  if (auth.role === 'driver' && driverLocationQuery.value.trim()) {
+    await resolveDriverLocationQuery();
+    await loadJobs();
+    return;
+  }
+
   await loadJobs();
 });
 </script>
@@ -971,79 +1169,74 @@ onMounted(async () => {
           </span>
         </div>
 
-        <form class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/[0.06] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_auto]" @submit.prevent="submitDriverSearch">
-          <label class="block min-w-0">
+        <form class="grid gap-2 rounded-3xl border-2 border-emerald-700/70 bg-white p-3 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-100 dark:border-emerald-300/40 dark:bg-white/[0.04] dark:focus-within:ring-emerald-300/10 sm:grid-cols-[minmax(0,1fr)_auto_auto]" @submit.prevent="submitDriverSearch">
+          <label class="flex min-w-0 items-center gap-3">
+            <span class="text-lg text-slate-700 dark:text-emerald-200">●</span>
             <input
-              v-model="driverSearch"
-              type="search"
-              placeholder="Postcode, route, vehicle..."
-              class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
+              v-model="driverLocationQuery"
+              type="text"
+              inputmode="search"
+              autocomplete="postal-code"
+              placeholder="City, town, or postcode"
+              class="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm font-black uppercase text-slate-900 outline-none placeholder:normal-case placeholder:font-semibold placeholder:text-slate-400 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
+              @focus="driverLocationFocused = true"
+              @input="handleDriverLocationInput"
             >
-          </label>
-          <label class="block min-w-0">
-            <select
-              v-model="driverTransportFilter"
-              class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
+            <button
+              v-if="driverLocationQuery"
+              type="button"
+              class="rounded-full px-2 py-1 text-xs font-black text-slate-500 hover:bg-slate-100 hover:text-emerald-700 dark:text-emerald-100 dark:hover:bg-white/10"
+              @click="clearDriverSearch"
             >
-              <option value="all">Any transport</option>
-              <option value="drive_away">Drive-away</option>
-              <option value="trailer">Trailer</option>
-            </select>
-          </label>
-          <div class="flex gap-2 sm:self-stretch">
-            <button type="submit" class="btn-primary min-h-0 flex-1 px-4 py-2 text-sm sm:flex-none">
-              Search
-            </button>
-            <button type="button" class="rounded-2xl px-3 py-2 text-xs font-bold text-slate-500 hover:bg-white hover:text-emerald-700 dark:text-emerald-100 dark:hover:bg-white/10 dark:hover:text-emerald-300" @click="clearDriverSearch">
               Clear
             </button>
-          </div>
+          </label>
+          <select
+            v-model="driverRadius"
+            class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
+            @change="submitDriverSearch"
+          >
+            <option :value="25">25 mi</option>
+            <option :value="50">50 mi</option>
+            <option :value="100">100 mi</option>
+            <option value="all">All jobs</option>
+          </select>
+          <button type="submit" class="btn-primary min-h-0 px-4 py-2 text-sm">
+            Search
+          </button>
         </form>
 
-        <div class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-white/[0.04]">
-          <div class="flex rounded-2xl bg-slate-100 p-1 dark:bg-slate-900">
-            <button
-              type="button"
-              class="rounded-xl px-3 py-1.5 text-xs font-black transition"
-              :class="driverMarketplaceMode === 'nearby' ? 'bg-slate-950 text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 dark:text-emerald-100'"
-              @click="setDriverMarketplaceMode('nearby')"
-            >
-              Nearby {{ nearbyRadiusMiles }} mi
-            </button>
-            <button
-              type="button"
-              class="rounded-xl px-3 py-1.5 text-xs font-black transition"
-              :class="driverMarketplaceMode === 'all' ? 'bg-slate-950 text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 dark:text-emerald-100'"
-              @click="setDriverMarketplaceMode('all')"
-            >
-              All jobs
-            </button>
-          </div>
-          <div class="flex flex-wrap items-center justify-end gap-2">
-            <p class="text-xs font-bold text-slate-500 dark:text-emerald-100">
-              {{ driverMarketplaceLabel }}
-            </p>
-            <button
-              v-if="driverMarketplaceMode === 'nearby' && !driverHasLocation"
-              type="button"
-              class="rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-black text-slate-950 shadow-sm transition hover:bg-emerald-400 disabled:opacity-60"
-              :disabled="driverLocation.loading"
-              @click="useDriverLocation"
-            >
-              <span v-if="driverLocation.loading">Finding...</span>
-              <span v-else>Use my location</span>
-            </button>
-            <button
-              v-else-if="driverMarketplaceMode === 'nearby'"
-              type="button"
-              class="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-600 transition hover:border-emerald-200 hover:text-emerald-700 dark:border-white/10 dark:text-emerald-100 dark:hover:border-emerald-300 dark:hover:text-emerald-300"
-              :disabled="driverLocation.loading"
-              @click="useDriverLocation"
-            >
-              Refresh location
-            </button>
-          </div>
+        <div v-if="driverLocationFocused" class="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
+          <p v-if="driverLocationAutocompleteLoading" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
+            Finding places...
+          </p>
+          <button
+            v-for="suggestion in driverLocationSuggestions"
+            :key="`${suggestion.label}-${suggestion.value}`"
+            type="button"
+            class="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-300/10"
+            @click="chooseDriverLocationSuggestion(suggestion)"
+          >
+            <span class="grid size-8 place-items-center rounded-full bg-slate-100 text-sm text-slate-700 dark:bg-slate-900 dark:text-emerald-100">
+              {{ suggestion.icon === 'target' ? '⌾' : suggestion.icon === 'home' ? '⌂' : '⌖' }}
+            </span>
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-black" :class="suggestion.current ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white'">
+                {{ suggestion.label }}
+              </span>
+              <span v-if="suggestion.sublabel" class="block truncate text-xs font-semibold text-slate-500 dark:text-emerald-100">
+                {{ suggestion.sublabel }}
+              </span>
+            </span>
+          </button>
+          <p v-if="!driverLocationAutocompleteLoading && driverLocationQuery.trim().length >= 2 && !driverLocationSuggestions.length" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
+            No places found. Try a postcode like BB9 or a nearby town.
+          </p>
         </div>
+
+        <p class="px-1 text-xs font-bold text-slate-500 dark:text-emerald-100">
+          {{ driverMarketplaceLabel }}
+        </p>
       </header>
 
       <p v-if="selectedDriverError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">

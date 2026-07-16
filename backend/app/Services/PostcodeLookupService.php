@@ -99,9 +99,75 @@ class PostcodeLookupService
         ];
     }
 
+    public function coordinates(string $postcode): array
+    {
+        $postcode = $this->normalisePostcode($postcode);
+
+        if ($postcode === '') {
+            abort(422, 'Enter a postcode first.');
+        }
+
+        $apiKey = trim((string) config('postcodes.api_key'));
+        if (! $apiKey) {
+            abort(500, 'Postcode lookup API key is not configured.');
+        }
+
+        $response = Http::acceptJson()
+            ->timeout(15)
+            ->get(rtrim((string) config('postcodes.geocode_url'), '/'), [
+                'address' => $postcode,
+                'components' => 'country:GB|postal_code:'.$postcode,
+                'language' => 'en-GB',
+                'key' => $apiKey,
+            ]);
+
+        $this->assertGoogleResponseSucceeded($response, 'Postcode location lookup');
+
+        $payload = $response->json() ?? [];
+        $status = $payload['status'] ?? 'OK';
+
+        if ($status === 'ZERO_RESULTS') {
+            abort(422, 'No location found for that postcode.');
+        }
+
+        if ($status !== 'OK') {
+            abort(422, sprintf(
+                'Postcode location lookup failed. %s',
+                trim((string) ($payload['error_message'] ?? $status ?? 'Check the postcode and Google Maps API key.'))
+            ));
+        }
+
+        $result = collect($payload['results'] ?? [])->first(fn ($item) => is_array($item) && data_get($item, 'geometry.location.lat') && data_get($item, 'geometry.location.lng'));
+        $latitude = data_get($result, 'geometry.location.lat');
+        $longitude = data_get($result, 'geometry.location.lng');
+
+        if (! is_numeric($latitude) || ! is_numeric($longitude)) {
+            abort(422, 'No coordinates were returned for that postcode.');
+        }
+
+        return [
+            'postcode' => $postcode,
+            'outward_code' => $this->outwardCode($postcode),
+            'latitude' => (float) $latitude,
+            'longitude' => (float) $longitude,
+            'label' => (string) data_get($result, 'formatted_address', $postcode),
+        ];
+    }
+
     protected function normalisePostcode(string $postcode): string
     {
         return strtoupper(trim(preg_replace('/\s+/', ' ', $postcode) ?? ''));
+    }
+
+    protected function outwardCode(string $postcode): string
+    {
+        $postcode = $this->normalisePostcode($postcode);
+
+        if (str_contains($postcode, ' ')) {
+            return trim(explode(' ', $postcode)[0]);
+        }
+
+        return strlen($postcode) > 3 ? substr($postcode, 0, -3) : $postcode;
     }
 
     protected function findPlaces(string $input, string $apiKey, string $type): array

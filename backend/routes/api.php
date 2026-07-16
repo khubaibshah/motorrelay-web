@@ -40,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store']);
     Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy']);
     Route::get('/vehicles/registration/{registration}', [VehicleLookupController::class, 'show']);
+    Route::get('/postcodes/{postcode}/coordinates', [PostcodeLookupController::class, 'coordinates']);
     Route::get('/postcodes/{postcode}/addresses', [PostcodeLookupController::class, 'show']);
     Route::get('/postcodes/places/{placeId}', [PostcodeLookupController::class, 'resolve']);
     Route::get('/driver/overview', [DriverDashboardController::class, 'show']);

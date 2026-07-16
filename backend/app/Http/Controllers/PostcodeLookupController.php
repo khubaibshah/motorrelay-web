@@ -20,4 +20,11 @@ class PostcodeLookupController extends Controller
             'data' => $postcodes->resolve($placeId),
         ]);
     }
+
+    public function coordinates(string $postcode, PostcodeLookupService $postcodes): JsonResponse
+    {
+        return response()->json([
+            'data' => $postcodes->coordinates($postcode),
+        ]);
+    }
 }

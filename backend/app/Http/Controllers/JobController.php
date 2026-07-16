@@ -39,6 +39,8 @@ class JobController extends Controller
         $user = $request->user();
         $scope = $request->string('scope')->toString();
         $status = $request->string('status')->toString();
+        $marketplace = $request->string('marketplace')->toString();
+        $sortedByDriverLocation = false;
 
         $query = Job::query()->with([
             'postedBy:id,name',
@@ -83,6 +85,26 @@ class JobController extends Controller
             $query->where('status', $status);
         }
 
+        if ($scope === 'available' && $user?->isDriver() && $marketplace !== 'all' && is_numeric($request->query('latitude')) && is_numeric($request->query('longitude'))) {
+            $driverLatitude = (float) $request->query('latitude');
+            $driverLongitude = (float) $request->query('longitude');
+            $nearbyRadiusMiles = min(
+                max((float) $request->query('nearby_radius_miles', config('jobs.marketplace_nearby_radius_miles', 25)), 1),
+                250
+            );
+
+            if ($driverLatitude >= -90 && $driverLatitude <= 90 && $driverLongitude >= -180 && $driverLongitude <= 180) {
+                $sortedByDriverLocation = true;
+                $distanceSql = '(3958.7613 * acos(least(1, greatest(-1, cos(radians(?)) * cos(radians(pickup_latitude)) * cos(radians(pickup_longitude) - radians(?)) + sin(radians(?)) * sin(radians(pickup_latitude))))))';
+                $distanceBindings = [$driverLatitude, $driverLongitude, $driverLatitude];
+                $query
+                    ->select('jobs.*')
+                    ->selectRaw("{$distanceSql} as driver_distance_mi", $distanceBindings)
+                    ->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $nearbyRadiusMiles])
+                    ->orderByRaw('pickup_latitude is null, pickup_longitude is null, driver_distance_mi asc');
+            }
+        }
+
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
             $query->where(function ($builder) use ($search) {
@@ -106,8 +128,11 @@ class JobController extends Controller
         }
 
         if ($user && $user->isDriver()) {
+            $unlimitedTestAccounts = collect(config('jobs.unlimited_test_accounts', []))
+                ->map(fn ($email) => strtolower((string) $email));
+            $hasUnlimitedTestAccess = $unlimitedTestAccounts->contains(strtolower((string) $user->email));
             $planSlug = $user->plan_slug ?? Str::slug((string) $user->plan, '_');
-            if ($planSlug === 'starter') {
+            if ($planSlug === 'starter' && ! $hasUnlimitedTestAccess && $marketplace !== 'all') {
                 $radius = config('jobs.plan_limits.starter.job_distance_radius', 50);
                 $query->where(function ($builder) use ($radius) {
                     $builder->whereNull('distance_mi')
@@ -117,7 +142,7 @@ class JobController extends Controller
         }
 
         $jobs = $query
-            ->orderByDesc('created_at')
+            ->when(! $sortedByDriverLocation, fn ($builder) => $builder->orderByDesc('created_at'))
             ->paginate($request->integer('per_page', 15));
 
         if ($user && $user->isDriver()) {

@@ -18,7 +18,7 @@ const priceFormatter = new Intl.NumberFormat('en-GB', {
 });
 
 onMounted(async () => {
-  if (!auth.user && auth.token) {
+  if ((!auth.user || auth.role === 'dealer') && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
 

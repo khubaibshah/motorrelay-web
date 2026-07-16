@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { fetchJobs, applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
 import { useAuthStore } from '@/stores/auth';
 import { formatStatusLabel } from '@/utils/statusLabels';
+import { Geolocation } from '@capacitor/geolocation';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -20,6 +21,13 @@ const activeErrorMessage = ref('');
 const completedErrorMessage = ref('');
 const successMessage = ref('');
 const appliedJobIds = ref(new Set());
+const driverMarketplaceMode = ref(route.query.marketplace === 'all' ? 'all' : 'nearby');
+const driverLocation = reactive({
+  latitude: null,
+  longitude: null,
+  loading: false,
+  error: ''
+});
 const actionState = reactive({
   id: null,
   type: null
@@ -38,6 +46,7 @@ const priceFormatter = new Intl.NumberFormat('en-GB', {
   currency: 'GBP',
   maximumFractionDigits: 0
 });
+const nearbyRadiusMiles = 25;
 
 function driverPayoutForJob(job) {
   const storedPayout = Number(job?.driver_payout_amount || 0);
@@ -77,6 +86,17 @@ async function loadJobs() {
     const search = driverSearch.value.trim();
     if (isDriver.value && search) {
       availableParams.search = search;
+    }
+    if (isDriver.value && driverMarketplaceMode.value === 'nearby') {
+      await ensureDriverLocation();
+      if (driverHasLocation.value) {
+        availableParams.marketplace = 'nearby';
+        availableParams.latitude = driverLocation.latitude;
+        availableParams.longitude = driverLocation.longitude;
+        availableParams.nearby_radius_miles = nearbyRadiusMiles;
+      }
+    } else if (isDriver.value) {
+      availableParams.marketplace = 'all';
     }
     const payload = await fetchJobs(availableParams);
     const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
@@ -148,10 +168,7 @@ async function submitDriverSearch() {
   driverRunsTab.value = 'available';
   await router.replace({
     name: 'jobs',
-    query: {
-      ...(driverSearch.value.trim() ? { search: driverSearch.value.trim() } : {}),
-      ...(driverTransportFilter.value !== 'all' ? { transport_type: driverTransportFilter.value } : {})
-    }
+    query: driverMarketplaceQuery()
   });
   await loadJobs();
 }
@@ -160,8 +177,70 @@ async function clearDriverSearch() {
   driverSearch.value = '';
   driverTransportFilter.value = 'all';
   driverRunsTab.value = 'available';
-  await router.replace({ name: 'jobs' });
+  await router.replace({
+    name: 'jobs',
+    query: driverMarketplaceQuery()
+  });
   await loadJobs();
+}
+
+function driverMarketplaceQuery() {
+  return {
+    ...(driverSearch.value.trim() ? { search: driverSearch.value.trim() } : {}),
+    ...(driverTransportFilter.value !== 'all' ? { transport_type: driverTransportFilter.value } : {}),
+    ...(driverMarketplaceMode.value === 'all' ? { marketplace: 'all' } : {})
+  };
+}
+
+async function setDriverMarketplaceMode(mode) {
+  driverMarketplaceMode.value = mode === 'all' ? 'all' : 'nearby';
+  driverRunsTab.value = 'available';
+  await router.replace({
+    name: 'jobs',
+    query: driverMarketplaceQuery()
+  });
+  await loadJobs();
+}
+
+async function ensureDriverLocation() {
+  if (driverMarketplaceMode.value !== 'nearby' || driverHasLocation.value || driverLocation.loading) {
+    return;
+  }
+
+  driverLocation.loading = true;
+  driverLocation.error = '';
+
+  try {
+    const permission = await Geolocation.checkPermissions();
+    let locationPermission = permission.location;
+
+    if (locationPermission !== 'granted') {
+      const requested = await Geolocation.requestPermissions({
+        permissions: ['location']
+      });
+      locationPermission = requested.location;
+    }
+
+    if (locationPermission !== 'granted') {
+      throw new Error('Location permission is not enabled.');
+    }
+
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000
+    });
+
+    driverLocation.latitude = position.coords.latitude;
+    driverLocation.longitude = position.coords.longitude;
+  } catch (error) {
+    console.warn('Driver marketplace location unavailable', error);
+    driverLocation.latitude = null;
+    driverLocation.longitude = null;
+    driverLocation.error = 'Location is off, so we are showing all available runs.';
+  } finally {
+    driverLocation.loading = false;
+  }
 }
 
 function jobIsAwaitingLive(job) {
@@ -182,6 +261,13 @@ function formatGoLive(job) {
 
 const driverSearch = ref(typeof route.query.search === 'string' ? route.query.search : '');
 const driverTransportFilter = ref(typeof route.query.transport_type === 'string' ? route.query.transport_type : 'all');
+const driverHasLocation = computed(() => Number.isFinite(Number(driverLocation.latitude)) && Number.isFinite(Number(driverLocation.longitude)));
+const driverMarketplaceLabel = computed(() => {
+  if (driverMarketplaceMode.value === 'all') return 'Showing all open runs';
+  if (driverLocation.loading) return 'Finding nearby runs...';
+  if (driverHasLocation.value) return `Showing runs within ${nearbyRadiusMiles} miles of you`;
+  return driverLocation.error || `Use location to see runs within ${nearbyRadiusMiles} miles`;
+});
 const visibleJobs = computed(() => {
   const transport = driverTransportFilter.value;
   if (!isDriver.value || !transport || transport === 'all') return availableJobs.value ?? [];
@@ -338,6 +424,9 @@ const activeEmptyMessage = computed(() => {
   return 'No active runs right now.';
 });
 const availableEmptyMessage = computed(() => {
+  if (isDriver.value && driverMarketplaceMode.value === 'nearby' && driverHasLocation.value) {
+    return `No runs within ${nearbyRadiusMiles} miles right now. Switch to All jobs to see everything available.`;
+  }
   if (isDriver.value) return 'No open runs right now. Check back later or ask a dealer to post a run.';
   if (isDealer.value) return 'No open runs visible. Create a run to start receiving driver requests.';
   return 'No runs here yet.';
@@ -507,6 +596,20 @@ function formatTransportType(value) {
   return value;
 }
 
+function formatDriverDistance(job) {
+  const distance = Number(job?.driver_distance_mi);
+
+  if (!Number.isFinite(distance)) {
+    return null;
+  }
+
+  if (distance < 1) {
+    return 'Under 1 mi away';
+  }
+
+  return `${distance.toFixed(distance >= 10 ? 0 : 1)} mi away`;
+}
+
 function formatDate(value) {
   if (!value) return '--';
   try {
@@ -545,7 +648,7 @@ function resolveInvoiceLink(job) {
 }
 
 onMounted(async () => {
-  if (!auth.user && auth.token) {
+  if ((!auth.user || auth.role === 'dealer') && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
   await loadJobs();
@@ -854,6 +957,30 @@ onMounted(async () => {
             </button>
           </div>
         </form>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-white/[0.04]">
+          <div class="flex rounded-2xl bg-slate-100 p-1 dark:bg-slate-900">
+            <button
+              type="button"
+              class="rounded-xl px-3 py-1.5 text-xs font-black transition"
+              :class="driverMarketplaceMode === 'nearby' ? 'bg-slate-950 text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 dark:text-emerald-100'"
+              @click="setDriverMarketplaceMode('nearby')"
+            >
+              Nearby {{ nearbyRadiusMiles }} mi
+            </button>
+            <button
+              type="button"
+              class="rounded-xl px-3 py-1.5 text-xs font-black transition"
+              :class="driverMarketplaceMode === 'all' ? 'bg-slate-950 text-white shadow-sm dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 dark:text-emerald-100'"
+              @click="setDriverMarketplaceMode('all')"
+            >
+              All jobs
+            </button>
+          </div>
+          <p class="text-xs font-bold text-slate-500 dark:text-emerald-100">
+            {{ driverMarketplaceLabel }}
+          </p>
+        </div>
       </header>
 
       <p v-if="selectedDriverError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
@@ -881,6 +1008,9 @@ onMounted(async () => {
               </p>
               <p class="mt-1 truncate text-xs font-semibold text-slate-600 dark:text-emerald-100">
                 {{ job.company || 'Customer' }} · {{ job.vehicle_make || 'Vehicle' }} · {{ formatTransportType(job.transport_type) }}
+              </p>
+              <p v-if="formatDriverDistance(job)" class="mt-1 text-xs font-black text-emerald-700 dark:text-emerald-300">
+                {{ formatDriverDistance(job) }}
               </p>
             </button>
 

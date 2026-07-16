@@ -19,6 +19,8 @@ return [
         'trailer_rate_per_mile' => (float) env('JOB_PRICE_TRAILER_PER_MILE', 2.5),
     ],
 
+    'marketplace_nearby_radius_miles' => (float) env('JOB_MARKETPLACE_NEARBY_RADIUS_MILES', 25),
+
     'plan_limits' => [
         'starter' => [
             'monthly_job_posts' => 5,

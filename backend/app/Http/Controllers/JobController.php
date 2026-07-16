@@ -41,6 +41,7 @@ class JobController extends Controller
         $status = $request->string('status')->toString();
         $marketplace = $request->string('marketplace')->toString();
         $sortedByDriverLocation = false;
+        $nearbyRadiusMiles = (float) config('jobs.marketplace_nearby_radius_miles', 25);
 
         $query = Job::query()->with([
             'postedBy:id,name',
@@ -155,7 +156,14 @@ class JobController extends Controller
             });
         }
 
-        return response()->json($jobs);
+        return response()->json([
+            ...$jobs->toArray(),
+            'marketplace' => [
+                'nearby_active' => $sortedByDriverLocation,
+                'nearby_radius_miles' => $nearbyRadiusMiles,
+                'location_used' => $sortedByDriverLocation,
+            ],
+        ]);
     }
 
     public function store(Request $request, VehicleLookupService $vehicles): JsonResponse

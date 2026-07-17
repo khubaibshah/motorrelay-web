@@ -316,9 +316,9 @@ class JobWorkflowService
         ]);
 
         if ($assigned) {
-            Notification::send($assigned, new JobStatusNotification($job->fresh(), 'dealer_cancelled_job', [
+            JobStatusChanged::dispatch($job->fresh(), 'dealer_cancelled_job', [$assigned->id], [
                 'reason' => $reason,
-            ]));
+            ]);
         }
 
         return $job->fresh();

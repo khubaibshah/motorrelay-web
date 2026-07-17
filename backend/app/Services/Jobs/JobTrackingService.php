@@ -3,13 +3,12 @@
 namespace App\Services\Jobs;
 
 use App\Events\JobLocationUpdated;
+use App\Events\JobStatusChanged;
 use App\Models\Job;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\User;
-use App\Notifications\JobStatusNotification;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 
 class JobTrackingService
 {
@@ -102,10 +101,9 @@ class JobTrackingService
         $this->createReceipts($thread, $message, $dealer->id);
         $thread->touch();
 
-        Notification::send(
-            $job->assignedTo,
-            new JobStatusNotification($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), 'dealer_requested_location')
-        );
+        if ($job->assignedTo) {
+            JobStatusChanged::dispatch($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), 'dealer_requested_location', [$job->assignedTo->id]);
+        }
     }
 
     public function ensureTrackingCanBeShared(Job $job): void

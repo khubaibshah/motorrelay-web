@@ -7,8 +7,7 @@ use App\Models\JobIncident;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\User;
-use App\Notifications\JobStatusNotification;
-use Illuminate\Support\Facades\Notification;
+use App\Events\JobStatusChanged;
 use Illuminate\Http\UploadedFile;
 
 class JobIncidentService
@@ -256,7 +255,7 @@ class JobIncidentService
             return;
         }
 
-        Notification::send($recipients, new JobStatusNotification($job, 'job_incident_reported', [
+        JobStatusChanged::dispatch($job, 'job_incident_reported', $recipients->pluck('id')->all(), [
             'incident_id' => $incident->id,
             'incident_type' => $incident->type,
             'recovery_required' => $incident->recovery_required,
@@ -264,7 +263,7 @@ class JobIncidentService
                 'id' => $reporter->id,
                 'name' => $reporter->name,
             ],
-        ]));
+        ]);
     }
 
     private function notifyDriverRecoverySent(Job $job, User $dealer, JobIncident $incident): void
@@ -273,13 +272,13 @@ class JobIncidentService
             return;
         }
 
-        Notification::send($job->assignedTo, new JobStatusNotification($job, 'job_recovery_sent', [
+        JobStatusChanged::dispatch($job, 'job_recovery_sent', [$job->assignedTo->id], [
             'incident_id' => $incident->id,
             'sent_by' => [
                 'id' => $dealer->id,
                 'name' => $dealer->name,
             ],
-        ]));
+        ]);
     }
 
     private function notifyDealerRecoveryCompleted(Job $job, User $driver, JobIncident $incident): void
@@ -288,13 +287,13 @@ class JobIncidentService
             return;
         }
 
-        Notification::send($job->postedBy, new JobStatusNotification($job, 'job_recovery_completed', [
+        JobStatusChanged::dispatch($job, 'job_recovery_completed', [$job->postedBy->id], [
             'incident_id' => $incident->id,
             'confirmed_by' => [
                 'id' => $driver->id,
                 'name' => $driver->name,
             ],
-        ]));
+        ]);
     }
 
     private function messageBody(JobIncident $incident): string

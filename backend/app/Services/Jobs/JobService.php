@@ -5,10 +5,9 @@ namespace App\Services\Jobs;
 use App\Models\Job;
 use App\Models\JobDailyMetric;
 use App\Models\User;
-use App\Notifications\JobStatusNotification;
+use App\Events\JobStatusChanged;
 use App\Services\VehicleLookupService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class JobService
@@ -454,9 +453,9 @@ class JobService
         $recipients = $recipients->unique('id')->values();
 
         if ($recipients->isNotEmpty()) {
-            Notification::send($recipients, new JobStatusNotification($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), 'dealer_updated_job', [
+            JobStatusChanged::dispatch($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), 'dealer_updated_job', $recipients->pluck('id')->all(), [
                 'changed_fields' => $changedFields,
-            ]));
+            ]);
         }
     }
 

@@ -5,10 +5,9 @@ namespace App\Services\Expenses;
 use App\Models\Expense;
 use App\Models\Job;
 use App\Models\User;
-use App\Notifications\ExpenseReviewedNotification;
+use App\Events\ExpenseReviewed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -75,9 +74,7 @@ class ExpenseService
                 'locked_at' => now(),
             ]);
             $fresh = $expense->fresh(['driver:id,name,email', 'reviewer:id,name']);
-            DB::afterCommit(function () use ($fresh) {
-                if ($fresh->driver) Notification::send($fresh->driver, new ExpenseReviewedNotification($fresh));
-            });
+            DB::afterCommit(fn () => ExpenseReviewed::dispatch($fresh));
             return $fresh;
         });
     }

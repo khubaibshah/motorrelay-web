@@ -8,10 +8,10 @@ class PostcodeLookupService
 {
     public function find(string $postcode): array
     {
-        $postcode = $this->normalisePostcode($postcode);
+        $input = trim(preg_replace('/\s+/', ' ', $postcode) ?? '');
 
-        if ($postcode === '') {
-            abort(422, 'Enter a valid postcode.');
+        if ($input === '') {
+            abort(422, 'Enter a postcode, address, or business name.');
         }
 
         $apiKey = trim((string) config('postcodes.api_key'));
@@ -19,22 +19,24 @@ class PostcodeLookupService
             abort(500, 'Postcode lookup API key is not configured.');
         }
 
-        $addresses = $this->findPlaces($postcode, $apiKey, 'address');
+        $addresses = $this->mergePlaceResults(
+            $this->findPlacesNew($input, $apiKey),
+            $this->findPlaces($input, $apiKey, 'address'),
+            $this->findPlaces($input, $apiKey, 'establishment'),
+            $this->findPlaces($input.', UK', $apiKey, 'geocode')
+        );
 
         if (empty($addresses)) {
-            $addresses = $this->findPlaces($postcode.', UK', $apiKey, 'geocode');
+            $addresses = $this->findPostcodeViaGeocoding($input, $apiKey);
         }
 
         if (empty($addresses)) {
-            $addresses = $this->findPostcodeViaGeocoding($postcode, $apiKey);
-        }
-
-        if (empty($addresses)) {
-            abort(422, 'No addresses found for this postcode. Use a full UK postcode and try again.');
+            abort(422, 'No UK addresses or businesses found. Try a full address, business name, town, or postcode.');
         }
 
         return [
-            'postcode' => $postcode,
+            'postcode' => $this->looksLikePostcode($input) ? $this->normalisePostcode($input) : null,
+            'query' => $input,
             'addresses' => $addresses,
         ];
     }
@@ -50,6 +52,10 @@ class PostcodeLookupService
         $apiKey = trim((string) config('postcodes.api_key'));
         if (! $apiKey) {
             abort(500, 'Postcode lookup API key is not configured.');
+        }
+
+        if (str_starts_with($placeId, 'places/')) {
+            return $this->resolveNewPlace($placeId, $apiKey);
         }
 
         $response = Http::acceptJson()
@@ -101,10 +107,12 @@ class PostcodeLookupService
 
     public function coordinates(string $postcode): array
     {
-        $postcode = $this->normalisePostcode($postcode);
+        $input = trim(preg_replace('/\s+/', ' ', $postcode) ?? '');
+        $normalisedPostcode = $this->normalisePostcode($input);
+        $isPostcode = $this->looksLikePostcode($input);
 
-        if ($postcode === '') {
-            abort(422, 'Enter a postcode first.');
+        if ($input === '') {
+            abort(422, 'Enter a postcode, address, or business name first.');
         }
 
         $apiKey = trim((string) config('postcodes.api_key'));
@@ -115,25 +123,25 @@ class PostcodeLookupService
         $response = Http::acceptJson()
             ->timeout(15)
             ->get(rtrim((string) config('postcodes.geocode_url'), '/'), [
-                'address' => $postcode,
-                'components' => 'country:GB|postal_code:'.$postcode,
+                'address' => $isPostcode ? $normalisedPostcode : $input,
+                'components' => $isPostcode ? 'country:GB|postal_code:'.$normalisedPostcode : 'country:GB',
                 'language' => 'en-GB',
                 'key' => $apiKey,
             ]);
 
-        $this->assertGoogleResponseSucceeded($response, 'Postcode location lookup');
+        $this->assertGoogleResponseSucceeded($response, 'Location lookup');
 
         $payload = $response->json() ?? [];
         $status = $payload['status'] ?? 'OK';
 
         if ($status === 'ZERO_RESULTS') {
-            abort(422, 'No location found for that postcode.');
+            abort(422, 'No UK location found for that search.');
         }
 
         if ($status !== 'OK') {
             abort(422, sprintf(
-                'Postcode location lookup failed. %s',
-                trim((string) ($payload['error_message'] ?? $status ?? 'Check the postcode and Google Maps API key.'))
+                'Location lookup failed. %s',
+                trim((string) ($payload['error_message'] ?? $status ?? 'Check the location and Google Maps API key.'))
             ));
         }
 
@@ -142,15 +150,17 @@ class PostcodeLookupService
         $longitude = data_get($result, 'geometry.location.lng');
 
         if (! is_numeric($latitude) || ! is_numeric($longitude)) {
-            abort(422, 'No coordinates were returned for that postcode.');
+            abort(422, 'No coordinates were returned for that location.');
         }
 
+        $resolvedPostcode = $this->extractPostcode(data_get($result, 'address_components', []));
+
         return [
-            'postcode' => $postcode,
-            'outward_code' => $this->outwardCode($postcode),
+            'postcode' => $resolvedPostcode ?: ($isPostcode ? $normalisedPostcode : null),
+            'outward_code' => $resolvedPostcode ? $this->outwardCode($resolvedPostcode) : ($isPostcode ? $this->outwardCode($normalisedPostcode) : null),
             'latitude' => (float) $latitude,
             'longitude' => (float) $longitude,
-            'label' => (string) data_get($result, 'formatted_address', $postcode),
+            'label' => (string) data_get($result, 'formatted_address', $input),
         ];
     }
 
@@ -208,6 +218,13 @@ class PostcodeLookupService
         return strtoupper(trim(preg_replace('/\s+/', ' ', $postcode) ?? ''));
     }
 
+    protected function looksLikePostcode(string $value): bool
+    {
+        $input = $this->normalisePostcode($value);
+
+        return (bool) preg_match('/^[A-Z]{1,2}\d[A-Z\d]?(?:\s*\d[A-Z]{2})?$/', $input);
+    }
+
     protected function outwardCode(string $postcode): string
     {
         $postcode = $this->normalisePostcode($postcode);
@@ -258,13 +275,108 @@ class PostcodeLookupService
             ->all();
     }
 
+    protected function findPlacesNew(string $input, string $apiKey): array
+    {
+        $response = Http::acceptJson()
+            ->withHeaders([
+                'X-Goog-Api-Key' => $apiKey,
+                'X-Goog-FieldMask' => 'suggestions.placePrediction.placeId,suggestions.placePrediction.place,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat',
+            ])
+            ->timeout(15)
+            ->post(rtrim((string) config('postcodes.places_new_autocomplete_url'), '/'), [
+                'input' => $input,
+                'includedRegionCodes' => ['gb'],
+                'includePureServiceAreaBusinesses' => true,
+                'languageCode' => 'en-GB',
+            ]);
+
+        if (! $response->successful()) {
+            return [];
+        }
+
+        return collect($response->json('suggestions') ?? [])
+            ->map(fn ($suggestion) => $suggestion['placePrediction'] ?? null)
+            ->filter(fn ($prediction) => is_array($prediction) && (! empty($prediction['place']) || ! empty($prediction['placeId'])))
+            ->values()
+            ->map(function (array $prediction) {
+                $place = (string) ($prediction['place'] ?? '');
+                $placeId = $place !== '' ? $place : 'places/'.((string) ($prediction['placeId'] ?? ''));
+                $label = (string) data_get($prediction, 'text.text', '');
+                $mainText = (string) data_get($prediction, 'structuredFormat.mainText.text', '');
+                $secondaryText = (string) data_get($prediction, 'structuredFormat.secondaryText.text', '');
+
+                return [
+                    'id' => $placeId,
+                    'label' => $label !== '' ? $label : trim($mainText.', '.$secondaryText, ', '),
+                    'secondary' => $secondaryText,
+                ];
+            })
+            ->filter(fn ($prediction) => $prediction['id'] !== '' && $prediction['label'] !== '')
+            ->all();
+    }
+
+    protected function resolveNewPlace(string $placeName, string $apiKey): array
+    {
+        $placeResourceId = str_starts_with($placeName, 'places/')
+            ? substr($placeName, strlen('places/'))
+            : $placeName;
+
+        $response = Http::acceptJson()
+            ->withHeaders([
+                'X-Goog-Api-Key' => $apiKey,
+                'X-Goog-FieldMask' => 'id,formattedAddress,addressComponents,location',
+            ])
+            ->timeout(15)
+            ->get(rtrim((string) config('postcodes.places_new_details_url'), '/').'/'.$placeResourceId, [
+                'languageCode' => 'en-GB',
+            ]);
+
+        if (! $response->successful()) {
+            $message = $response->json('error.message')
+                ?? $response->json('message')
+                ?? $response->body();
+
+            abort(422, sprintf(
+                'Address lookup failed (%s). %s',
+                $response->status(),
+                trim(substr((string) $message, 0, 180)) ?: 'Check the address selection and Google Maps API key.'
+            ));
+        }
+
+        $payload = $response->json() ?? [];
+        if (empty($payload)) {
+            abort(422, 'No address details were returned for this selection.');
+        }
+
+        $postcode = $this->extractPostcodeFromNewComponents($payload['addressComponents'] ?? []);
+        $latitude = data_get($payload, 'location.latitude');
+        $longitude = data_get($payload, 'location.longitude');
+
+        return [
+            'place_id' => (string) ($payload['id'] ?? $placeName),
+            'postcode' => $postcode,
+            'label' => (string) ($payload['formattedAddress'] ?? ''),
+            'latitude' => is_numeric($latitude) ? (float) $latitude : null,
+            'longitude' => is_numeric($longitude) ? (float) $longitude : null,
+        ];
+    }
+
+    protected function mergePlaceResults(array ...$groups): array
+    {
+        return collect($groups)
+            ->flatten(1)
+            ->unique('id')
+            ->values()
+            ->all();
+    }
+
     protected function findPostcodeViaGeocoding(string $postcode, string $apiKey): array
     {
         $response = Http::acceptJson()
             ->timeout(15)
             ->get(rtrim((string) config('postcodes.geocode_url'), '/'), [
                 'address' => $postcode,
-                'components' => 'country:GB|postal_code:'.$postcode,
+                'components' => $this->looksLikePostcode($postcode) ? 'country:GB|postal_code:'.$this->normalisePostcode($postcode) : 'country:GB',
                 'language' => 'en-GB',
                 'key' => $apiKey,
             ]);
@@ -326,6 +438,20 @@ class PostcodeLookupService
             $types = $component['types'] ?? [];
             if (is_array($types) && in_array('postal_code', $types, true)) {
                 $postcode = strtoupper(trim((string) ($component['short_name'] ?? $component['long_name'] ?? '')));
+
+                return $postcode !== '' ? $postcode : null;
+            }
+        }
+
+        return null;
+    }
+
+    protected function extractPostcodeFromNewComponents(array $components): ?string
+    {
+        foreach ($components as $component) {
+            $types = $component['types'] ?? [];
+            if (is_array($types) && in_array('postal_code', $types, true)) {
+                $postcode = strtoupper(trim((string) ($component['shortText'] ?? $component['longText'] ?? '')));
 
                 return $postcode !== '' ? $postcode : null;
             }

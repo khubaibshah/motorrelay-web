@@ -28,6 +28,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  locationLoading: {
+    type: Boolean,
+    default: false
+  },
   loading: {
     type: Boolean,
     default: false
@@ -57,6 +61,7 @@ const emit = defineEmits([
   'search',
   'input',
   'clear',
+  'use-current-location',
   'choose-suggestion',
   'open-job',
   'apply'
@@ -176,7 +181,7 @@ function formatRunTime(job) {
             type="text"
             inputmode="search"
             autocomplete="off"
-            placeholder="Search by town or postcode"
+            placeholder="Address, business or postcode"
             class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 dark:text-white dark:placeholder:text-emerald-100/40"
             @focus="emit('update:focused', true)"
             @input="updateQuery"
@@ -195,6 +200,17 @@ function formatRunTime(job) {
           <option value="all">All</option>
         </select>
       </form>
+
+      <button
+        type="button"
+        class="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
+        :disabled="locationLoading"
+        @click="emit('use-current-location')"
+      >
+        <span aria-hidden="true">⌖</span>
+        <span v-if="locationLoading">Finding your postcode...</span>
+        <span v-else>Use current location</span>
+      </button>
 
       <div v-if="focused" class="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-slate-900">
         <p v-if="suggestionsLoading" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
@@ -216,7 +232,7 @@ function formatRunTime(job) {
           </span>
         </button>
         <p v-if="!suggestionsLoading && query.trim().length >= 2 && !suggestions.length" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
-          No places found. Try a postcode like BB9 or a nearby town.
+          No places found. Try a door number, business name, town, or postcode.
         </p>
       </div>
 
@@ -324,7 +340,7 @@ function formatRunTime(job) {
             type="text"
             inputmode="search"
             autocomplete="off"
-            placeholder="City, town, or postcode"
+            placeholder="Address, business or postcode"
             class="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm font-black uppercase text-slate-900 outline-none placeholder:normal-case placeholder:font-semibold placeholder:text-slate-400 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
             @focus="emit('update:focused', true)"
             @input="updateQuery"
@@ -353,6 +369,17 @@ function formatRunTime(job) {
         </button>
       </form>
 
+      <button
+        type="button"
+        class="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
+        :disabled="locationLoading"
+        @click="emit('use-current-location')"
+      >
+        <span aria-hidden="true">⌖</span>
+        <span v-if="locationLoading">Finding your postcode...</span>
+        <span v-else>Use current location</span>
+      </button>
+
       <div v-if="focused" class="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
         <p v-if="suggestionsLoading" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
           Finding places...
@@ -377,7 +404,7 @@ function formatRunTime(job) {
           </span>
         </button>
         <p v-if="!suggestionsLoading && query.trim().length >= 2 && !suggestions.length" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
-          No places found. Try a postcode like BB9 or a nearby town.
+          No places found. Try a door number, business name, town, or postcode.
         </p>
       </div>
 

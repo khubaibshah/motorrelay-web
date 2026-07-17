@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 import { fetchJobs, applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
@@ -203,6 +205,96 @@ async function clearDriverSearch() {
     query: driverMarketplaceQuery()
   });
   await loadJobs();
+}
+
+async function useDriverCurrentLocation() {
+  driverRunsTab.value = 'available';
+  driverLocationFocused.value = false;
+  driverLocationAutocomplete.value = [];
+  driverLocation.loading = true;
+  driverLocation.error = '';
+
+  try {
+    const position = await getDriverCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 60000
+    });
+
+    const latitude = Number(position?.coords?.latitude);
+    const longitude = Number(position?.coords?.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error('Your phone did not return a usable location.');
+    }
+
+    const { data } = await api.get('/postcodes/reverse', {
+      params: { latitude, longitude }
+    });
+    const result = data?.data ?? {};
+    const searchLabel = result.outward_code || result.postcode || result.locality || result.label || 'Current location';
+
+    driverLocation.latitude = latitude;
+    driverLocation.longitude = longitude;
+    driverLocation.enabled = true;
+    driverLocation.source = 'gps';
+    driverLocation.label = result.locality || result.label || 'Current location';
+    driverLocation.postcode = result.outward_code || result.postcode || '';
+    driverLocationQuery.value = searchLabel;
+    driverRadius.value = driverRadius.value === 'all' ? defaultNearbyRadiusMiles : driverRadius.value;
+
+    await router.replace({
+      name: 'jobs',
+      query: driverMarketplaceQuery()
+    });
+    await loadJobs();
+  } catch (error) {
+    console.warn('Driver current location unavailable', error);
+    clearDriverLocation();
+    driverLocation.error = currentLocationErrorMessage(error);
+  } finally {
+    driverLocation.loading = false;
+  }
+}
+
+async function getDriverCurrentPosition(options = {}) {
+  if (Capacitor.isNativePlatform()) {
+    const currentPermission = await Geolocation.checkPermissions();
+
+    if (currentPermission.location !== 'granted') {
+      const requestedPermission = await Geolocation.requestPermissions({
+        permissions: ['location']
+      });
+
+      if (requestedPermission.location !== 'granted') {
+        throw new Error('Location permission was not granted.');
+      }
+    }
+
+    return Geolocation.getCurrentPosition(options);
+  }
+
+  if (!navigator.geolocation) {
+    throw new Error('Geolocation is not supported on this device.');
+  }
+
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
+function currentLocationErrorMessage(error) {
+  const message = String(error?.message || '').toLowerCase();
+
+  if (message.includes('permission') || error?.code === 1) {
+    return 'Location permission is needed to find runs near you.';
+  }
+
+  if (message.includes('location services') || error?.code === 'OS-PLUG-GLOC-0007') {
+    return 'Location services are off. Turn them on for MotorRelay and try again.';
+  }
+
+  return error?.response?.data?.message || error?.message || 'We could not use your current location.';
 }
 
 function driverMarketplaceQuery() {
@@ -882,10 +974,12 @@ onMounted(async () => {
       :empty-message="selectedDriverEmptyMessage"
       :marketplace-label="driverMarketplaceLabel"
       :applied-job-ids="appliedJobIds"
+      :location-loading="driverLocation.loading"
       @search="submitDriverSearch"
       @input="handleDriverLocationInput"
       @clear="clearDriverSearch"
       @choose-suggestion="chooseDriverLocationSuggestion"
+      @use-current-location="useDriverCurrentLocation"
       @open-job="openJob"
       @apply="handleApply"
     />

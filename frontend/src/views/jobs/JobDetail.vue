@@ -37,7 +37,12 @@ import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import BackPillButton from "@/components/BackPillButton.vue";
 import DealerLiveTrackingCard from "@/components/jobs/DealerLiveTrackingCard.vue";
+import DriverChatModal from "@/components/jobs/DriverChatModal.vue";
 import DriverModeOverlay from "@/components/jobs/DriverModeOverlay.vue";
+import InspectionGalleryOverlay from "@/components/jobs/InspectionGalleryOverlay.vue";
+import JobIncidentModal from "@/components/jobs/JobIncidentModal.vue";
+import NavigationAppModal from "@/components/jobs/NavigationAppModal.vue";
+import RecoveryConfirmationModal from "@/components/jobs/RecoveryConfirmationModal.vue";
 import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
@@ -2207,342 +2212,55 @@ watch(
     />
 
 
-    <transition name="fade">
-      <div
-        v-if="inspectionGalleryOpen && currentInspectionGalleryPhoto"
-        class="fixed inset-0 z-[130] flex flex-col bg-slate-950 text-white"
-      >
-        <header class="flex items-center justify-between gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+1rem)]">
-          <div>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Inspection gallery</p>
-            <h3 class="mt-1 text-lg font-black">
-              Photo {{ inspectionGalleryIndex + 1 }} of {{ driverModeUploadedPhotos.length }}
-            </h3>
-          </div>
-          <button
-            type="button"
-            class="rounded-2xl border border-white/15 px-4 py-2 text-sm font-black text-white"
-            @click="closeInspectionGallery"
-          >
-            Close
-          </button>
-        </header>
+    <InspectionGalleryOverlay
+      :open="inspectionGalleryOpen"
+      :photo="currentInspectionGalleryPhoto"
+      :index="inspectionGalleryIndex"
+      :total="driverModeUploadedPhotos.length"
+      @close="closeInspectionGallery"
+      @previous="previousInspectionPhoto"
+      @next="nextInspectionPhoto"
+      @remove="removeInspectionFile(inspectionGalleryIndex)"
+      @touch-start="onInspectionGalleryTouchStart"
+      @touch-end="onInspectionGalleryTouchEnd"
+    />
 
-        <div
-          class="relative flex min-h-0 flex-1 items-center justify-center px-3 pb-4"
-          @touchstart.passive="onInspectionGalleryTouchStart"
-          @touchend.passive="onInspectionGalleryTouchEnd"
-        >
-          <button
-            v-if="driverModeUploadedPhotos.length > 1"
-            type="button"
-            class="absolute left-3 z-10 rounded-full bg-white/10 px-4 py-3 text-2xl font-black text-white backdrop-blur"
-            @click="previousInspectionPhoto"
-          >
-            ‹
-          </button>
+    <JobIncidentModal
+      :open="incidentModalOpen"
+      :form="incidentForm"
+      :error="incidentError"
+      :submitting="incidentSubmitting"
+      @close="closeIncidentModal"
+      @submit="handleIncidentSubmit"
+      @use-current-location="useCurrentIncidentLocation"
+    />
 
-          <img
-            v-if="currentInspectionGalleryPhoto.previewUrl"
-            :src="currentInspectionGalleryPhoto.previewUrl"
-            :alt="currentInspectionGalleryPhoto.name"
-            class="max-h-full max-w-full rounded-3xl object-contain shadow-2xl"
-          >
-          <div v-else class="rounded-3xl border border-white/10 bg-white/[0.06] p-8 text-center text-sm font-bold text-emerald-100">
-            {{ currentInspectionGalleryPhoto.name }}
-          </div>
+    <DriverChatModal
+      v-model:body="driverChatBody"
+      :open="driverChatOpen"
+      :job="job"
+      :loading="driverChatLoading"
+      :sending="driverChatSending"
+      :error="driverChatError"
+      :messages="driverChatMessages"
+      :current-user-id="auth.user?.id"
+      @close="driverChatOpen = false"
+      @send="sendDriverChatMessage"
+    />
 
-          <button
-            v-if="driverModeUploadedPhotos.length > 1"
-            type="button"
-            class="absolute right-3 z-10 rounded-full bg-white/10 px-4 py-3 text-2xl font-black text-white backdrop-blur"
-            @click="nextInspectionPhoto"
-          >
-            ›
-          </button>
-        </div>
+    <RecoveryConfirmationModal
+      :confirmation="recoveryConfirmation"
+      :recovery-sending-id="recoverySendingId"
+      :recovery-completing-id="recoveryCompletingId"
+      @close="closeRecoveryConfirmation"
+      @confirm="confirmRecoveryAction"
+    />
 
-        <footer class="grid gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <p class="truncate text-center text-sm font-bold text-emerald-100">
-            {{ currentInspectionGalleryPhoto.name }}
-          </p>
-          <button
-            type="button"
-            class="mx-auto rounded-2xl bg-white/10 px-4 py-2 text-xs font-black text-emerald-100"
-            @click="removeInspectionFile(inspectionGalleryIndex)"
-          >
-            Remove this photo
-          </button>
-        </footer>
-      </div>
-    </transition>
-
-    <transition name="fade">
-      <div
-        v-if="incidentModalOpen"
-        class="fixed inset-0 z-[140] flex items-center justify-center bg-slate-900/70 px-4"
-        @click.self="closeIncidentModal"
-      >
-        <form class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950" @submit.prevent="handleIncidentSubmit">
-          <header>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-amber-600">Report issue</p>
-            <h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">What happened?</h3>
-            <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
-              This will notify the dealer and add the issue to the job chat.
-            </p>
-          </header>
-
-          <label class="block">
-            <span class="text-sm font-bold text-slate-700 dark:text-emerald-100">Issue type</span>
-            <select v-model="incidentForm.type" class="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100">
-              <option value="vehicle_breakdown">Vehicle breakdown</option>
-              <option value="accident">Accident</option>
-              <option value="access_issue">Cannot access vehicle</option>
-              <option value="dealer_unavailable">Dealer/customer unavailable</option>
-              <option value="wrong_address">Wrong address</option>
-              <option value="other">Other issue</option>
-            </select>
-          </label>
-
-          <div class="grid gap-2 sm:grid-cols-3">
-            <label class="flex items-center gap-2 rounded-2xl border border-slate-200 p-3 text-sm font-semibold dark:border-white/10 dark:text-emerald-100">
-              <input v-model="incidentForm.recovery_required" type="checkbox" class="h-4 w-4">
-              Recovery needed
-            </label>
-            <label class="flex items-center gap-2 rounded-2xl border border-slate-200 p-3 text-sm font-semibold dark:border-white/10 dark:text-emerald-100">
-              <input v-model="incidentForm.vehicle_safe" type="checkbox" class="h-4 w-4">
-              Vehicle safe
-            </label>
-            <label class="flex items-center gap-2 rounded-2xl border border-slate-200 p-3 text-sm font-semibold dark:border-white/10 dark:text-emerald-100">
-              <input v-model="incidentForm.blocking_road" type="checkbox" class="h-4 w-4">
-              Blocking road
-            </label>
-          </div>
-
-          <label class="block">
-            <span class="text-sm font-bold text-slate-700 dark:text-emerald-100">Location</span>
-            <div class="mt-2 flex gap-2">
-              <input
-                v-model="incidentForm.location_label"
-                type="text"
-                placeholder="e.g. hard shoulder near M65 J12"
-                class="min-w-0 flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100"
-              >
-              <button type="button" class="btn-secondary px-4 py-2 text-sm" @click="useCurrentIncidentLocation">
-                Use GPS
-              </button>
-            </div>
-          </label>
-
-          <label class="block">
-            <span class="text-sm font-bold text-slate-700 dark:text-emerald-100">Details</span>
-            <textarea
-              v-model="incidentForm.description"
-              rows="4"
-              placeholder="Tell the dealer what happened and what help you need."
-              class="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100"
-            ></textarea>
-          </label>
-
-          <p v-if="incidentError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-            {{ incidentError }}
-          </p>
-
-          <div class="flex flex-wrap justify-end gap-2">
-            <button type="button" class="btn-secondary px-4 py-2 text-sm" @click="closeIncidentModal">Cancel</button>
-            <button type="submit" class="btn-primary px-4 py-2 text-sm" :disabled="incidentSubmitting">
-              {{ incidentSubmitting ? 'Reporting...' : 'Report issue' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </transition>
-
-    <transition name="fade">
-      <div
-        v-if="driverChatOpen"
-        class="fixed inset-0 z-[140] flex items-center justify-center bg-slate-900/70 px-4"
-        @click.self="driverChatOpen = false"
-      >
-        <div class="flex max-h-[88vh] w-full max-w-lg flex-col rounded-3xl bg-white p-4 shadow-2xl dark:bg-slate-950">
-          <header class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 dark:border-white/10">
-            <div>
-              <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Driver chat</p>
-              <h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">{{ job.title || `Run #${job.id}` }}</h3>
-            </div>
-            <button type="button" class="btn-secondary px-3 py-2 text-sm" @click="driverChatOpen = false">
-              Close
-            </button>
-          </header>
-
-          <div class="min-h-0 flex-1 overflow-y-auto py-3">
-            <p v-if="driverChatLoading" class="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-emerald-100">
-              Loading chat...
-            </p>
-            <p v-else-if="driverChatError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-              {{ driverChatError }}
-            </p>
-            <div v-else-if="!driverChatMessages.length" class="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-emerald-100">
-              No messages yet. Send a quick update to the dealer below.
-            </div>
-            <div v-else class="space-y-2">
-              <article
-                v-for="message in driverChatMessages"
-                :key="message.id"
-                class="rounded-2xl p-3 text-sm"
-                :class="message.user?.id === auth.user?.id
-                  ? 'ml-8 bg-emerald-600 text-white'
-                  : 'mr-8 bg-slate-100 text-slate-800 dark:bg-white/[0.08] dark:text-emerald-100'"
-              >
-                <p class="text-[11px] font-black uppercase tracking-wide opacity-70">{{ message.user?.name || 'User' }}</p>
-                <p class="mt-1 whitespace-pre-wrap">{{ message.body || 'Update sent.' }}</p>
-              </article>
-            </div>
-          </div>
-
-          <form class="border-t border-slate-100 pt-3 dark:border-white/10" @submit.prevent="sendDriverChatMessage">
-            <textarea
-              v-model="driverChatBody"
-              rows="3"
-              placeholder="Send the dealer a quick update..."
-              class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900 dark:text-emerald-100"
-            ></textarea>
-            <div class="mt-2 flex justify-end">
-              <button type="submit" class="btn-primary px-4 py-2 text-sm" :disabled="driverChatSending || !driverChatBody.trim()">
-                {{ driverChatSending ? 'Sending...' : 'Send message' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </transition>
-
-    <transition name="fade">
-      <div
-        v-if="recoveryConfirmation.open"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4"
-        @click.self="closeRecoveryConfirmation"
-      >
-        <div class="w-full max-w-md space-y-4 rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950">
-          <header>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
-              {{ recoveryConfirmation.mode === 'send' ? 'Send recovery' : 'Confirm recovery' }}
-            </p>
-            <h3 class="mt-1 text-xl font-black text-slate-950 dark:text-white">
-              {{ recoveryConfirmation.mode === 'send' ? 'Confirm recovery is being sent?' : 'Has recovery happened?' }}
-            </h3>
-            <p class="mt-2 text-sm text-slate-600 dark:text-emerald-100">
-              <template v-if="recoveryConfirmation.mode === 'send'">
-                This will tell the driver that recovery has been sent and add the update to the job chat.
-              </template>
-              <template v-else>
-                This will tell the dealer recovery has happened and mark the reported issue as handled.
-              </template>
-            </p>
-          </header>
-
-          <div v-if="recoveryConfirmation.incident" class="rounded-2xl bg-slate-50 p-3 text-sm dark:bg-white/[0.06]">
-            <p class="font-black capitalize text-slate-950 dark:text-white">
-              {{ String(recoveryConfirmation.incident.type || '').replaceAll('_', ' ') }}
-            </p>
-            <p v-if="recoveryConfirmation.incident.description" class="mt-1 text-slate-600 dark:text-emerald-100">
-              {{ recoveryConfirmation.incident.description }}
-            </p>
-          </div>
-
-          <div class="flex flex-wrap justify-end gap-2">
-            <button type="button" class="btn-secondary px-4 py-2 text-sm" @click="closeRecoveryConfirmation">
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="btn-primary px-4 py-2 text-sm"
-              :disabled="Boolean(recoverySendingId || recoveryCompletingId)"
-              @click="confirmRecoveryAction"
-            >
-              <template v-if="recoveryConfirmation.mode === 'send'">
-                {{ recoverySendingId ? 'Sending...' : 'Send recovery' }}
-              </template>
-              <template v-else>
-                {{ recoveryCompletingId ? 'Confirming...' : 'Yes, recovery happened' }}
-              </template>
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
-
-    <transition name="fade">
-      <div
-        v-if="navigationModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4"
-        @click.self="closeNavigationModal"
-      >
-        <div class="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-2xl">
-          <header class="space-y-1">
-            <h3 class="text-lg font-semibold text-slate-900">Navigation</h3>
-            <p class="text-sm text-slate-600">
-              Choose an app to start directions to {{ navigationDestination || 'the drop-off location' }}.
-            </p>
-          </header>
-          <div class="space-y-2">
-            <a
-              v-for="link in navigationLinks"
-              :key="link.id"
-              :href="link.href"
-              target="_blank"
-              rel="noopener"
-              class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              @click="closeNavigationModal"
-            >
-              {{ link.label }}
-              <span aria-hidden="true">↗</span>
-            </a>
-            <p v-if="!navigationLinks.length" class="text-xs text-slate-500">
-              We could not determine a destination for this run yet.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            @click="closeNavigationModal"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </transition>
+    <NavigationAppModal
+      :open="navigationModalOpen"
+      :destination="navigationDestination"
+      :links="navigationLinks"
+      @close="closeNavigationModal"
+    />
   </div>
 </template>
-
-<style scoped>
-.route-car-animation {
-  animation: route-car-drive 2.8s ease-in-out infinite;
-}
-
-@keyframes route-car-drive {
-  0%,
-  100% {
-    transform: translateX(-46px);
-  }
-  50% {
-    transform: translateX(46px);
-  }
-}
-
-@media (max-width: 767px) {
-  .route-car-animation {
-    animation: route-car-drive-mobile 2.8s ease-in-out infinite;
-  }
-
-  @keyframes route-car-drive-mobile {
-    0%,
-    100% {
-      transform: translateX(-70px);
-    }
-    50% {
-      transform: translateX(70px);
-    }
-  }
-}
-</style>

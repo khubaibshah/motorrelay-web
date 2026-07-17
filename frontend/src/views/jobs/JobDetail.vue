@@ -3194,11 +3194,11 @@ watch(
     <transition name="fade">
       <div
         v-if="driverModeOpen && canUseDriverMode"
-        class="fixed inset-0 z-[100] overflow-hidden bg-slate-950 text-white"
+        class="fixed inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)*-1)] z-[100] min-h-[calc(100dvh+env(safe-area-inset-top))] overflow-hidden bg-slate-950 text-white"
       >
         <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.22),transparent_34%),linear-gradient(180deg,#001f1a_0%,#020617_28%,#020617_100%)]" />
 
-        <div class="relative mx-auto flex h-dvh max-w-2xl flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+1.35rem)]">
+        <div class="relative mx-auto flex h-[calc(100dvh+env(safe-area-inset-top))] max-w-2xl flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+1.85rem)]">
           <header class="flex shrink-0 items-start justify-between gap-3">
             <div class="min-w-0">
               <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Driver mode</p>

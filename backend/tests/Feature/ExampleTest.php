@@ -13,6 +13,6 @@ class ExampleTest extends TestCase
     {
         $response = $this->getJson('/api/jobs/highlights');
 
-        $response->assertStatus(401);
+        $response->assertOk()->assertJsonStructure(['jobs']);
     }
 }

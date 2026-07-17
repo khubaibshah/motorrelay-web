@@ -17,7 +17,7 @@ class JobApplicationService
     {
         return $job->applications()
             ->with(['driver:id,name,email'])
-            ->orderByRaw("FIELD(status, 'pending', 'accepted', 'declined')")
+            ->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'accepted' THEN 1 WHEN 'declined' THEN 2 ELSE 3 END")
             ->latest()
             ->get();
     }

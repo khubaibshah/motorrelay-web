@@ -36,9 +36,19 @@ import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import BackPillButton from "@/components/BackPillButton.vue";
+import DealerLiveTrackingCard from "@/components/jobs/DealerLiveTrackingCard.vue";
+import DriverModeOverlay from "@/components/jobs/DriverModeOverlay.vue";
 import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
+import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
+import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
+import RunExpensesCard from "@/components/jobs/RunExpensesCard.vue";
+import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
+import RunPaymentCard from "@/components/jobs/RunPaymentCard.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
 import RunQuickActions from "@/components/jobs/RunQuickActions.vue";
+import RunTrackingCard from "@/components/jobs/RunTrackingCard.vue";
+import { useRunPayments } from "@/composables/jobs/useRunPayments";
+import { useRunWorkflow } from "@/composables/jobs/useRunWorkflow";
 import { formatStatusLabel } from "@/utils/statusLabels";
 
 const route = useRoute();
@@ -88,7 +98,6 @@ const inspectionPreviewLoading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
 const driverModeOpen = ref(false);
-const driverModeInspectionInput = ref(null);
 const driverModeUploadedPhotos = ref([]);
 const inspectionGalleryOpen = ref(false);
 const inspectionGalleryIndex = ref(0);
@@ -867,6 +876,10 @@ const driverModePrimaryAction = computed(() => {
   return null;
 });
 
+const driverModeShowSecondaryTracking = computed(() => {
+  return canShareTracking.value && !trackingState.shared && driverModePrimaryAction.value?.handler !== shareLiveLocation;
+});
+
 const navigationLinks = computed(() => {
   const destination = navigationDestination.value;
   if (!destination) return [];
@@ -990,6 +1003,8 @@ const shouldShowGoLiveBanner = computed(
   () => isDealerForJob.value && isAwaitingGoLive.value
 );
 const completionStatus = computed(() => job.value?.completion_status ?? "not_submitted");
+const paymentStatus = computed(() => job.value?.payment_status || 'unpaid');
+const myApplication = computed(() => job.value?.my_application ?? null);
 const completionStatusLabel = computed(() => formatStatusLabel(completionStatus.value));
 const inspectionPhotos = computed(() => {
   const photos = job.value?.inspection_photos ?? job.value?.inspectionPhotos ?? [];
@@ -1086,206 +1101,52 @@ const jobInvoiceLink = computed(() => ({
     invoice: job.value?.finalized_invoice_id
   }
 }));
-const isCompletedJob = computed(() => ['completed', 'closed'].includes(String(job.value?.status || '').toLowerCase()));
 const shouldShowCompletionPanel = computed(() => {
   return canUploadInspection.value || canSubmitCompletion.value || canApproveCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
 });
+const {
+  completedWorkflowCount,
+  currentWorkflowStep,
+  isCompletedJob,
+  showRunProgress,
+  workflowProgressPercent,
+  workflowSteps
+} = useRunWorkflow({
+  job,
+  currentRole,
+  isAssignedDriver,
+  isDealerForJob,
+  paymentStatus,
+  completionStatus,
+  hasDeliveryProof,
+  invoiceFinalized,
+  assignedDriver,
+  myApplication
+});
 const showCompactCompletionPanel = computed(() => shouldShowCompletionPanel.value && isCompletedJob.value);
 const showFullCompletionPanel = computed(() => shouldShowCompletionPanel.value && !showCompactCompletionPanel.value && !isAssignedDriver.value);
-const workflowSteps = computed(() => {
-  if (!job.value) return [];
-  const status = String(job.value.status || '').toLowerCase();
-  const deliveredStatuses = new Set(['delivered', 'completion_pending', 'completed', 'closed']);
-  const isAssigned = Boolean(job.value.assigned_to_id);
-  const paymentComplete = ['paid', 'payout_released'].includes(paymentStatus.value);
-  const deliveryComplete = deliveredStatuses.has(status) || completionStatus.value !== 'not_submitted';
-  const proofComplete = hasDeliveryProof.value || ['submitted', 'approved'].includes(completionStatus.value);
-  const approvalComplete = invoiceFinalized.value || completionStatus.value === 'approved';
-  const payoutComplete = paymentStatus.value === 'payout_released';
-
-  if (isAssignedDriver.value) {
-    return [
-      {
-      label: 'Run accepted',
-        help: 'You have been assigned to this vehicle movement.',
-        complete: isAssigned
-      },
-      {
-        label: 'Upload inspection photos',
-        help: 'Photograph the vehicle as soon as you arrive so the dealer and driver both have a record.',
-        complete: proofComplete
-      },
-      {
-        label: 'Collect vehicle',
-        help: 'Collect the vehicle from the pickup location after the inspection is uploaded.',
-        complete: ['collected', 'in_transit', 'delivered', 'completion_pending', 'completed', 'closed'].includes(status)
-      },
-      {
-        label: 'Deliver vehicle',
-        help: 'Mark the vehicle as delivered when it reaches the drop-off.',
-        complete: deliveryComplete
-      },
-      {
-        label: 'Dealer approval',
-        help: 'The dealer checks your inspection photos and approves completion.',
-        complete: approvalComplete
-      },
-      {
-        label: 'Payout released',
-        help: 'MotorRelay releases your payout after approval.',
-        complete: payoutComplete
-      }
-    ];
-  }
-
-  if (!isDealerForJob.value && currentRole.value !== 'admin') {
-    return [
-      {
-        label: 'Run posted',
-        help: 'This run is available for driver requests.',
-        complete: true
-      },
-      {
-        label: myApplication.value ? 'Request sent' : 'Request run',
-        help: myApplication.value ? 'Your request has been sent to the dealer.' : 'Send a request so the dealer can review you.',
-        complete: Boolean(myApplication.value)
-      },
-      {
-        label: 'Await dealer',
-        help: 'The dealer chooses which driver to assign.',
-        complete: isAssigned
-      }
-    ];
-  }
-
-  return [
-    {
-    label: 'Run posted',
-      help: 'The dealer created this vehicle movement.',
-      complete: true
-    },
-    {
-      label: 'Dealer payment held',
-      help: 'The dealer pays MotorRelay before payout can be released.',
-      complete: paymentComplete
-    },
-    {
-      label: 'Driver assigned',
-      help: assignedDriver.value ? `${assignedDriver.value.name} is assigned.` : 'The dealer still needs to choose a driver.',
-      complete: isAssigned
-    },
-    {
-      label: 'Inspection uploaded',
-      help: 'The driver uploads pre-delivery inspection photos for dealer review.',
-      complete: proofComplete
-    },
-    {
-      label: 'Vehicle delivered',
-      help: 'The assigned driver marks the vehicle as delivered.',
-      complete: deliveryComplete
-    },
-    {
-      label: 'Approved and invoiced',
-      help: 'The dealer approves completion and the invoice becomes available.',
-      complete: approvalComplete
-    },
-    {
-      label: 'Driver paid out',
-      help: 'MotorRelay releases the driver payout after approval.',
-      complete: payoutComplete
-    }
-  ];
-});
-const completedWorkflowCount = computed(() => workflowSteps.value.filter((step) => step.complete).length);
-const workflowProgressPercent = computed(() => {
-  if (!workflowSteps.value.length) return 0;
-  if (workflowSteps.value.length === 1) return workflowSteps.value[0].complete ? 100 : 0;
-  return Math.round((completedWorkflowCount.value / workflowSteps.value.length) * 100);
-});
-const currentWorkflowStep = computed(() => {
-  return workflowSteps.value.find((step) => !step.complete) ?? workflowSteps.value[workflowSteps.value.length - 1] ?? null;
-});
-const showRunProgress = computed(() => {
-  if (!job.value?.assigned_to_id) return false;
-  if (isCompletedJob.value) return false;
-  return ['accepted', 'in_progress', 'collected', 'in_transit', 'delivered', 'completion_pending', 'completed', 'closed'].includes(
-    String(job.value.status || '').toLowerCase()
-  );
-});
-const paymentStatus = computed(() => job.value?.payment_status || 'unpaid');
-const canManagePayment = computed(() => Boolean(job.value) && (isDealerForJob.value || currentRole.value === 'admin'));
-const jobBasePrice = computed(() => Number(job.value?.price || 0));
-const estimatedPlatformFee = computed(() => Math.round(jobBasePrice.value * 0.1 * 100) / 100);
-const platformFeeAmount = computed(() => {
-  const stored = Number(job.value?.platform_fee_amount || 0);
-  return stored > 0 ? stored : estimatedPlatformFee.value;
-});
-const driverPayoutAmount = computed(() => {
-  const stored = Number(job.value?.driver_payout_amount || 0);
-  return stored > 0 ? stored : Math.max(jobBasePrice.value - platformFeeAmount.value, 0);
-});
-const dealerPaymentAmount = computed(() => jobBasePrice.value);
-const headerDisplayAmount = computed(() => (currentRole.value === 'driver' ? driverPayoutAmount.value : jobBasePrice.value));
-const headerDisplayLabel = computed(() => (currentRole.value === 'driver' ? 'Driver payout' : 'Run value'));
-const canStartCheckout = computed(() => {
-  if (!job.value || !(isDealerForJob.value || currentRole.value === 'admin')) return false;
-  return !['checkout_pending', 'paid', 'payout_released'].includes(paymentStatus.value);
-});
-const canReleasePayout = computed(() => {
-  if (!job.value || !(isDealerForJob.value || currentRole.value === 'admin')) return false;
-  if (paymentStatus.value !== 'paid') return false;
-  if (!hasDeliveryProof.value) return false;
-  return completionStatus.value === 'approved' && !job.value.stripe_transfer_id;
-});
-const paymentActionHelp = computed(() => {
-  if (paymentStatus.value === 'unpaid') return 'Take dealer payment now so this run is funded before drivers start.';
-  if (paymentStatus.value === 'checkout_pending') return 'Checkout has started. If the dealer paid, use refresh or wait for Stripe to confirm.';
-  if (paymentStatus.value === 'paid' && completionStatus.value !== 'approved') return 'Payment is held. Payout unlocks only after the inspection is approved.';
-  if (paymentStatus.value === 'paid' && completionStatus.value === 'approved') return 'Inspection is approved. You can now release the driver payout.';
-  if (paymentStatus.value === 'payout_released') return 'Driver payout has been released.';
-  return 'Take payment, choose a driver, review inspection photos, then release payout.';
-});
-const paymentCardEyebrow = computed(() => {
-  if (paymentStatus.value === 'unpaid') return 'Next step';
-  if (paymentStatus.value === 'checkout_pending') return 'Payment pending';
-  if (paymentStatus.value === 'payout_released') return 'Payout complete';
-  return 'Payment secured';
-});
-const paymentCardTitle = computed(() => {
-  if (paymentStatus.value === 'unpaid') return 'Pay upfront';
-  if (paymentStatus.value === 'checkout_pending') return 'Finish payment';
-  if (paymentStatus.value === 'payout_released') return 'Driver paid';
-  return 'Dealer payment held';
-});
-const paymentCardDescription = computed(() => {
-  if (paymentStatus.value === 'unpaid') {
-    return 'Take payment before this run is offered to drivers.';
-  }
-  if (paymentStatus.value === 'checkout_pending') {
-    return 'Stripe checkout has started. Refresh after the dealer completes payment.';
-  }
-  if (paymentStatus.value === 'payout_released') {
-    return 'The driver payout has been released for this completed run.';
-  }
-  return 'Funds are held by MotorRelay until the inspection is approved.';
-});
-const paymentStatusBadgeClass = computed(() => {
-  if (paymentStatus.value === 'paid') return 'bg-emerald-100 text-emerald-700';
-  if (paymentStatus.value === 'payout_released') return 'bg-slate-900 text-white';
-  if (paymentStatus.value === 'checkout_pending') return 'bg-amber-100 text-amber-700';
-  return 'bg-white text-slate-800';
-});
-const paymentConfirmationText = computed(() => {
-  if (paymentStatus.value === 'paid') {
-    return 'Payment confirmed. Funds are held until the inspection is approved.';
-  }
-  if (paymentStatus.value === 'payout_released') {
-    return 'Payout released. This payment workflow is complete.';
-  }
-  return '';
+const {
+  canManagePayment,
+  canReleasePayout,
+  canStartCheckout,
+  dealerPaymentAmount,
+  driverPayoutAmount,
+  headerDisplayAmount,
+  paymentActionHelp,
+  paymentCardEyebrow,
+  paymentCardTitle,
+  paymentConfirmationText,
+  paymentStatusBadgeClass,
+  platformFeeAmount
+} = useRunPayments({
+  job,
+  currentRole,
+  isDealerForJob,
+  paymentStatus,
+  completionStatus,
+  hasDeliveryProof
 });
 
-const myApplication = computed(() => job.value?.my_application ?? null);
 const canRequestJob = computed(() => {
   if (!job.value || currentRole.value !== "driver") return false;
   if (job.value.assigned_to_id) return false;
@@ -1676,11 +1537,6 @@ function deliveryProofDownloadName() {
 
 function onCompletionProofChange(event) {
   appendInspectionFiles(event.target?.files ?? []);
-}
-
-function openDriverModeInspectionPicker() {
-  completionError.value = "";
-  driverModeInspectionInput.value?.click();
 }
 
 async function onDriverModeInspectionChange(event) {
@@ -2134,59 +1990,18 @@ watch(
     <div v-else class="space-y-3">
       <BackPillButton label="Runs" to="/jobs" />
 
-      <header class="tile p-3" :class="isDriverDetailView ? 'space-y-2' : 'space-y-3'">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run details</p>
-            <h1 class="mt-0.5 break-words font-black leading-tight text-slate-950 dark:text-white" :class="isDriverDetailView ? 'text-xl' : 'text-2xl'">
-              {{ job.title || `Run #${job.id}` }}
-            </h1>
-            <p class="mt-0.5 text-xs font-semibold text-slate-600 dark:text-emerald-100">
-              {{ job.company || 'Customer' }} · {{ job.vehicle_make || 'Vehicle' }}
-            </p>
-          </div>
-          <div class="flex shrink-0 flex-col items-end gap-1.5">
-            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-800 dark:bg-white/10 dark:text-emerald-100">
-              {{ formatStatusLabel(job.status) }}
-            </span>
-            <p class="text-xl font-black leading-none text-emerald-600 dark:text-emerald-300">
-              {{ priceFormatter.format(headerDisplayAmount) }}
-            </p>
-          </div>
-        </div>
-
-        <div
-          v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode"
-          class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
-        >
-          <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-            <button
-              v-if="canRequestJob"
-              type="button"
-              class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-              :disabled="jobRequestLoading"
-              @click="handleRequestJob"
-            >
-              <span v-if="jobRequestLoading">Sending request...</span>
-              <span v-else>Request this run</span>
-            </button>
-            <span
-              v-else-if="showDriverRequestPanel && myApplication"
-              class="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 sm:w-auto dark:bg-emerald-400 dark:text-slate-950 dark:ring-emerald-400"
-            >
-              {{ formatStatusLabel(myApplication.status, 'Request sent') }}
-            </span>
-            <button
-              v-if="canUseDriverMode"
-              type="button"
-              class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-              @click="driverModeOpen = true"
-            >
-              Start driver mode
-            </button>
-          </div>
-        </div>
-      </header>
+      <RunDetailHeader
+        :job="job"
+        :display-amount="priceFormatter.format(headerDisplayAmount)"
+        :is-driver-view="isDriverDetailView"
+        :can-request-job="canRequestJob"
+        :request-loading="jobRequestLoading"
+        :show-driver-request-panel="showDriverRequestPanel"
+        :my-application="myApplication"
+        :can-use-driver-mode="canUseDriverMode"
+        @request-job="handleRequestJob"
+        @start-driver-mode="driverModeOpen = true"
+      />
 
       <section
         v-if="shouldShowGoLiveBanner"
@@ -2209,49 +2024,6 @@ watch(
         </p>
       </section>
 
-      <section
-        v-if="false"
-        class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm"
-      >
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Driver request</p>
-            <div class="mt-1 flex flex-wrap items-center gap-2">
-              <h2 class="text-xl font-black text-slate-950">{{ requestPanelTitle }}</h2>
-              <span
-                v-if="myApplication"
-                class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ring-1"
-                :class="applicationBadgeClass(myApplication.status)"
-              >
-                {{ formatStatusLabel(myApplication.status, 'Pending') }}
-              </span>
-            </div>
-            <p class="mt-1 text-sm text-emerald-900">{{ requestPanelText }}</p>
-            <p v-if="myApplication?.message" class="mt-2 text-xs text-emerald-800">
-              Your note: {{ myApplication.message }}
-            </p>
-          </div>
-          <button
-            v-if="canRequestJob"
-            type="button"
-            class="btn-primary w-full px-5 py-3 text-sm sm:w-auto"
-            :disabled="jobRequestLoading"
-            @click="handleRequestJob"
-          >
-            <span v-if="jobRequestLoading">Sending request...</span>
-            <span v-else>Request this run</span>
-          </button>
-          <span
-            v-else
-            class="inline-flex w-fit rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200"
-          >
-            Request sent
-          </span>
-        </div>
-        <p v-if="jobRequestError" class="mt-3 rounded-xl border border-rose-200 bg-white p-3 text-sm text-rose-700">
-          {{ jobRequestError }}
-        </p>
-      </section>
 
       <RunRouteSummary :job="job" compact />
 
@@ -2275,252 +2047,39 @@ watch(
         :show-photos="canUploadInspection || hasInspectionPhotos || canReviewInspection"
       />
 
-      <section
+      <DealerLiveTrackingCard
         v-if="shouldShowDealerLiveTracking"
-        class="tile overflow-hidden border-emerald-200 bg-emerald-50/40 p-0 dark:border-emerald-400/30 dark:bg-emerald-400/10"
-      >
-        <div class="flex items-center justify-between gap-3 px-4 py-3">
-          <div>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Live tracking</p>
-            <h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-white">Driver location</h2>
-          </div>
-          <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-300 dark:text-slate-950">
-            Live
-          </span>
-        </div>
-        <div class="relative h-52 bg-slate-200 dark:bg-slate-900">
-          <iframe
-            :key="`${liveTrackingLocation?.lat}-${liveTrackingLocation?.lng}`"
-            :src="dealerLiveTrackingMapSrc"
-            class="h-full w-full border-0"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-            title="Driver live location map"
-          />
-        </div>
-        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs font-bold text-slate-600 dark:text-emerald-100">
-          <span>{{ dealerLiveTrackingUpdatedLabel }}</span>
-          <a
-            :href="`https://www.google.com/maps/search/?api=1&query=${liveTrackingLocation?.lat},${liveTrackingLocation?.lng}`"
-            target="_blank"
-            rel="noopener"
-            class="text-emerald-700 underline dark:text-emerald-300"
-          >
-            Open map
-          </a>
-        </div>
-      </section>
+        :location="liveTrackingLocation"
+        :map-src="dealerLiveTrackingMapSrc"
+        :updated-label="dealerLiveTrackingUpdatedLabel"
+      />
 
-      <section v-if="job.incidents?.length" class="tile space-y-2 border-amber-200 bg-amber-50/50 p-3 dark:border-amber-400/30 dark:bg-amber-400/10">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-200">Reported issues</p>
-            <h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-white">Incident history</h2>
-          </div>
-          <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-300 dark:text-slate-950">
-            {{ job.incidents.length }} logged
-          </span>
-        </div>
-        <p v-if="recoverySendError" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-100">
-          {{ recoverySendError }}
-        </p>
-        <p v-if="recoveryCompleteError" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-100">
-          {{ recoveryCompleteError }}
-        </p>
-        <div class="space-y-2">
-          <article
-            v-for="incident in job.incidents"
-            :key="incident.id"
-            class="rounded-xl border border-amber-200 bg-white p-2.5 text-sm dark:border-amber-400/20 dark:bg-white/[0.06]"
-          >
-            <div class="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p class="font-black capitalize text-slate-950 dark:text-white">{{ String(incident.type || '').replaceAll('_', ' ') }}</p>
-                <p class="mt-1 text-xs text-slate-600 dark:text-emerald-100">
-                  Reported by {{ incident.reported_by?.name || 'driver' }} · {{ formatDateTime(incident.created_at) }}
-                </p>
-              </div>
-              <div v-if="incident.recovery_required" class="flex flex-wrap items-center justify-end gap-2">
-                <span
-                  class="rounded-full px-2.5 py-1 text-xs font-bold"
-                  :class="incident.recovery_completed_at
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
-                    : incident.recovery_sent_at
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-300 dark:text-slate-950'
-                    : 'bg-rose-100 text-rose-700 dark:bg-rose-400/20 dark:text-rose-100'"
-                >
-                  {{ incident.recovery_completed_at ? 'Recovery happened' : incident.recovery_sent_at ? 'Recovery sent' : 'Recovery requested' }}
-                </span>
-                <button
-                  v-if="canSendRecovery && !incident.recovery_sent_at"
-                  type="button"
-                  class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-                  :disabled="recoverySendingId === incident.id"
-                  @click="openRecoveryConfirmation('send', incident)"
-                >
-                  {{ recoverySendingId === incident.id ? 'Sending...' : 'Send recovery' }}
-                </button>
-                <button
-                  v-if="canConfirmRecoveryCompleted && incident.recovery_sent_at && !incident.recovery_completed_at"
-                  type="button"
-                  class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-                  :disabled="recoveryCompletingId === incident.id"
-                  @click="openRecoveryConfirmation('complete', incident)"
-                >
-                  {{ recoveryCompletingId === incident.id ? 'Confirming...' : 'Recovery happened' }}
-                </button>
-              </div>
-            </div>
-            <p v-if="incident.description" class="mt-2 text-slate-700 dark:text-emerald-100">{{ incident.description }}</p>
-            <p v-if="incident.location_label" class="mt-1 text-xs text-slate-500 dark:text-emerald-100">Location: {{ incident.location_label }}</p>
-            <p v-if="incident.recovery_sent_at" class="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-200">
-              Recovery confirmed by {{ incident.recovery_sent_by?.name || 'dealer' }} · {{ formatDateTime(incident.recovery_sent_at) }}
-            </p>
-            <p v-if="incident.recovery_completed_at" class="mt-1 text-xs font-bold text-slate-700 dark:text-emerald-100">
-              Recovery happened confirmed by {{ incident.recovery_completed_by?.name || 'driver' }} · {{ formatDateTime(incident.recovery_completed_at) }}
-            </p>
-          </article>
-        </div>
-      </section>
+      <RunIncidentHistory
+        v-if="job.incidents?.length"
+        :incidents="job.incidents"
+        :can-send-recovery="canSendRecovery"
+        :can-confirm-recovery-completed="canConfirmRecoveryCompleted"
+        :recovery-sending-id="recoverySendingId"
+        :recovery-completing-id="recoveryCompletingId"
+        :recovery-send-error="recoverySendError"
+        :recovery-complete-error="recoveryCompleteError"
+        @confirm-recovery="openRecoveryConfirmation"
+      />
 
-      <section v-if="showCompactCompletionPanel" class="tile space-y-3 p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Completion</p>
-            <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Run completed</h2>
-            <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
-              {{ statusDescription }}
-            </p>
-          </div>
-          <span class="badge bg-emerald-100 text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
-            {{ completionStatusLabel }}
-          </span>
-        </div>
+      <RunCompletionSummary
+        v-if="showCompactCompletionPanel"
+        :status-description="statusDescription"
+        :completion-status-label="completionStatusLabel"
+        :submitted-at="formatDateTime(job?.completion_submitted_at)"
+        :approved-at="formatDateTime(job?.completion_approved_at)"
+        :has-delivery-proof="hasDeliveryProof"
+        :notes="job?.completion_notes"
+        :proof-downloading="proofDownloading"
+        :invoice-finalized="invoiceFinalized"
+        :invoice-to="jobInvoiceLink"
+        @download-proof="handleDownloadProof"
+      />
 
-        <div class="grid gap-2 text-xs sm:grid-cols-3">
-          <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-            <span class="font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Submitted</span>
-            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ formatDateTime(job?.completion_submitted_at) }}</p>
-          </div>
-          <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-            <span class="font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Approved</span>
-            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ formatDateTime(job?.completion_approved_at) }}</p>
-          </div>
-          <div class="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.06]">
-            <span class="font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Inspection</span>
-            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ hasDeliveryProof ? 'Uploaded' : 'Not uploaded' }}</p>
-          </div>
-        </div>
-
-        <p v-if="job?.completion_notes" class="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-emerald-100">
-          {{ job.completion_notes }}
-        </p>
-
-        <div class="grid gap-2 sm:flex sm:flex-wrap">
-          <button
-            v-if="hasDeliveryProof"
-            type="button"
-            class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
-            :disabled="proofDownloading"
-            @click="handleDownloadProof"
-          >
-            <span v-if="proofDownloading">Downloading...</span>
-            <span v-else>Download inspection</span>
-          </button>
-          <RouterLink
-            v-if="invoiceFinalized"
-            :to="jobInvoiceLink"
-            class="btn-secondary w-full px-4 py-2 text-center text-sm sm:w-auto"
-          >
-            View this invoice
-          </RouterLink>
-        </div>
-      </section>
-
-      <section v-if="false" class="tile space-y-4 p-4">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Run progress</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
-              Next: {{ currentWorkflowStep?.label || 'Complete' }}
-            </p>
-          </div>
-          <span class="badge bg-emerald-100 text-emerald-700">
-            {{ completedWorkflowCount }} / {{ workflowSteps.length }} done
-          </span>
-        </div>
-
-        <div class="relative pt-1">
-          <div class="h-3 overflow-hidden rounded-full bg-slate-100">
-            <div
-              class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500"
-              :style="{ width: `${workflowProgressPercent}%` }"
-            ></div>
-          </div>
-        </div>
-
-        <ol class="hidden gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <li
-            v-for="step in workflowSteps"
-            :key="`compact-${step.label}`"
-            class="flex items-center gap-2 rounded-xl px-2 py-1.5"
-            :class="step.complete ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-50 text-slate-500'"
-          >
-            <span
-              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black"
-              :class="step.complete ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 ring-1 ring-slate-200'"
-            >
-              {{ step.complete ? '✓' : '•' }}
-            </span>
-            <span class="font-bold">{{ step.label }}</span>
-          </li>
-        </ol>
-
-        <div
-          v-if="showDriverNextAction"
-          class="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Next driver action</p>
-            <p class="mt-1 text-sm font-bold text-slate-950 dark:text-white">{{ currentWorkflowStep?.label || 'Complete' }}</p>
-            <p class="mt-1 text-xs text-slate-600 dark:text-emerald-100">{{ driverNextActionText }}</p>
-          </div>
-          <div class="grid gap-2 sm:flex sm:flex-wrap">
-            <button
-              v-if="canMarkCollected"
-              type="button"
-              class="btn-primary w-full sm:w-auto"
-              :disabled="driverActionLoading === 'collected'"
-              @click="handleDriverCollected"
-            >
-              <span v-if="driverActionLoading === 'collected'">Updating...</span>
-              <span v-else>Mark collected</span>
-            </button>
-            <button
-              v-if="canMarkDeliveredFromDetail"
-              type="button"
-              class="btn-primary w-full sm:w-auto"
-              :disabled="driverActionLoading === 'delivered'"
-              @click="handleDriverDelivered"
-            >
-              <span v-if="driverActionLoading === 'delivered'">Updating...</span>
-              <span v-else>Mark delivered</span>
-            </button>
-            <button
-              v-if="canReportIncident"
-              type="button"
-              class="btn-secondary w-full border-amber-200 px-4 py-2 text-sm text-amber-700 hover:border-amber-300 hover:text-amber-800 sm:w-auto dark:border-amber-400/30 dark:text-amber-200"
-              @click="openIncidentModal"
-            >
-              Report issue
-            </button>
-          </div>
-        </div>
-
-        <p v-if="driverActionError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-          {{ driverActionError }}
-        </p>
-      </section>
 
       <section
         v-if="showApplicationsAtTop"
@@ -2545,1230 +2104,108 @@ watch(
         </p>
       </section>
 
-      <section
+      <RunPaymentCard
         v-if="canManagePayment"
-        class="tile space-y-2 border-sky-200 bg-sky-50/40 p-3 dark:border-emerald-400/20 dark:bg-white/[0.04]"
-      >
-        <header class="flex flex-wrap items-center justify-between gap-2">
-          <div class="min-w-0">
-            <p class="text-xs font-black uppercase tracking-wide text-sky-700 dark:text-emerald-300">{{ paymentCardEyebrow }}</p>
-            <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-emerald-100">
-              <span class="font-black text-slate-950 dark:text-white">{{ paymentCardTitle }}</span>
-              <span>{{ priceFormatter.format(dealerPaymentAmount) }} dealer charge</span>
-              <span>{{ priceFormatter.format(driverPayoutAmount) }} driver payout</span>
-            </div>
-          </div>
-          <span class="badge uppercase" :class="paymentStatusBadgeClass">{{ paymentStatus }}</span>
-        </header>
+        :eyebrow="paymentCardEyebrow"
+        :title="paymentCardTitle"
+        :dealer-charge="priceFormatter.format(dealerPaymentAmount)"
+        :driver-payout="priceFormatter.format(driverPayoutAmount)"
+        :status="paymentStatus"
+        :status-class="paymentStatusBadgeClass"
+        :paid-text="job.paid_at ? `Paid ${formatDateTime(job.paid_at)}.` : ''"
+        :payment-error="paymentError"
+        :payment-notice="paymentNotice"
+        :confirmation-text="paymentConfirmationText"
+        :can-start-checkout="canStartCheckout"
+        :can-release-payout="canReleasePayout"
+        :checkout-loading="checkoutLoading"
+        :payout-release-loading="payoutReleaseLoading"
+        :action-help="paymentActionHelp"
+        @checkout="handleCheckout"
+        @sync-payment="handlePaymentSync()"
+        @release-payout="handleReleasePayout"
+      />
 
-        <p class="text-xs text-slate-500 dark:text-emerald-100">
-          <span v-if="job.paid_at">Paid {{ formatDateTime(job.paid_at) }}.</span>
-          <span v-else>Not paid yet. Payment should be completed before a driver starts.</span>
-        </p>
 
-        <p v-if="paymentError" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
-          {{ paymentError }}
-        </p>
-        <p v-if="paymentNotice" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-          {{ paymentNotice }}
-        </p>
-        <p v-else-if="paymentConfirmationText" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-          {{ paymentConfirmationText }}
-        </p>
 
-        <div class="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
-          <button
-            v-if="canStartCheckout"
-            type="button"
-            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-            :disabled="checkoutLoading"
-            @click="handleCheckout"
-          >
-            <span v-if="checkoutLoading">Opening checkout...</span>
-            <span v-else>Pay for this run</span>
-          </button>
-          <button
-            v-if="paymentStatus === 'checkout_pending'"
-            type="button"
-            class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
-            :disabled="checkoutLoading"
-            @click="handlePaymentSync()"
-          >
-            <span v-if="checkoutLoading">Checking payment...</span>
-            <span v-else>Refresh payment status</span>
-          </button>
-          <button
-            v-if="canReleasePayout"
-            type="button"
-            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-            :disabled="payoutReleaseLoading"
-            @click="handleReleasePayout"
-          >
-            <span v-if="payoutReleaseLoading">Releasing payout...</span>
-            <span v-else>Release driver payout</span>
-          </button>
-          <p class="w-full text-xs text-slate-500 dark:text-emerald-100">
-            {{ paymentActionHelp }}
-          </p>
-        </div>
-      </section>
 
-      <section v-if="false" ref="applicationsSection" id="run-applications" class="tile scroll-mt-28 space-y-4 p-4">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Run progress</h2>
-            <p class="mt-1 text-xs text-slate-500">
-              Next: {{ currentWorkflowStep?.label || 'Complete' }}
-            </p>
-          </div>
-          <span class="badge bg-emerald-100 text-emerald-700">
-            {{ completedWorkflowCount }} / {{ workflowSteps.length }} done
-          </span>
-        </div>
+      <RunTrackingCard
+        v-if="shouldShowTrackingCard && !isAssignedDriver"
+        :has-tracking-ended="hasTrackingEnded"
+        :can-share-tracking="canShareTracking"
+        :can-request-tracking="canRequestTracking"
+        :tracking-state="trackingState"
+        :last-tracked-display="lastTrackedDisplay"
+        @share-location="shareLiveLocation"
+        @request-location="requestLocationUpdate"
+        @open-navigation="navigationModalOpen = true"
+        @open-settings="openLocationSettings"
+      />
 
-        <div class="relative pt-1">
-          <div class="h-3 overflow-hidden rounded-full bg-slate-100">
-            <div
-              class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500"
-              :style="{ width: `${workflowProgressPercent}%` }"
-            ></div>
-          </div>
-        </div>
 
-        <ol class="hidden">
-          <li
-            v-for="step in workflowSteps"
-            :key="step.label"
-            class="rounded-2xl border p-3"
-            :class="step.complete ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-slate-50 text-slate-600'"
-          >
-            <div class="flex items-center gap-2">
-              <span
-                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black"
-                :class="step.complete ? 'bg-emerald-600 text-white' : 'bg-white text-slate-500'"
-              >
-                {{ step.complete ? '✓' : '•' }}
-              </span>
-              <h3 class="text-sm font-black">{{ step.label }}</h3>
-            </div>
-            <p class="mt-2 text-xs leading-5">{{ step.help }}</p>
-          </li>
-        </ol>
+      <RunExpensesCard
+        v-if="shouldShowExpenses"
+        :expenses="expenses"
+        :summary="expensesSummary"
+        :loading="expensesLoading"
+        :error="expensesError"
+        :can-submit="canSubmitExpenses"
+        :can-review="canReviewExpenses"
+        :is-assigned-driver="isAssignedDriver"
+        :form="expenseForm"
+        :form-key="expenseFormKey"
+        :form-error="expenseFormError"
+        :submitting="expenseSubmitting"
+        :editing-id="editingExpenseId"
+        :receipt-downloading-id="receiptDownloadingId"
+        @submit="handleExpenseSubmit"
+        @receipt-change="onExpenseReceiptChange"
+        @cancel-edit="cancelExpenseEdit"
+        @download-receipt="handleDownloadReceipt"
+        @edit="startEditingExpense"
+        @delete="handleDeleteExpense"
+        @review="handleReviewExpense"
+      />
 
-        <ol class="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <li
-            v-for="step in workflowSteps"
-            :key="`compact-${step.label}`"
-            class="flex items-center gap-2 rounded-xl px-2 py-1.5"
-            :class="step.complete ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-50 text-slate-500'"
-          >
-            <span
-              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black"
-              :class="step.complete ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 ring-1 ring-slate-200'"
-            >
-              {{ step.complete ? '✓' : '•' }}
-            </span>
-            <span class="font-bold">{{ step.label }}</span>
-          </li>
-        </ol>
-      </section>
 
-      <section v-if="false" class="tile p-4">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Status</h2>
-
-        <p class="mt-2 text-sm text-slate-600">
-          {{ statusDescription }}
-        </p>
-
-        <div class="mt-4 space-y-2">
-          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500" for="job-driver-select">
-            Assigned driver
-          </label>
-          <select
-            id="job-driver-select"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
-            disabled
-          >
-            <option v-if="assignedDriver" :value="assignedDriver.id">
-              {{ assignedDriver.name }} ({{ assignedDriver.email }})
-            </option>
-            <option v-else value="unassigned">
-              No driver assigned
-            </option>
-          </select>
-        </div>
-
-        <p
-          v-if="(isDealerForJob || currentRole === 'admin') && !job.assigned_to_id"
-          class="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700"
-        >
-          Payment should be completed before the driver starts. Review applications below after funding is confirmed.
-        </p>
-
-      </section>
-
-      <section
-        v-if="false"
-        class="tile space-y-4 p-4"
-      >
-        <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Payment</h2>
-            <p class="text-xs text-slate-500">
-              Take dealer payment now. MotorRelay holds it until the inspection is approved.
-            </p>
-          </div>
-          <span class="badge bg-slate-100 text-slate-800 uppercase">{{ paymentStatus }}</span>
-        </header>
-
-        <dl class="grid gap-3 text-sm sm:grid-cols-3">
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <dt class="text-xs font-semibold uppercase text-slate-500">Dealer charge</dt>
-            <dd class="mt-1 font-black text-slate-900">{{ priceFormatter.format(dealerPaymentAmount) }}</dd>
-          </div>
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <dt class="text-xs font-semibold uppercase text-slate-500">Platform fee</dt>
-            <dd class="mt-1 font-black text-emerald-700">{{ priceFormatter.format(platformFeeAmount) }}</dd>
-          </div>
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <dt class="text-xs font-semibold uppercase text-slate-500">Driver payout</dt>
-            <dd class="mt-1 font-black text-slate-900">{{ priceFormatter.format(driverPayoutAmount) }}</dd>
-          </div>
-        </dl>
-
-        <p class="text-xs text-slate-500">
-          <span v-if="job.paid_at">Paid {{ formatDateTime(job.paid_at) }}.</span>
-          <span v-else>Not paid yet. Payment should be completed before a driver starts.</span>
-        </p>
-
-        <p v-if="paymentError" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
-          {{ paymentError }}
-        </p>
-        <p v-if="paymentNotice" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-          {{ paymentNotice }}
-        </p>
-
-        <div class="grid gap-2 sm:flex sm:flex-wrap">
-          <button
-            v-if="canStartCheckout"
-            type="button"
-            class="btn-primary w-full sm:w-auto"
-            :disabled="checkoutLoading"
-            @click="handleCheckout"
-          >
-            <span v-if="checkoutLoading">Opening checkout...</span>
-            <span v-else>Pay for this run</span>
-          </button>
-          <button
-            v-if="paymentStatus === 'checkout_pending'"
-            type="button"
-            class="btn-secondary w-full sm:w-auto"
-            :disabled="checkoutLoading"
-            @click="handlePaymentSync()"
-          >
-            <span v-if="checkoutLoading">Checking payment...</span>
-            <span v-else>Refresh payment status</span>
-          </button>
-          <button
-            v-if="canReleasePayout"
-            type="button"
-            class="btn-primary w-full sm:w-auto"
-            :disabled="payoutReleaseLoading"
-            @click="handleReleasePayout"
-          >
-            <span v-if="payoutReleaseLoading">Releasing payout...</span>
-            <span v-else>Release driver payout</span>
-          </button>
-          <p
-            v-if="!canStartCheckout && !canReleasePayout"
-            class="text-xs text-slate-500"
-          >
-            {{ paymentActionHelp }}
-          </p>
-          <p
-            v-else
-            class="w-full text-xs text-slate-500"
-          >
-            {{ paymentActionHelp }}
-          </p>
-        </div>
-      </section>
-
-      <section v-if="shouldShowTrackingCard && !isAssignedDriver" class="tile space-y-3 p-4">
-        <header class="space-y-1">
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Live tracking</h2>
-          <p v-if="hasTrackingEnded" class="text-xs text-slate-500">
-            Live tracking has ended for this run. The last shared location is kept on the job record.
-          </p>
-          <p v-else-if="canShareTracking" class="text-xs text-slate-500">
-            Share your current position with the dealer while this run is active.
-          </p>
-          <p v-else class="text-xs text-slate-500">
-            Request a live location update from the assigned driver while the run is active.
-          </p>
-        </header>
-        <div v-if="!hasTrackingEnded" class="flex flex-wrap gap-3">
-          <button
-            v-if="canShareTracking"
-            type="button"
-            class="rounded-xl px-4 py-2 text-sm font-semibold shadow disabled:cursor-not-allowed"
-            :class="trackingState.shared
-              ? 'bg-slate-200 text-slate-600'
-              : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-300'"
-            :disabled="trackingState.sending || trackingState.shared"
-            @click="shareLiveLocation"
-          >
-            <span v-if="trackingState.sending">Sharing location…</span>
-            <span v-else-if="trackingState.shared">Live location shared</span>
-            <span v-else>Share live location</span>
-          </button>
-          <button
-            v-if="canRequestTracking"
-            type="button"
-            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-            :disabled="trackingState.requesting"
-            @click="requestLocationUpdate"
-          >
-            <span v-if="trackingState.requesting">Requesting...</span>
-            <span v-else>Request location update</span>
-          </button>
-          <button
-            v-if="canShareTracking"
-            type="button"
-            class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            @click="navigationModalOpen = true"
-          >
-            Open navigation apps
-          </button>
-        </div>
-        <p v-if="trackingState.error" class="text-xs text-rose-600">
-          {{ trackingState.error }}
-        </p>
-        <p v-if="trackingState.requestError" class="text-xs text-rose-600">
-          {{ trackingState.requestError }}
-        </p>
-        <p v-if="trackingState.requestNotice" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
-          {{ trackingState.requestNotice }}
-        </p>
-        <p v-if="trackingState.locationServicesOff" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
-          On iPhone, open Settings → Privacy & Security → Location Services, turn Location Services on, then return to MotorRelay.
-        </p>
-        <button
-          v-if="trackingState.locationBlocked"
-          type="button"
-          class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
-          @click="openLocationSettings"
-        >
-          Open MotorRelay settings
-        </button>
-        <p v-if="lastTrackedDisplay" class="text-xs text-slate-500">
-          Last shared: {{ lastTrackedDisplay }}
-        </p>
-        <p v-else-if="hasTrackingEnded" class="text-xs text-slate-500">
-          No live location was shared before this run ended.
-        </p>
-      </section>
-
-      <section v-if="false" class="tile space-y-4 p-4">
-        <header class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Basic analytics</h2>
-            <p class="text-xs text-slate-500">Snapshot of views generated while this run is live.</p>
-          </div>
-          <span class="rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-            {{ basicAnalytics.views_last_7_days }} this week
-          </span>
-        </header>
-        <div class="grid gap-4 sm:grid-cols-3">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Views today</p>
-            <p class="text-2xl font-bold text-slate-900">{{ basicAnalytics.views_today }}</p>
-          </div>
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Last 7 days</p>
-            <p class="text-2xl font-bold text-slate-900">{{ basicAnalytics.views_last_7_days }}</p>
-          </div>
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Daily log</p>
-            <ul class="mt-1 space-y-1 text-xs text-slate-500">
-              <li v-for="day in basicAnalytics.daily" :key="day.date">
-                {{ new Date(day.date).toLocaleDateString() }} - {{ day.views }} views
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section v-if="shouldShowExpenses" class="tile space-y-4 p-4">
-        <header class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Expenses</h2>
-            <p class="text-xs text-slate-500">
-              Track expense submissions and approvals for this run.
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-3 text-xs text-slate-500">
-            <span>
-              Submitted:
-              <span class="font-semibold text-slate-800">{{ formatCurrency(expensesSummary.submitted_total) }}</span>
-            </span>
-            <span>
-              Approved:
-              <span class="font-semibold text-emerald-700">{{ formatCurrency(expensesSummary.approved_total) }}</span>
-            </span>
-            <span>
-              Rejected:
-              <span class="font-semibold text-slate-800">{{ formatCurrency(expensesSummary.rejected_total) }}</span>
-            </span>
-          </div>
-        </header>
-
-        <p v-if="expensesError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-          {{ expensesError }}
-        </p>
-
-        <form
-          v-if="canSubmitExpenses"
-          class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-4"
-          @submit.prevent="handleExpenseSubmit"
-        >
-          <div class="md:col-span-2">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Description</label>
-            <input
-              v-model="expenseForm.description"
-              type="text"
-              required
-              class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Taxi from auction"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</label>
-            <input
-              v-model="expenseForm.amount"
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="32.00"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">VAT %</label>
-            <input
-              v-model="expenseForm.vat_rate"
-              type="number"
-              min="0"
-              step="0.5"
-              class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Receipt</label>
-            <input
-              :key="expenseFormKey"
-              type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
-              class="mt-1 w-full text-sm text-slate-600"
-              @change="onExpenseReceiptChange"
-            />
-            <p class="mt-1 text-xs text-slate-500">Images or PDF up to 5 MB.</p>
-          </div>
-          <div class="md:col-span-2 flex items-end justify-end gap-2">
-            <button
-              v-if="editingExpenseId"
-              type="button"
-              class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-              @click="cancelExpenseEdit"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-              :disabled="expenseSubmitting"
-            >
-              <span v-if="expenseSubmitting">{{ editingExpenseId ? 'Updating...' : 'Saving...' }}</span>
-              <span v-else>{{ editingExpenseId ? 'Update expense' : 'Add expense' }}</span>
-            </button>
-          </div>
-          <p v-if="expenseFormError" class="md:col-span-4 text-xs text-amber-700">{{ expenseFormError }}</p>
-        </form>
-
-        <div v-if="expensesLoading" class="rounded-xl border bg-slate-50 p-4 text-sm text-slate-600">
-          Loading expenses...
-        </div>
-
-        <div
-          v-else-if="!expenses.length"
-          class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
-        >
-          No expenses submitted yet.
-        </div>
-
-        <div v-else class="space-y-3">
-          <article
-            v-for="expense in expenses"
-            :key="expense.id"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-slate-900">
-                  {{ expense.description }}
-                </p>
-                <p class="text-xs text-slate-500">
-                  Submitted {{ formatDateTime(expense.submitted_at) }}
-                  <span v-if="expense.driver?.name"> - {{ expense.driver.name }}</span>
-                </p>
-              </div>
-              <span
-                class="badge"
-                :class="{
-                  'bg-emerald-100 text-emerald-700': expense.status === 'approved',
-                  'bg-amber-100 text-amber-700': expense.status === 'submitted',
-                  'bg-rose-100 text-rose-700': expense.status === 'rejected'
-                }"
-              >
-                {{ formatStatusLabel(expense.status, 'Submitted') }}
-              </span>
-            </div>
-
-            <dl class="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
-              <div>
-                <dt class="uppercase tracking-wide">Net</dt>
-                <dd class="font-semibold text-slate-900">{{ formatCurrency(expense.amount) }}</dd>
-              </div>
-              <div>
-                <dt class="uppercase tracking-wide">VAT ({{ expense.vat_rate }}%)</dt>
-                <dd class="font-semibold text-slate-900">{{ formatCurrency(expense.vat_amount) }}</dd>
-              </div>
-              <div>
-                <dt class="uppercase tracking-wide">Total</dt>
-                <dd class="font-semibold text-slate-900">{{ formatCurrency(expense.total_amount) }}</dd>
-              </div>
-            </dl>
-
-            <p v-if="expense.review_note" class="mt-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
-              Dealer note: {{ expense.review_note }}
-            </p>
-
-            <div class="mt-3 flex flex-wrap gap-2">
-              <button
-                v-if="expense.receipt_path"
-                type="button"
-                class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                :disabled="receiptDownloadingId === expense.id"
-                @click="handleDownloadReceipt(expense)"
-              >
-                <span v-if="receiptDownloadingId === expense.id">Downloading...</span>
-                <span v-else>Receipt</span>
-              </button>
-
-              <button
-                v-if="isAssignedDriver && expense.is_editable"
-                type="button"
-                class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                @click="startEditingExpense(expense)"
-              >
-                Edit
-              </button>
-              <button
-                v-if="isAssignedDriver && expense.is_editable"
-                type="button"
-                class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                @click="handleDeleteExpense(expense)"
-              >
-                Delete
-              </button>
-
-              <button
-                v-if="canReviewExpenses && expense.status === 'submitted'"
-                type="button"
-                class="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                @click="handleReviewExpense(expense, 'approved')"
-              >
-                Approve
-              </button>
-              <button
-                v-if="canReviewExpenses && expense.status === 'submitted'"
-                type="button"
-                class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                @click="handleReviewExpense(expense, 'rejected')"
-              >
-                Reject
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section
-        v-if="false"
-        class="tile space-y-4 p-4"
-      >
-        <header class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Pre-delivery inspection</h2>
-            <p class="text-xs text-slate-500">
-              Drivers upload inspection photos as soon as they arrive. Dealers review them later as the run progresses.
-            </p>
-          </div>
-          <span class="badge bg-slate-100 text-slate-800 uppercase dark:bg-white/[0.08] dark:text-emerald-100">{{ completionStatusLabel }}</span>
-        </header>
-
-        <div class="grid gap-3 text-xs text-slate-600 sm:grid-cols-2">
-          <div>
-            <span class="font-semibold text-slate-500 uppercase tracking-wide">Submitted</span>
-            <p class="text-sm font-semibold text-slate-900">
-              {{ formatDateTime(job?.completion_submitted_at) }}
-            </p>
-          </div>
-          <div>
-            <span class="font-semibold text-slate-500 uppercase tracking-wide">Approved</span>
-            <p class="text-sm font-semibold text-slate-900">
-              {{ formatDateTime(job?.completion_approved_at) }}
-            </p>
-          </div>
-          <div>
-            <span class="font-semibold text-slate-500 uppercase tracking-wide">Rejected</span>
-            <p class="text-sm font-semibold text-slate-900">
-              {{ formatDateTime(job?.completion_rejected_at) }}
-            </p>
-          </div>
-          <div>
-            <span class="font-semibold text-slate-500 uppercase tracking-wide">Notes</span>
-            <p class="text-sm text-slate-900">
-              {{ job?.completion_notes || '--' }}
-            </p>
-          </div>
-        </div>
-
-        <p v-if="completionError" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-          {{ completionError }}
-        </p>
-
-        <form
-          v-if="canUploadInspection || canSubmitCompletion"
-          class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2"
-          @submit.prevent="handleCompletionSubmit"
-        >
-          <div class="md:col-span-2">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {{ canUploadInspection ? 'Inspection notes' : 'Completion notes' }}
-            </label>
-            <textarea
-              v-model="completionForm.notes"
-              rows="2"
-              class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              :placeholder="canUploadInspection ? 'Photo notes, vehicle condition, or collection details' : 'Delivered at 17:45, keys left with reception'"
-            ></textarea>
-          </div>
-          <div v-if="canUploadInspection" class="md:col-span-2">
-            <div class="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-100">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <p class="font-black uppercase tracking-wide">Required photos</p>
-                <span class="rounded-full bg-white px-2.5 py-1 font-black text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
-                  {{ completionForm.proof.length }}/{{ minInspectionPhotoCount }}
-                </span>
-              </div>
-              <div class="mt-3 grid gap-2 sm:grid-cols-2">
-                <span
-                  v-for="(shot, index) in requiredInspectionShots"
-                  :key="shot"
-                  class="rounded-xl px-3 py-2 font-bold"
-                  :class="completionForm.proof.length > index ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-slate-950' : 'bg-white text-emerald-800 dark:bg-white/10 dark:text-emerald-100'"
-                >
-                  {{ index + 1 }}. {{ shot }}
-                </span>
-              </div>
-            </div>
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Inspection photos</label>
-            <input
-              :key="completionFormKey"
-              type="file"
-              accept="image/*"
-              class="mt-1 w-full text-sm text-slate-600"
-              multiple
-              @change="onCompletionProofChange"
-            />
-            <p class="mt-1 text-xs text-slate-500">Upload at least {{ minInspectionPhotoCount }} images before collecting the vehicle. You can add extra damage or tyre photos too.</p>
-          </div>
-          <div v-else class="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
-            Inspection is uploaded. Submit completion after delivery so the dealer can approve and generate the invoice.
-          </div>
-          <div class="md:col-span-2 flex justify-end">
-            <button
-              type="submit"
-              class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-              :disabled="completionSubmitting"
-            >
-              <span v-if="completionSubmitting">{{ canUploadInspection ? 'Uploading...' : 'Submitting...' }}</span>
-              <span v-else>{{ canUploadInspection ? 'Upload inspection' : 'Submit completion' }}</span>
-            </button>
-          </div>
-        </form>
-
-        <div v-if="canApproveCompletion" class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-            :disabled="completionDecisionLoading"
-            @click="handleApproveCompletion"
-          >
-            <span v-if="completionDecisionLoading">Processing...</span>
-            <span v-else>Approve completion</span>
-          </button>
-          <button
-            type="button"
-            class="rounded-xl border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-            :disabled="completionDecisionLoading"
-            @click="handleRejectCompletion"
-          >
-            Request changes
-          </button>
-        </div>
-
-        <div
-          v-if="invoiceFinalized"
-          class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-700"
-        >
-          Invoice finalised.
-          <RouterLink :to="jobInvoiceLink" class="font-semibold text-emerald-800 underline">View this invoice</RouterLink>
-        </div>
-      </section>
-
-      <section v-if="false" class="tile space-y-4 p-4">
-        <header class="flex items-center justify-between">
-          <div>
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Driver applications</h2>
-            <p class="text-xs text-slate-500">
-              Review pending applications and choose a driver. The selected driver will receive messaging access.
-            </p>
-          </div>
-          <span class="badge bg-slate-100 text-slate-800">{{ applications.length }} total</span>
-        </header>
-
-        <div v-if="applicationsLoading" class="rounded-xl border bg-slate-50 p-4 text-sm text-slate-600">
-          Loading applications...
-        </div>
-
-        <div
-          v-else-if="applicationsError"
-          class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"
-        >
-          {{ applicationsError }}
-        </div>
-
-        <div v-else-if="!applications.length" class="rounded-xl border bg-slate-50 p-4 text-sm text-slate-600">
-          No driver applications yet.
-        </div>
-
-        <div v-else class="space-y-3">
-          <article
-            v-for="application in applications"
-            :key="application.id"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-slate-900">
-                  {{ application.driver?.name || 'Driver' }}
-                </p>
-                <p class="text-xs text-slate-500">
-                  Applied {{ new Date(application.created_at).toLocaleString() }}
-                </p>
-              </div>
-              <span
-                class="badge"
-                :class="{
-                  'bg-emerald-100 text-emerald-700': application.status === 'accepted',
-                  'bg-amber-100 text-amber-700': application.status === 'pending',
-                  'bg-slate-200 text-slate-700': application.status === 'declined'
-                }"
-              >
-                {{ formatStatusLabel(application.status, 'Pending') }}
-              </span>
-            </div>
-
-            <p v-if="application.message" class="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              "{{ application.message }}"
-            </p>
-
-            <div class="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                class="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                :disabled="application.status !== 'pending'"
-                @click="handleApplicationDecision(application.id, 'declined')"
-              >
-                Decline
-              </button>
-              <button
-                type="button"
-                class="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-                :disabled="application.status !== 'pending'"
-                @click="handleApplicationDecision(application.id, 'accepted')"
-              >
-                Accept and assign
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
     </div>
 
-    <transition name="fade">
-      <div
-        v-if="driverModeOpen && canUseDriverMode"
-        class="fixed inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)*-1)] z-[100] min-h-[calc(100dvh+env(safe-area-inset-top))] overflow-hidden bg-slate-950 text-white"
-      >
-        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.22),transparent_34%),linear-gradient(180deg,#001f1a_0%,#020617_28%,#020617_100%)]" />
+    <DriverModeOverlay
+      v-if="driverModeOpen && canUseDriverMode"
+      :job="job"
+      :route-label="driverModeRouteLabel"
+      :status-label="driverModeStatusLabel"
+      :next-action-text="driverNextActionText"
+      :primary-action="driverModePrimaryAction"
+      :show-secondary-tracking="driverModeShowSecondaryTracking"
+      :tracking-state="trackingState"
+      :completion-form="completionForm"
+      :completion-error="completionError"
+      :completion-submitting="completionSubmitting"
+      :can-upload-inspection="canUploadInspection"
+      :min-inspection-photo-count="minInspectionPhotoCount"
+      :required-inspection-shots="requiredInspectionShots"
+      :uploaded-photos="driverModeUploadedPhotos"
+      :map-src="driverModeMapSrc"
+      :pickup-short="driverModePickupShort"
+      :dropoff-short="driverModeDropoffShort"
+      :destination-label="driverModeDestinationLabel"
+      :tracking-label="driverModeTrackingLabel"
+      :completed-workflow-count="completedWorkflowCount"
+      :workflow-total-count="workflowSteps.length"
+      :timeline-items="driverModeTimelineItems"
+      :driver-action-error="driverActionError"
+      :navigation-links="driverModeNavigationLinks"
+      :can-report-incident="canReportIncident"
+      @close="driverModeOpen = false"
+      @inspection-files="onDriverModeInspectionChange"
+      @open-gallery="openInspectionGallery"
+      @submit-photos="handleCompletionSubmit"
+      @share-location="shareLiveLocation"
+      @open-chat="openDriverChatModal"
+      @report-issue="openIncidentModal"
+    />
 
-        <div class="relative mx-auto flex h-[calc(100dvh+env(safe-area-inset-top))] max-w-2xl flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+1.85rem)]">
-          <header class="flex shrink-0 items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Driver mode</p>
-              <h2 class="mt-1 truncate text-3xl font-black leading-none">{{ job.title || `Run #${job.id}` }}</h2>
-              <p class="mt-2 truncate text-sm font-bold text-emerald-100/80">{{ driverModeRouteLabel }}</p>
-            </div>
-            <button
-              type="button"
-              class="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-black text-white shadow-lg"
-              @click="driverModeOpen = false"
-            >
-              Close
-            </button>
-          </header>
-
-          <main class="mt-4 min-h-0 flex-1 overflow-y-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <section class="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-4 shadow-2xl backdrop-blur">
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2">
-                    <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.9)]" />
-                    <p class="text-sm font-black text-white">Active run</p>
-                  </div>
-                  <p class="mt-2 truncate text-lg font-black">{{ driverModeRouteLabel }}</p>
-                  <p class="mt-1 text-sm font-semibold text-emerald-100/80">
-                    {{ driverNextActionText || 'Keep this run moving and update the dealer as you progress.' }}
-                  </p>
-                </div>
-                <span class="shrink-0 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200 ring-1 ring-emerald-300/20">
-                  {{ driverModeStatusLabel }}
-                </span>
-              </div>
-            </section>
-
-            <input
-              ref="driverModeInspectionInput"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="onDriverModeInspectionChange"
-            >
-
-            <p v-if="completionError" class="mt-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm font-bold text-amber-100">
-              {{ completionError }}
-            </p>
-
-            <section
-              v-if="canUploadInspection"
-              class="mt-3 rounded-[1.5rem] border border-emerald-300/20 bg-emerald-400/10 p-4"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Photo checklist</p>
-                <span class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950">
-                  {{ completionForm.proof.length }}/{{ minInspectionPhotoCount }}
-                </span>
-              </div>
-              <div class="mt-3 grid grid-cols-3 gap-2">
-                <span
-                  v-for="(shot, index) in requiredInspectionShots"
-                  :key="`driver-mode-new-shot-${shot}`"
-                  class="rounded-2xl px-3 py-2 text-xs font-black"
-                  :class="completionForm.proof.length > index ? 'bg-emerald-400 text-slate-950' : 'bg-white/[0.06] text-emerald-100'"
-                >
-                  {{ shot }}
-                </span>
-              </div>
-              <div class="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  class="rounded-2xl border border-emerald-300/30 bg-white/[0.06] px-4 py-3 text-sm font-black text-emerald-100"
-                  @click="openDriverModeInspectionPicker"
-                >
-                  Add photos
-                </button>
-                <button
-                  type="button"
-                  class="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-                  :disabled="completionForm.proof.length < minInspectionPhotoCount || completionSubmitting"
-                  @click="handleCompletionSubmit"
-                >
-                  {{ completionSubmitting ? 'Submitting...' : 'Submit photos' }}
-                </button>
-              </div>
-            </section>
-
-            <section v-if="driverModeUploadedPhotos.length" class="mt-3 grid grid-cols-3 gap-2">
-              <button
-                v-for="(photo, index) in driverModeUploadedPhotos"
-                :key="`driver-mode-new-photo-${photo.id}`"
-                type="button"
-                class="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]"
-                @click="openInspectionGallery(index)"
-              >
-                <img
-                  v-if="photo.previewUrl"
-                  :src="photo.previewUrl"
-                  :alt="photo.name"
-                  class="h-24 w-full object-cover"
-                >
-                <span v-else class="flex h-24 items-center justify-center px-2 text-center text-[0.65rem] font-bold text-emerald-100">
-                  {{ photo.name }}
-                </span>
-              </button>
-            </section>
-
-            <section class="mt-4 overflow-hidden rounded-[1.75rem] border border-emerald-300/15 bg-emerald-950/30 shadow-2xl">
-              <div class="relative h-64 bg-slate-900">
-                <iframe
-                  v-if="driverModeMapSrc"
-                  :src="driverModeMapSrc"
-                  class="h-full w-full border-0 opacity-90 grayscale-[25%] contrast-125 saturate-75"
-                  loading="lazy"
-                  referrerpolicy="no-referrer-when-downgrade"
-                  title="Driver route map"
-                />
-                <div
-                  v-else
-                  class="flex h-full items-center justify-center bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.24),transparent_38%),#06120f] px-6 text-center text-sm font-bold text-emerald-100"
-                >
-                  Route map will appear when pickup and drop-off details are available.
-                </div>
-                <div class="pointer-events-none absolute inset-x-3 top-3 flex items-center justify-between gap-3">
-                  <span class="max-w-[45%] truncate rounded-full bg-slate-950/75 px-3 py-2 text-xs font-black text-white backdrop-blur">
-                    {{ driverModePickupShort }}
-                  </span>
-                  <span class="max-w-[45%] truncate rounded-full bg-slate-950/75 px-3 py-2 text-xs font-black text-white backdrop-blur">
-                    {{ driverModeDropoffShort }}
-                  </span>
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3 border-t border-white/10 bg-slate-950/70 p-4">
-                <div class="min-w-0">
-                  <p class="text-[0.65rem] font-black uppercase tracking-[0.18em] text-emerald-300">Go to</p>
-                  <p class="mt-1 truncate text-sm font-black text-white">{{ driverModeDestinationLabel }}</p>
-                </div>
-                <div class="min-w-0">
-                  <p class="text-[0.65rem] font-black uppercase tracking-[0.18em] text-emerald-300">Tracking</p>
-                  <p class="mt-1 truncate text-sm font-black text-white">{{ driverModeTrackingLabel }}</p>
-                </div>
-              </div>
-            </section>
-
-            <section class="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-4 backdrop-blur">
-              <div class="flex items-center justify-between gap-3">
-                <h3 class="text-sm font-black text-white">Run updates</h3>
-                <span class="text-xs font-black text-emerald-300">{{ completedWorkflowCount }}/{{ workflowSteps.length || driverModeTimelineItems.length }}</span>
-              </div>
-              <ol class="mt-4 space-y-3">
-                <li
-                  v-for="item in driverModeTimelineItems"
-                  :key="`driver-mode-update-${item.id}`"
-                  class="flex gap-3"
-                >
-                  <span
-                    class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black"
-                    :class="item.complete ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-emerald-100 ring-1 ring-white/10'"
-                  >
-                    {{ item.complete ? '✓' : '•' }}
-                  </span>
-                  <span class="min-w-0">
-                    <span class="block text-sm font-black text-white">{{ item.label }}</span>
-                    <span class="block text-xs font-semibold text-emerald-100/75">{{ item.meta }}</span>
-                  </span>
-                </li>
-              </ol>
-            </section>
-
-            <p v-if="driverActionError" class="mt-4 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm text-amber-100">
-              {{ driverActionError }}
-            </p>
-            <p v-if="trackingState.error" class="mt-4 rounded-2xl border border-rose-300/30 bg-rose-400/10 p-3 text-sm text-rose-100">
-              {{ trackingState.error }}
-            </p>
-          </main>
-
-          <footer class="mt-3 shrink-0 space-y-3">
-            <button
-              v-if="driverModePrimaryAction"
-              type="button"
-              class="w-full rounded-3xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-              :disabled="driverModePrimaryAction.disabled"
-              @click="driverModePrimaryAction.handler"
-            >
-              {{ driverModePrimaryAction.label }}
-            </button>
-            <div
-              v-else-if="trackingState.shared"
-              class="w-full rounded-3xl bg-slate-800 px-5 py-4 text-center text-base font-black text-slate-300"
-            >
-              Live location shared
-            </div>
-
-            <button
-              v-if="canShareTracking && !trackingState.shared && driverModePrimaryAction?.handler !== shareLiveLocation"
-              type="button"
-              class="w-full rounded-3xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-              :disabled="trackingState.sending"
-              @click="shareLiveLocation"
-            >
-              {{ trackingState.sending ? 'Sharing location...' : 'Share live location' }}
-            </button>
-
-            <div class="grid grid-cols-4 gap-2">
-              <a
-                v-for="link in driverModeNavigationLinks"
-                :key="`driver-mode-new-${link.id}`"
-                :href="link.href"
-                target="_blank"
-                rel="noopener"
-                class="rounded-2xl bg-white px-2 py-3 text-center text-xs font-black text-emerald-700 shadow-lg"
-              >
-                {{ link.id === 'google' ? 'Google' : 'Waze' }}
-              </a>
-              <button
-                type="button"
-                class="rounded-2xl border border-white/10 bg-white/[0.08] px-2 py-3 text-center text-xs font-black text-white"
-                @click="openDriverChatModal"
-              >
-                Chat
-              </button>
-              <button
-                v-if="canReportIncident"
-                type="button"
-                class="rounded-2xl border border-amber-300/40 bg-amber-400/10 px-2 py-3 text-center text-xs font-black text-amber-100"
-                @click="openIncidentModal"
-              >
-                Issue
-              </button>
-              <button
-                v-if="canUploadInspection"
-                type="button"
-                class="rounded-2xl border border-emerald-300/30 bg-white/[0.08] px-2 py-3 text-center text-xs font-black text-emerald-100"
-                @click="openDriverModeInspectionPicker"
-              >
-                Photos
-              </button>
-            </div>
-          </footer>
-        </div>
-      </div>
-    </transition>
-
-    <transition name="fade">
-      <div
-        v-if="false && driverModeOpen"
-        class="fixed inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)*-1)] z-[100] min-h-[calc(100dvh+env(safe-area-inset-top))] overflow-y-auto bg-slate-950 text-white"
-      >
-        <div class="mx-auto flex min-h-screen max-w-2xl flex-col px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+2.25rem)]">
-          <header class="flex items-center justify-between gap-3">
-            <div>
-              <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Driver mode</p>
-              <h2 class="mt-1 text-2xl font-black">{{ job.title || `Run #${job.id}` }}</h2>
-            </div>
-            <button
-              type="button"
-              class="rounded-2xl border border-white/15 px-4 py-2 text-sm font-black text-white"
-              @click="driverModeOpen = false"
-            >
-              Close
-            </button>
-          </header>
-
-          <section class="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Current step</p>
-            <h3 class="mt-2 text-3xl font-black">
-              {{ currentWorkflowStep?.label || 'Active run' }}
-            </h3>
-            <p class="mt-2 text-sm text-emerald-100">
-              {{ driverNextActionText || 'Keep this run moving and update the dealer as you progress.' }}
-            </p>
-
-            <button
-              v-if="driverModePrimaryAction"
-              type="button"
-              class="mt-5 w-full rounded-3xl bg-emerald-400 px-5 py-4 text-lg font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 dark:text-slate-950"
-              :disabled="driverModePrimaryAction.disabled"
-              @click="driverModePrimaryAction.handler"
-            >
-              {{ driverModePrimaryAction.label }}
-            </button>
-            <input
-              ref="driverModeInspectionInput"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="onDriverModeInspectionChange"
-            >
-            <div
-              v-if="!driverModePrimaryAction && trackingState.shared"
-              class="mt-5 rounded-3xl bg-slate-800 px-5 py-4 text-center text-lg font-black text-slate-300"
-            >
-              Live location shared
-            </div>
-            <p v-if="completionError" class="mt-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm font-bold text-amber-100">
-              {{ completionError }}
-            </p>
-            <div
-              v-if="canUploadInspection"
-              class="mt-4 rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-4"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Photo checklist</p>
-                <span class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950 dark:text-slate-950">
-                  {{ completionForm.proof.length }}/{{ minInspectionPhotoCount }}
-                </span>
-              </div>
-              <div class="mt-3 grid grid-cols-2 gap-2">
-                <span
-                  v-for="(shot, index) in requiredInspectionShots"
-                  :key="`driver-mode-shot-${shot}`"
-                  class="rounded-2xl px-3 py-2 text-xs font-black"
-                  :class="completionForm.proof.length > index ? 'bg-emerald-400 text-slate-950 dark:text-slate-950' : 'bg-white/[0.06] text-emerald-100'"
-                >
-                  {{ shot }}
-                </span>
-              </div>
-              <div class="mt-3 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  class="rounded-2xl border border-emerald-300/30 bg-white/[0.06] px-4 py-3 text-sm font-black text-emerald-100"
-                  @click="openDriverModeInspectionPicker"
-                >
-                  Add more photos
-                </button>
-                <button
-                  type="button"
-                  class="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 dark:text-slate-950"
-                  :disabled="completionForm.proof.length < minInspectionPhotoCount || completionSubmitting"
-                  @click="handleCompletionSubmit"
-                >
-                  {{ completionSubmitting ? 'Submitting...' : 'Submit inspection photos' }}
-                </button>
-              </div>
-            </div>
-            <div v-if="driverModeUploadedPhotos.length" class="mt-4 grid grid-cols-2 gap-3">
-              <article
-                v-for="(photo, index) in driverModeUploadedPhotos"
-                :key="photo.id"
-                class="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]"
-              >
-                <button
-                  type="button"
-                  class="block w-full"
-                  @click="openInspectionGallery(index)"
-                >
-                  <img
-                    v-if="photo.previewUrl"
-                    :src="photo.previewUrl"
-                    :alt="photo.name"
-                    class="h-28 w-full object-cover"
-                  >
-                  <div v-else class="flex h-28 items-center justify-center px-3 text-center text-xs font-bold text-emerald-100">
-                    {{ photo.name }}
-                  </div>
-                </button>
-                <div class="flex items-center justify-between gap-2 px-3 py-2">
-                  <p class="truncate text-xs font-bold text-emerald-100">{{ index + 1 }}. {{ photo.name }}</p>
-                  <button
-                    type="button"
-                    class="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100"
-                    @click="removeInspectionFile(index)"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </article>
-            </div>
-          </section>
-
-          <section class="mt-4 grid gap-3 sm:grid-cols-2">
-            <div class="rounded-3xl border border-white/10 bg-white/[0.06] p-4">
-              <p class="text-xs font-black uppercase tracking-wide text-slate-400">Go to</p>
-              <p class="mt-1 text-xl font-black">{{ driverModeDestinationLabel }}</p>
-              <p class="mt-1 text-sm text-emerald-100">
-                {{ navigationDestination || 'Destination will appear when route details are available.' }}
-              </p>
-            </div>
-            <div class="rounded-3xl border border-white/10 bg-white/[0.06] p-4">
-              <p class="text-xs font-black uppercase tracking-wide text-slate-400">Tracking</p>
-              <p class="mt-1 text-xl font-black">
-                {{ trackingState.shared ? 'Shared' : lastTrackedDisplay ? 'Previously shared' : 'Not shared yet' }}
-              </p>
-              <p class="mt-1 text-sm text-emerald-100">
-                {{ lastTrackedDisplay ? `Last shared ${lastTrackedDisplay}` : 'Share location while this run is active.' }}
-              </p>
-            </div>
-          </section>
-
-          <section class="mt-4 grid gap-3">
-            <button
-              v-if="canShareTracking && !trackingState.shared && driverModePrimaryAction?.handler !== shareLiveLocation"
-              type="button"
-              class="w-full rounded-3xl bg-emerald-400 px-5 py-4 text-left text-base font-black text-slate-950 shadow-xl disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 dark:text-slate-950"
-              :disabled="trackingState.sending"
-              @click="shareLiveLocation"
-            >
-              {{ trackingState.sending ? 'Sharing location...' : 'Share live location' }}
-            </button>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <a
-                v-for="link in driverModeNavigationLinks"
-                :key="`driver-mode-${link.id}`"
-                :href="link.href"
-                target="_blank"
-                rel="noopener"
-                class="rounded-3xl bg-white px-5 py-4 text-center text-base font-black text-slate-950"
-              >
-                {{ link.label }}
-              </a>
-            </div>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                class="rounded-3xl border border-white/10 bg-white/[0.06] px-5 py-4 text-center text-base font-black text-white"
-                @click="openDriverChatModal"
-              >
-                Open chat
-              </button>
-              <button
-                v-if="canReportIncident"
-                type="button"
-                class="rounded-3xl border border-amber-300/40 bg-amber-400/10 px-5 py-4 text-base font-black text-amber-100"
-                @click="openIncidentModal"
-              >
-                Report issue
-              </button>
-            </div>
-          </section>
-
-          <p v-if="driverActionError" class="mt-4 rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm text-amber-100">
-            {{ driverActionError }}
-          </p>
-          <p v-if="trackingState.error" class="mt-4 rounded-2xl border border-rose-300/30 bg-rose-400/10 p-3 text-sm text-rose-100">
-            {{ trackingState.error }}
-          </p>
-        </div>
-      </div>
-    </transition>
 
     <transition name="fade">
       <div

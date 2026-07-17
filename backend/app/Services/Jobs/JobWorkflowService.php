@@ -4,14 +4,13 @@ namespace App\Services\Jobs;
 
 use App\Models\Invoice;
 use App\Models\Job;
+use App\Events\JobStatusChanged;
 use App\Models\JobApplication;
 use App\Models\JobInspectionPhoto;
 use App\Models\User;
-use App\Notifications\JobStatusNotification;
 use App\Services\AwsS3Service;
 use App\Services\Invoices\InvoiceFinalizer;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -403,7 +402,7 @@ class JobWorkflowService
             return;
         }
 
-        Notification::send($job->postedBy, new JobStatusNotification($job, $event, $meta));
+        JobStatusChanged::dispatch($job, $event, [$job->postedBy->id], $meta);
     }
 
     protected function notifyAssignedDriver(Job $job, string $event, ?array $meta = null): void
@@ -413,7 +412,7 @@ class JobWorkflowService
             return;
         }
 
-        Notification::send($job->assignedTo, new JobStatusNotification($job, $event, $meta));
+        JobStatusChanged::dispatch($job, $event, [$job->assignedTo->id], $meta);
     }
 
     protected function ensureDealerPaymentHeld(Job $job): void

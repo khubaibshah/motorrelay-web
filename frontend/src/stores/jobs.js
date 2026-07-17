@@ -91,6 +91,20 @@ export const useJobsStore = defineStore('jobs', {
       }
     },
 
+    async refreshAffectedJob(id) {
+      const key = String(id);
+      const matchingEntries = Object.values(this.lists)
+        .filter((entry) => extractJobs(entry?.payload).some((job) => String(job?.id) === key));
+
+      const detail = await this.fetchDetail(id, { force: true });
+      await Promise.allSettled(
+        matchingEntries
+          .filter((entry) => entry?.params)
+          .map((entry) => this.fetchList(entry.params, { force: true }))
+      );
+      return detail;
+    },
+
     upsert(job) {
       if (!job?.id) return;
       const key = String(job.id);

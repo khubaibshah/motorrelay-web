@@ -6,10 +6,9 @@ use App\Models\Job;
 use App\Models\JobApplication;
 use App\Models\MessageThread;
 use App\Models\User;
-use App\Notifications\JobStatusNotification;
+use App\Events\JobStatusChanged;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class JobApplicationService
@@ -48,7 +47,13 @@ class JobApplicationService
             ]
         );
 
-        $this->notifyDealerOfApplication($job, $driver, $message);
+        $job->loadMissing('postedBy:id,name');
+        if ($job->postedBy) {
+            JobStatusChanged::dispatch($job->fresh(), 'driver_applied', [$job->postedBy->id], [
+                'driver' => ['id' => $driver->id, 'name' => $driver->name],
+                'message' => $message,
+            ]);
+        }
 
         return $application->fresh();
     }
@@ -89,7 +94,11 @@ class JobApplicationService
             return $application->fresh(['driver:id,name,email']);
         });
 
-        $this->notifyDriverOfDecision($job, $application, $dealer);
+        if ($application->driver) {
+            JobStatusChanged::dispatch($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $application->status === 'accepted' ? 'application_accepted' : 'application_declined', [$application->driver->id], [
+                'dealer' => ['id' => $dealer->id, 'name' => $dealer->name],
+            ]);
+        }
 
         return $application->fresh(['driver:id,name,email']);
     }
@@ -115,48 +124,6 @@ class JobApplicationService
                 'Starter plan allows up to %d applications per day. Please try again tomorrow or upgrade your plan.',
                 $dailyLimit
             ));
-        }
-    }
-
-    protected function notifyDealerOfApplication(Job $job, User $driver, ?string $message): void
-    {
-        $job->loadMissing('postedBy:id,name');
-        if (!$job->postedBy) {
-            return;
-        }
-
-        Notification::send($job->postedBy, new JobStatusNotification($job->fresh(), 'driver_applied', [
-            'driver' => [
-                'id' => $driver->id,
-                'name' => $driver->name,
-            ],
-            'message' => $message,
-        ]));
-    }
-
-    protected function notifyDriverOfDecision(Job $job, JobApplication $application, User $dealer): void
-    {
-        $freshJob = $job->fresh(['postedBy:id,name', 'assignedTo:id,name']);
-
-        if ($application->status === 'accepted') {
-            if ($application->driver) {
-                Notification::send($application->driver, new JobStatusNotification($freshJob, 'application_accepted', [
-                    'dealer' => [
-                        'id' => $dealer->id,
-                        'name' => $dealer->name,
-                    ],
-                ]));
-            }
-            return;
-        }
-
-        if ($application->status === 'declined' && $application->driver) {
-            Notification::send($application->driver, new JobStatusNotification($freshJob, 'application_declined', [
-                'dealer' => [
-                    'id' => $dealer->id,
-                    'name' => $dealer->name,
-                ],
-            ]));
         }
     }
 

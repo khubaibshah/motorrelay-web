@@ -19,14 +19,7 @@ export const useRealtimeStore = defineStore('realtime', {
       if (!jobId) return;
       this.lastEventAt = new Date().toISOString();
       const jobs = useJobsStore();
-      jobs.invalidateJob(jobId);
-      // Cached lists are refreshed only when a page has already loaded them.
-      const entries = Object.values(jobs.lists || {});
-      await Promise.allSettled(
-        entries
-          .filter((entry) => entry?.params)
-          .map((entry) => jobs.fetchList(entry.params, { force: true }))
-      );
+      await jobs.refreshAffectedJob(jobId);
     }
   }
 });

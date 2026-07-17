@@ -6,14 +6,10 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Job;
 use App\Models\User;
-use App\Notifications\InvoiceReadyNotification;
-use Illuminate\Support\Collection;
+use App\Events\InvoiceCreated;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Throwable;
 
 class InvoiceFinalizer
 {
@@ -89,24 +85,7 @@ class InvoiceFinalizer
 
             $invoice->refresh()->load('items');
 
-            DB::afterCommit(function () use ($job, $invoice) {
-                $recipients = Collection::make([$job->postedBy, $job->assignedTo])
-                    ->filter()
-                    ->unique('id')
-                    ->all();
-
-                if (!empty($recipients)) {
-                    try {
-                        Notification::send($recipients, new InvoiceReadyNotification($invoice));
-                    } catch (Throwable $exception) {
-                        Log::warning('Invoice notification failed after invoice finalization.', [
-                            'invoice_id' => $invoice->id,
-                            'job_id' => $job->id,
-                            'message' => $exception->getMessage(),
-                        ]);
-                    }
-                }
-            });
+            DB::afterCommit(fn () => InvoiceCreated::dispatch($invoice));
 
             return $invoice;
         });

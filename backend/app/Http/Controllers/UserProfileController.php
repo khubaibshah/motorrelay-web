@@ -46,12 +46,6 @@ class UserProfileController extends Controller
 
         if ($user->isDealer() || $user->isAdmin()) {
             $postedJobs = $user->postedJobs()
-                ->withCount([
-                    'applications',
-                    'applications as pending_applications_count' => function ($query) {
-                        $query->where('status', 'pending');
-                    },
-                ])
                 ->select([
                     'id',
                     'title',
@@ -63,7 +57,14 @@ class UserProfileController extends Controller
                     'pickup_postcode',
                     'dropoff_postcode',
                     'created_at',
+                    'updated_at',
                     'posted_by_id'
+                ])
+                ->withCount([
+                    'applications',
+                    'applications as pending_applications_count' => function ($query) {
+                        $query->where('status', 'pending');
+                    },
                 ])
                 ->orderByDesc('created_at')
                 ->limit(50)

@@ -29,7 +29,7 @@ const driverLocationQuery = ref(typeof route.query.location === 'string' ? route
 const driverLocationFocused = ref(false);
 const driverLocationAutocomplete = ref([]);
 const driverLocationAutocompleteLoading = ref(false);
-const driverRadius = ref(route.query.radius === 'all' ? 'all' : Number(route.query.radius || 25));
+const driverRadius = ref(route.query.radius ? (route.query.radius === 'all' ? 'all' : Number(route.query.radius)) : 'all');
 const driverLocation = reactive({
   latitude: null,
   longitude: null,
@@ -194,7 +194,7 @@ async function submitDriverSearch() {
 
 async function clearDriverSearch() {
   driverLocationQuery.value = '';
-  driverRadius.value = defaultNearbyRadiusMiles;
+  driverRadius.value = 'all';
   driverLocationAutocomplete.value = [];
   clearDriverLocation();
   driverRunsTab.value = 'available';
@@ -208,7 +208,7 @@ async function clearDriverSearch() {
 function driverMarketplaceQuery() {
   return {
     ...(driverLocationQuery.value.trim() ? { location: driverLocationQuery.value.trim() } : {}),
-    ...(driverRadius.value !== defaultNearbyRadiusMiles ? { radius: driverRadius.value } : {})
+    ...(driverRadius.value !== 'all' ? { radius: driverRadius.value } : {})
   };
 }
 

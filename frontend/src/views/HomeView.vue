@@ -3,12 +3,13 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationsStore } from '@/stores/notifications';
-import { fetchDriverOverview, fetchJobHighlights } from '@/services/jobs';
+import { fetchDriverOverview, fetchJob, fetchJobHighlights } from '@/services/jobs';
 import { formatSentenceStatus } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 const notifications = useNotificationsStore();
 const jobs = ref([]);
+const realtimeApplicationJobs = ref([]);
 const driverActiveJobs = ref([]);
 const driverOverview = ref(null);
 const loading = ref(false);
@@ -60,9 +61,9 @@ onBeforeUnmount(() => {
 watch(
   () => notifications.items.map((notification) => notification?.id).join('|'),
   () => {
-    if (notifications.items.some(isDealerApplicationNotification)) {
-      scheduleDealerApplicationRefresh();
-    }
+    notifications.items
+      .filter(isDealerApplicationNotification)
+      .forEach((notification) => handleDealerApplicationUpdate({ notification }));
   }
 );
 
@@ -90,6 +91,23 @@ const dealerApplicationJobs = computed(() =>
     postedJobs.value.filter((job) => applicationCount(job) > 0)
   )
 );
+const visibleDealerApplicationJobs = computed(() => {
+  const jobsById = new Map();
+
+  [...realtimeApplicationJobs.value, ...dealerApplicationJobs.value].forEach((job) => {
+    if (!job?.id) return;
+    jobsById.set(Number(job.id), {
+      ...(jobsById.get(Number(job.id)) ?? {}),
+      ...job,
+      pending_applications_count: Math.max(
+        applicationCount(jobsById.get(Number(job.id)) ?? {}),
+        applicationCount(job)
+      )
+    });
+  });
+
+  return sortByRecentActivity(Array.from(jobsById.values()));
+});
 const driverUpcomingRuns = computed(() => sortByRecentActivity(driverActiveJobs.value).slice(0, 3));
 const driverCurrentJob = computed(() => driverUpcomingRuns.value[0] || null);
 const hasDriverCurrentJob = computed(() => Boolean(driverCurrentJob.value));
@@ -153,7 +171,7 @@ const quickLinks = computed(() => {
 
 const liveBoardJobs = computed(() => {
   if (auth.role === 'dealer') {
-    return dealerApplicationJobs.value;
+    return visibleDealerApplicationJobs.value;
   }
 
   return jobsToDisplay.value;
@@ -204,12 +222,109 @@ function isDealerApplicationNotification(notification = {}) {
 function handleRealtimeJobEvent(event) {
   if (auth.role !== 'dealer' || !auth.token) return;
   if (!isDealerApplicationEvent(event?.detail)) return;
-  scheduleDealerApplicationRefresh();
+  handleDealerApplicationUpdate(event?.detail);
 }
 
 function handleRealtimeNotification(event) {
   if (auth.role !== 'dealer' || !auth.token) return;
   if (!isDealerApplicationNotification(event?.detail)) return;
+  handleDealerApplicationUpdate({ notification: event?.detail });
+}
+
+function notificationJobId(detail = {}) {
+  return Number(
+    detail?.job_id
+    ?? detail?.notification?.data?.job_id
+    ?? detail?.notification?.job_id
+    ?? 0
+  );
+}
+
+function notificationJobTitle(detail = {}) {
+  return (
+    detail?.job_title
+    ?? detail?.notification?.data?.job_title
+    ?? detail?.notification?.job_title
+    ?? null
+  );
+}
+
+function upsertDealerApplicationJob(job) {
+  if (!job?.id) return;
+
+  const jobId = Number(job.id);
+  const existing = realtimeApplicationJobs.value.find((item) => Number(item?.id) === jobId)
+    ?? postedJobs.value.find((item) => Number(item?.id) === jobId)
+    ?? {};
+
+  const mergedJob = {
+    ...existing,
+    ...job,
+    id: jobId,
+    pending_applications_count: Math.max(1, applicationCount(existing), applicationCount(job)),
+    applications_count: Math.max(1, Number(existing?.applications_count ?? 0), Number(job?.applications_count ?? 0)),
+    updated_at: job?.updated_at ?? new Date().toISOString()
+  };
+
+  realtimeApplicationJobs.value = [
+    mergedJob,
+    ...realtimeApplicationJobs.value.filter((item) => Number(item?.id) !== jobId)
+  ];
+}
+
+function syncAuthPostedJob(job) {
+  if (!job?.id) return;
+
+  const currentPostedJobs = Array.isArray(auth.jobs?.posted) ? auth.jobs.posted : [];
+  const jobId = Number(job.id);
+  const existing = currentPostedJobs.find((item) => Number(item?.id) === jobId) ?? {};
+  const mergedJob = {
+    ...existing,
+    ...job,
+    id: jobId,
+    pending_applications_count: Math.max(1, applicationCount(existing), applicationCount(job)),
+    applications_count: Math.max(1, Number(existing?.applications_count ?? 0), Number(job?.applications_count ?? 0)),
+    updated_at: job?.updated_at ?? new Date().toISOString()
+  };
+
+  auth.jobs = {
+    ...(auth.jobs ?? {}),
+    posted: [
+      mergedJob,
+      ...currentPostedJobs.filter((item) => Number(item?.id) !== jobId)
+    ]
+  };
+}
+
+async function handleDealerApplicationUpdate(detail = {}) {
+  const jobId = notificationJobId(detail);
+
+  if (jobId) {
+    const fallbackTitle = notificationJobTitle(detail);
+    upsertDealerApplicationJob({
+      id: jobId,
+      title: fallbackTitle || `Run #${jobId}`,
+      status: detail?.notification?.data?.job_status ?? detail?.job_status ?? 'open',
+      pending_applications_count: 1,
+      applications_count: 1
+    });
+
+    fetchJob(jobId)
+      .then((job) => {
+        const applicationCountFromDetail = Array.isArray(job?.applications) ? job.applications.length : 1;
+        const enrichedJob = {
+          ...job,
+          pending_applications_count: Number(job?.pending_applications_count ?? applicationCountFromDetail) || 1,
+          applications_count: Number(job?.applications_count ?? applicationCountFromDetail) || 1
+        };
+        upsertDealerApplicationJob(enrichedJob);
+        syncAuthPostedJob(enrichedJob);
+      })
+      .catch((error) => {
+        console.warn('Failed to fetch applied run for dealer home', error);
+      });
+  }
+
   scheduleDealerApplicationRefresh();
 }
 

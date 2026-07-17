@@ -19,6 +19,8 @@ const showPickupPostcode = computed(() => props.job.pickup_label && props.job.pi
 const showDropoffPostcode = computed(() => props.job.dropoff_label && props.job.dropoff_label !== props.job.dropoff_postcode);
 
 const distanceLabel = computed(() => (props.job.distance_mi ? `${props.job.distance_mi} mi` : '--'));
+const pickupScheduleLabel = computed(() => formatSchedule(props.job.pickup_ready_at));
+const deliveryScheduleLabel = computed(() => formatSchedule(props.job.delivery_due_at));
 
 const transportLabel = computed(() => {
   const raw = String(props.job.transport_type || '').toLowerCase();
@@ -28,6 +30,21 @@ const transportLabel = computed(() => {
 
   return props.job.transport_type || '--';
 });
+
+function formatSchedule(value) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+}
 </script>
 
 <template>
@@ -38,6 +55,9 @@ const transportLabel = computed(() => {
         <p class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-base' : 'text-lg'">{{ pickupTitle }}</p>
         <p v-if="showPickupPostcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
           {{ job.pickup_postcode || '--' }}
+        </p>
+        <p v-if="pickupScheduleLabel" class="mt-2 text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+          Ready {{ pickupScheduleLabel }}
         </p>
       </div>
 
@@ -52,6 +72,9 @@ const transportLabel = computed(() => {
         <p class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-base' : 'text-lg'">{{ dropoffTitle }}</p>
         <p v-if="showDropoffPostcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
           {{ job.dropoff_postcode || '--' }}
+        </p>
+        <p v-if="deliveryScheduleLabel" class="mt-2 text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+          Due {{ deliveryScheduleLabel }}
         </p>
       </div>
     </div>

@@ -1997,19 +1997,21 @@ watch(
               {{ job.company || 'Customer' }} · {{ job.vehicle_make || 'Vehicle' }}
             </p>
           </div>
-          <span class="badge bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-emerald-100">
-            {{ formatStatusLabel(job.status) }}
-          </span>
-        </div>
-
-        <div class="flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">{{ headerDisplayLabel }}</p>
-            <p class="mt-1 font-black text-emerald-600 dark:text-emerald-300" :class="isDriverDetailView ? 'text-2xl' : 'text-3xl'">
+          <div class="flex shrink-0 flex-col items-end gap-2">
+            <span class="badge bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-emerald-100">
+              {{ formatStatusLabel(job.status) }}
+            </span>
+            <p class="text-2xl font-black leading-none text-emerald-600 dark:text-emerald-300">
               {{ priceFormatter.format(headerDisplayAmount) }}
             </p>
           </div>
-          <div class="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+        </div>
+
+        <div
+          v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode"
+          class="flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
+        >
+          <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
             <button
               v-if="canRequestJob"
               type="button"
@@ -2103,7 +2105,7 @@ watch(
         </p>
       </section>
 
-      <RunRouteSummary :job="job" :compact="isDriverDetailView" />
+      <RunRouteSummary :job="job" compact />
 
       <section v-if="job.incidents?.length" class="tile space-y-3 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2403,33 +2405,19 @@ watch(
 
       <section
         v-if="canManagePayment"
-        class="tile space-y-4 border-sky-200 bg-sky-50/40 p-4"
+        class="tile space-y-3 border-sky-200 bg-sky-50/40 p-3 dark:border-emerald-400/20 dark:bg-white/[0.04]"
       >
-        <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-xs font-black uppercase tracking-wide text-sky-700">{{ paymentCardEyebrow }}</p>
-            <h2 class="mt-1 text-lg font-black text-slate-950">{{ paymentCardTitle }}</h2>
-            <p class="text-sm text-slate-600">
-              {{ paymentCardDescription }}
-            </p>
+        <header class="flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-xs font-black uppercase tracking-wide text-sky-700 dark:text-emerald-300">{{ paymentCardEyebrow }}</p>
+            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 dark:text-emerald-100">
+              <span class="font-black text-slate-950 dark:text-white">{{ paymentCardTitle }}</span>
+              <span>{{ priceFormatter.format(dealerPaymentAmount) }} dealer charge</span>
+              <span>{{ priceFormatter.format(driverPayoutAmount) }} driver payout</span>
+            </div>
           </div>
           <span class="badge uppercase" :class="paymentStatusBadgeClass">{{ paymentStatus }}</span>
         </header>
-
-        <dl class="grid gap-3 text-sm sm:grid-cols-3">
-          <div class="rounded-2xl border border-slate-200 bg-white p-3">
-            <dt class="text-xs font-semibold uppercase text-slate-500">Dealer charge</dt>
-            <dd class="mt-1 font-black text-slate-900">{{ priceFormatter.format(dealerPaymentAmount) }}</dd>
-          </div>
-          <div class="rounded-2xl border border-slate-200 bg-white p-3">
-            <dt class="text-xs font-semibold uppercase text-slate-500">Platform fee</dt>
-            <dd class="mt-1 font-black text-emerald-700">{{ priceFormatter.format(platformFeeAmount) }}</dd>
-          </div>
-          <div class="rounded-2xl border border-slate-200 bg-white p-3">
-            <dt class="text-xs font-semibold uppercase text-slate-500">Driver payout</dt>
-            <dd class="mt-1 font-black text-slate-900">{{ priceFormatter.format(driverPayoutAmount) }}</dd>
-          </div>
-        </dl>
 
         <p class="text-xs text-slate-500">
           <span v-if="job.paid_at">Paid {{ formatDateTime(job.paid_at) }}.</span>
@@ -2450,7 +2438,7 @@ watch(
           <button
             v-if="canStartCheckout"
             type="button"
-            class="btn-primary w-full sm:w-auto"
+            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
             :disabled="checkoutLoading"
             @click="handleCheckout"
           >
@@ -2460,7 +2448,7 @@ watch(
           <button
             v-if="paymentStatus === 'checkout_pending'"
             type="button"
-            class="btn-secondary w-full sm:w-auto"
+            class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
             :disabled="checkoutLoading"
             @click="handlePaymentSync()"
           >
@@ -2470,7 +2458,7 @@ watch(
           <button
             v-if="canReleasePayout"
             type="button"
-            class="btn-primary w-full sm:w-auto"
+            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
             :disabled="payoutReleaseLoading"
             @click="handleReleasePayout"
           >
@@ -2741,7 +2729,7 @@ watch(
         </p>
       </section>
 
-      <section v-if="basicAnalytics && !isDriverDetailView" class="tile space-y-4 p-4">
+      <section v-if="false" class="tile space-y-4 p-4">
         <header class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Basic analytics</h2>
@@ -2977,7 +2965,7 @@ watch(
       </section>
 
       <section
-        v-if="showFullCompletionPanel"
+        v-if="false"
         class="tile space-y-4 p-4"
       >
         <header class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">

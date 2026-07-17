@@ -96,7 +96,7 @@ async function copyLocation(type) {
 </script>
 
 <template>
-  <section class="tile space-y-3" :class="compact ? 'p-3' : 'p-4'">
+  <section class="tile space-y-2" :class="compact ? 'p-3' : 'p-4'">
     <p
       v-if="copiedMessage"
       class="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
@@ -104,8 +104,8 @@ async function copyLocation(type) {
       {{ copiedMessage }}
     </p>
 
-    <div class="grid items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
+    <div class="grid items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2' : 'p-2.5'">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Pickup</h2>
           <button
@@ -120,11 +120,11 @@ async function copyLocation(type) {
             </svg>
           </button>
         </div>
-        <p class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-base' : 'text-lg'">{{ pickupTitle }}</p>
-        <p v-if="showPickupPostcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
+        <p class="mt-0.5 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-sm' : 'text-base'">{{ pickupTitle }}</p>
+        <p v-if="showPickupPostcode" class="mt-0.5 text-xs text-slate-600 dark:text-emerald-100">
           {{ job.pickup_postcode || '--' }}
         </p>
-        <p v-if="pickupScheduleLabel" class="mt-2 text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+        <p v-if="pickupScheduleLabel" class="mt-1 text-[0.65rem] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
           Ready {{ pickupScheduleLabel }}
         </p>
       </div>
@@ -135,7 +135,7 @@ async function copyLocation(type) {
         </span>
       </div>
 
-      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2' : 'p-2.5'">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Drop-off</h2>
           <button
@@ -150,25 +150,25 @@ async function copyLocation(type) {
             </svg>
           </button>
         </div>
-        <p class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-base' : 'text-lg'">{{ dropoffTitle }}</p>
-        <p v-if="showDropoffPostcode" class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
+        <p class="mt-0.5 break-words font-black text-slate-950 dark:text-white" :class="compact ? 'text-sm' : 'text-base'">{{ dropoffTitle }}</p>
+        <p v-if="showDropoffPostcode" class="mt-0.5 text-xs text-slate-600 dark:text-emerald-100">
           {{ job.dropoff_postcode || '--' }}
         </p>
-        <p v-if="deliveryScheduleLabel" class="mt-2 text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+        <p v-if="deliveryScheduleLabel" class="mt-1 text-[0.65rem] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
           Due {{ deliveryScheduleLabel }}
         </p>
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 text-sm">
-      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
+    <div class="grid grid-cols-2 gap-2 text-sm">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2' : 'p-2.5'">
         <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Distance</p>
-        <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ distanceLabel }}</p>
+        <p class="text-sm font-black text-slate-950 dark:text-white">{{ distanceLabel }}</p>
       </div>
 
-      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2.5' : 'p-3'">
+      <div class="rounded-2xl bg-slate-50 dark:bg-white/[0.06]" :class="compact ? 'p-2' : 'p-2.5'">
         <p class="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Transport</p>
-        <p class="mt-1 text-base font-black text-slate-950 dark:text-white">{{ transportLabel }}</p>
+        <p class="text-sm font-black text-slate-950 dark:text-white">{{ transportLabel }}</p>
       </div>
     </div>
   </section>

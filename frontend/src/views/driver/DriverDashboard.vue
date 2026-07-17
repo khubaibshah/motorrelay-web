@@ -167,7 +167,7 @@ onMounted(async () => {
           <div v-if="!activeJobs.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
             {{ selectedTabEmptyText }}
           </div>
-          <div>
+          <div class="space-y-3">
             <RouterLink
               v-for="job in activeJobs"
               :key="job.id"

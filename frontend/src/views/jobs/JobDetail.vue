@@ -34,6 +34,7 @@ import { useAuthStore } from "@/stores/auth";
 import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
+import BackPillButton from "@/components/BackPillButton.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
 import { formatStatusLabel } from "@/utils/statusLabels";
 
@@ -1898,6 +1899,8 @@ watch(
     </div>
 
     <div v-else class="space-y-4">
+      <BackPillButton label="Runs" to="/jobs" />
+
       <header class="tile p-4" :class="isDriverDetailView ? 'space-y-3' : 'space-y-4'">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
@@ -1946,9 +1949,6 @@ watch(
             >
               Start driver mode
             </button>
-            <RouterLink to="/jobs" class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto">
-              Back to runs
-            </RouterLink>
           </div>
         </div>
       </header>

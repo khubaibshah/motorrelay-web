@@ -52,6 +52,20 @@ const routes = [
     }
   },
   {
+    path: '/jobs/:id/applications',
+    name: 'job-applications',
+    component: () => import('../views/jobs/JobApplications.vue'),
+    props: true,
+    meta: {
+      requiresRole: 'dealer',
+      breadcrumb: (route) => [
+        { label: 'Runs', to: '/jobs' },
+        { label: route.params.id ? `Run ${route.params.id}` : 'Run' },
+        { label: 'Applications' }
+      ]
+    }
+  },
+  {
     path: '/jobs/:id',
     name: 'job-detail',
     component: () => import('../views/jobs/JobDetail.vue'),

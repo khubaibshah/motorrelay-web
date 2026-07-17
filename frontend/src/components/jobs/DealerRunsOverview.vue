@@ -252,9 +252,13 @@ function resolveInvoiceLink(job) {
           <span class="badge" :class="paymentBadgeClass(job)">
             {{ paymentLabel(job) }}
           </span>
-          <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100">
+          <RouterLink
+            :to="`/jobs/${job.id}/applications`"
+            class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100"
+            @click.stop
+          >
             {{ applicationCount(job) }} applications
-          </span>
+          </RouterLink>
           <span class="min-w-0 truncate rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100">
             {{ assignedDriverLabel(job) }}
           </span>
@@ -277,6 +281,13 @@ function resolveInvoiceLink(job) {
               @click.stop
             >
               Open
+            </RouterLink>
+            <RouterLink
+              :to="`/jobs/${job.id}/applications`"
+              class="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
+              @click.stop
+            >
+              Applications
             </RouterLink>
         </div>
       </article>

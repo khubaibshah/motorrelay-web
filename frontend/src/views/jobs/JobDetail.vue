@@ -2474,85 +2474,23 @@ watch(
         v-if="showApplicationsAtTop"
         ref="applicationsSection"
         id="run-applications"
-        class="tile scroll-mt-28 space-y-4 border-emerald-200 bg-emerald-50/40 p-4"
+        class="tile scroll-mt-28 border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10"
       >
-        <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Next step</p>
-            <h2 class="mt-1 text-lg font-black text-slate-950">Choose a driver</h2>
-            <p class="text-sm text-slate-600">
-              Payment is taken upfront. Review applications and assign one driver after funding is confirmed.
-            </p>
+            <p class="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Next step</p>
+            <h2 class="mt-1 text-base font-black text-slate-950 dark:text-white">Review driver applications</h2>
           </div>
-          <span class="badge bg-white text-slate-800">{{ applications.length }} total</span>
-        </header>
-
-        <div v-if="applicationsLoading" class="rounded-xl border bg-white p-4 text-sm text-slate-600">
-          Loading applications...
-        </div>
-
-        <div
-          v-else-if="applicationsError"
-          class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"
-        >
-          {{ applicationsError }}
-        </div>
-
-        <div v-else-if="!applications.length" class="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
-          No driver applications yet. This section will update when drivers request the run.
-        </div>
-
-        <div v-else class="space-y-3">
-          <article
-            v-for="application in applications"
-            :key="application.id"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          <RouterLink
+            :to="`/jobs/${job.id}/applications`"
+            class="btn-primary inline-flex w-full justify-center px-4 py-2 text-sm sm:w-auto"
           >
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-base font-black text-slate-950">
-                  {{ application.driver?.name || 'Driver' }}
-                </p>
-                <p class="text-xs text-slate-500">
-                  Applied {{ new Date(application.created_at).toLocaleString() }}
-                </p>
-              </div>
-              <span
-                class="badge"
-                :class="{
-                  'bg-emerald-100 text-emerald-700': application.status === 'accepted',
-                  'bg-amber-100 text-amber-700': application.status === 'pending',
-                  'bg-slate-200 text-slate-700': application.status === 'declined'
-                }"
-              >
-                {{ formatStatusLabel(application.status, 'Pending') }}
-              </span>
-            </div>
-
-            <p v-if="application.message" class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              "{{ application.message }}"
-            </p>
-
-            <div class="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                class="btn-secondary px-4 py-2 text-sm disabled:opacity-60"
-                :disabled="application.status !== 'pending'"
-                @click="handleApplicationDecision(application.id, 'declined')"
-              >
-                Decline
-              </button>
-              <button
-                type="button"
-                class="btn-primary px-4 py-2 text-sm disabled:opacity-60"
-                :disabled="application.status !== 'pending'"
-                @click="handleApplicationDecision(application.id, 'accepted')"
-              >
-                Accept and assign
-              </button>
-            </div>
-          </article>
+            Applications {{ applicationsLoading ? '' : `(${applications.length})` }}
+          </RouterLink>
         </div>
+        <p v-if="applicationsError" class="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs font-bold text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+          {{ applicationsError }}
+        </p>
       </section>
 
       <section

@@ -5,6 +5,7 @@ import router from './router';
 import './styles/tailwind.css';
 import { useAuthStore as authStore } from './stores/auth';
 import { useThemeStore as themeStore } from './stores/theme';
+import { useRealtimeStore } from './stores/realtime';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -48,7 +49,9 @@ preventDoubleTapZoom();
 
 const auth = authStore(pinia);
 const theme = themeStore(pinia);
+const realtime = useRealtimeStore(pinia);
 theme.initialize();
+realtime.initialize();
 const initialization = auth.initialize();
 const publicRoutes = new Set(['login', 'signup']);
 

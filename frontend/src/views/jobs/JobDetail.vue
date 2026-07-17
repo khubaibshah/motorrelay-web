@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import {
-  fetchJob,
   fetchJobApplications,
   submitJobCompletion,
   uploadJobInspection,
@@ -16,6 +15,7 @@ import {
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { createEchoClient } from "@/services/realtime";
 import { useAuthStore } from "@/stores/auth";
+import { useJobsStore } from "@/stores/jobs";
 import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
@@ -45,6 +45,7 @@ import { formatStatusLabel } from "@/utils/statusLabels";
 
 const route = useRoute();
 const auth = useAuthStore();
+const jobsStore = useJobsStore();
 
 const job = ref(null);
 const loading = ref(false);
@@ -724,7 +725,7 @@ const requestPanelText = computed(() => {
   return "Request this run so the dealer can review you and assign the driver.";
 });
 
-async function loadJob() {
+async function loadJob({ force = true } = {}) {
   const jobId = route.params.id;
   if (!jobId) {
     job.value = null;
@@ -734,7 +735,7 @@ async function loadJob() {
   loading.value = true;
   errorMessage.value = "";
   try {
-    const payload = await fetchJob(jobId);
+    const payload = await jobsStore.fetchDetail(jobId, { force });
     job.value = payload?.data ?? payload ?? null;
     trackingState.lastUpdate = job.value?.last_tracked_at ?? null;
   } catch (error) {
@@ -1050,7 +1051,7 @@ onMounted(async () => {
     await auth.fetchMe().catch(() => null);
   }
   startLiveTrackingListener();
-  await loadJob();
+  await loadJob({ force: false });
   if (route.query.payment === "success") {
     await handlePaymentSync(route.query.session_id || null);
   } else if (route.query.payment === "cancelled") {

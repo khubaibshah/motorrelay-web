@@ -3,9 +3,10 @@ import { computed, onMounted, ref, reactive } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
-import { fetchJobs, applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
+import { applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
+import { useJobsStore } from '@/stores/jobs';
 import { formatStatusLabel } from '@/utils/statusLabels';
 import DriverRunMarketplace from '@/components/jobs/DriverRunMarketplace.vue';
 import DealerRunsOverview from '@/components/jobs/DealerRunsOverview.vue';
@@ -13,6 +14,7 @@ import ActiveRunsSection from '@/components/jobs/ActiveRunsSection.vue';
 import JobActionConfirmDialog from '@/components/jobs/JobActionConfirmDialog.vue';
 
 const auth = useAuthStore();
+const jobsStore = useJobsStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -79,7 +81,7 @@ function visibleAmountForJob(job) {
   return isDriver.value ? driverPayoutForJob(job) : Number(job?.price ?? 0);
 }
 
-async function loadJobs() {
+async function loadJobs({ force = true } = {}) {
   successMessage.value = '';
   availableLoading.value = true;
   if (showActiveSection.value) {
@@ -110,7 +112,7 @@ async function loadJobs() {
     } else if (isDriver.value) {
       availableParams.marketplace = 'all';
     }
-    const payload = await fetchJobs(availableParams);
+    const payload = await jobsStore.fetchList(availableParams, { force });
     driverMarketplaceNearbyActive.value = Boolean(payload?.marketplace?.nearby_active);
     const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
     const openJobs = rawJobs.filter((job) => String(job.status || '').toLowerCase() === 'open');
@@ -132,7 +134,7 @@ async function loadJobs() {
 
   if (showActiveSection.value) {
     try {
-      const payload = await fetchJobs({ scope: 'current' });
+      const payload = await jobsStore.fetchList({ scope: 'current' }, { force });
       const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
       activeJobs.value = rawJobs;
     } catch (error) {
@@ -149,7 +151,7 @@ async function loadJobs() {
   }
 
   try {
-    const payload = await fetchJobs({ scope: 'completed' });
+    const payload = await jobsStore.fetchList({ scope: 'completed' }, { force });
     const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
     completedJobs.value = rawJobs;
   } catch (error) {
@@ -247,7 +249,7 @@ async function useDriverCurrentLocation() {
       name: 'jobs',
       query: driverMarketplaceQuery()
     });
-    await loadJobs();
+    await loadJobs({ force: false });
   } catch (error) {
     console.warn('Driver current location unavailable', error);
     clearDriverLocation();
@@ -890,7 +892,7 @@ onMounted(async () => {
     return;
   }
 
-  await loadJobs();
+  await loadJobs({ force: false });
 });
 </script>
 

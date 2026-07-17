@@ -21,7 +21,10 @@ export async function mutateJob(jobId, action) {
 }
 
 export async function reportJobIncident(jobId, payload) {
-  const { data } = await api.post(`/jobs/${jobId}/incidents`, payload);
+  const hasAttachments = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+  const body = hasAttachments ? toFormData(payload) : payload;
+  const config = hasAttachments ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined;
+  const { data } = await api.post(`/jobs/${jobId}/incidents`, body, config);
   return data;
 }
 

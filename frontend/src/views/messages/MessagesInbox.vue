@@ -1,10 +1,12 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { fetchThreads, fetchThreadMessages, sendMessage, markMessageViewed } from '@/services/messages';
 import { useAuthStore } from '@/stores/auth';
 import TrackingCard from '@/components/messages/TrackingCard.vue';
 
 const auth = useAuthStore();
+const route = useRoute();
 
 const threads = ref([]);
 const threadsLoading = ref(false);
@@ -68,6 +70,7 @@ onMounted(async () => {
     await auth.fetchMe().catch(() => null);
   }
   await loadThreads();
+  await openThreadFromRoute();
 });
 
 onUnmounted(() => {
@@ -97,6 +100,16 @@ async function loadThreads() {
     threads.value = [];
   } finally {
     threadsLoading.value = false;
+  }
+}
+
+async function openThreadFromRoute() {
+  const jobId = route.query.job;
+  if (!jobId) return;
+
+  const thread = threads.value.find((item) => Number(item.job_id) === Number(jobId));
+  if (thread?.id) {
+    await selectThread(thread.id);
   }
 }
 
@@ -261,6 +274,13 @@ watch(selectedThreadId, () => {
   composer.attachments = [];
   composer.error = '';
 });
+
+watch(
+  () => route.query.job,
+  async () => {
+    await openThreadFromRoute();
+  }
+);
 
 function updateThreadSummary(summary) {
   if (!summary) return;

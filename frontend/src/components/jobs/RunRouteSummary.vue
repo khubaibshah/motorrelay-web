@@ -130,8 +130,14 @@ async function copyLocation(type) {
       </div>
 
       <div class="flex items-center justify-center">
-        <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
-          to
+        <span
+          class="inline-flex size-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shadow-sm ring-1 ring-emerald-200 dark:bg-emerald-400 dark:text-slate-950 dark:ring-emerald-300"
+          aria-label="Route to drop-off"
+        >
+          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h13" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14 7 5 5-5 5" />
+          </svg>
         </span>
       </div>
 

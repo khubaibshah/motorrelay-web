@@ -36,7 +36,9 @@ import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import BackPillButton from "@/components/BackPillButton.vue";
+import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
+import RunQuickActions from "@/components/jobs/RunQuickActions.vue";
 import { formatStatusLabel } from "@/utils/statusLabels";
 
 const route = useRoute();
@@ -881,6 +883,36 @@ const navigationLinks = computed(() => {
       href: `https://waze.com/ul?q=${encoded}&navigate=yes`
     }
   ];
+});
+
+const runQuickNavigationLinks = computed(() => {
+  return isAssignedDriver.value ? driverModeNavigationLinks.value : navigationLinks.value;
+});
+
+const runQuickGoogleHref = computed(() => runQuickNavigationLinks.value.find((link) => link.id === "google")?.href || "");
+const runQuickWazeHref = computed(() => runQuickNavigationLinks.value.find((link) => link.id === "waze")?.href || "");
+const runPhotosRoute = computed(() => ({
+  name: "job-photos",
+  params: {
+    id: job.value?.id
+  }
+}));
+const runIssueRoute = computed(() => ({
+  name: "job-report-issue",
+  params: {
+    id: job.value?.id
+  }
+}));
+const shouldShowRunQuickActions = computed(() => {
+  if (!job.value?.id) return false;
+  return Boolean(
+    runQuickGoogleHref.value ||
+      runQuickWazeHref.value ||
+      canReportIncident.value ||
+      hasInspectionPhotos.value ||
+      canUploadInspection.value ||
+      canReviewInspection.value
+  );
 });
 
 const statusDescription = computed(() => {
@@ -2222,6 +2254,26 @@ watch(
       </section>
 
       <RunRouteSummary :job="job" compact />
+
+      <RunCompactProgress
+        :current-label="currentWorkflowStep?.label || 'Complete'"
+        :progress-percent="workflowProgressPercent"
+        :completed-count="completedWorkflowCount"
+        :total-count="workflowSteps.length"
+        :photos-uploaded="hasDeliveryProof"
+        :location-shared="Boolean(lastTrackedAt || trackingState.shared)"
+        :status-label="formatStatusLabel(job.status)"
+      />
+
+      <RunQuickActions
+        v-if="shouldShowRunQuickActions"
+        :google-href="runQuickGoogleHref"
+        :waze-href="runQuickWazeHref"
+        :issue-to="runIssueRoute"
+        :photos-to="runPhotosRoute"
+        :show-issue="canReportIncident"
+        :show-photos="canUploadInspection || hasInspectionPhotos || canReviewInspection"
+      />
 
       <section
         v-if="shouldShowDealerLiveTracking"

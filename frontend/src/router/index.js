@@ -66,6 +66,33 @@ const routes = [
     }
   },
   {
+    path: '/jobs/:id/photos',
+    name: 'job-photos',
+    component: () => import('../views/jobs/JobPhotos.vue'),
+    props: true,
+    meta: {
+      breadcrumb: (route) => [
+        { label: 'Runs', to: '/jobs' },
+        { label: route.params.id ? `Run ${route.params.id}` : 'Run' },
+        { label: 'Photos' }
+      ]
+    }
+  },
+  {
+    path: '/jobs/:id/report-issue',
+    name: 'job-report-issue',
+    component: () => import('../views/jobs/JobReportIssue.vue'),
+    props: true,
+    meta: {
+      requiresRole: 'driver',
+      breadcrumb: (route) => [
+        { label: 'Runs', to: '/jobs' },
+        { label: route.params.id ? `Run ${route.params.id}` : 'Run' },
+        { label: 'Report issue' }
+      ]
+    }
+  },
+  {
     path: '/jobs/:id',
     name: 'job-detail',
     component: () => import('../views/jobs/JobDetail.vue'),

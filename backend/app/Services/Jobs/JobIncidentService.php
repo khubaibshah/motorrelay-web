@@ -9,10 +9,14 @@ use App\Models\MessageThread;
 use App\Models\User;
 use App\Notifications\JobStatusNotification;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Http\UploadedFile;
 
 class JobIncidentService
 {
-    public function report(Job $job, User $reporter, array $payload): JobIncident
+    /**
+     * @param  array<int, UploadedFile>  $attachments
+     */
+    public function report(Job $job, User $reporter, array $payload, array $attachments = []): JobIncident
     {
         $this->assertCanReport($job, $reporter);
 
@@ -28,7 +32,7 @@ class JobIncidentService
             'description' => $payload['description'] ?? null,
         ]);
 
-        $this->createIncidentMessage($job, $reporter, $incident);
+        $this->createIncidentMessage($job, $reporter, $incident, $attachments);
         $this->notifyStakeholders($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $reporter, $incident);
 
         return $incident->fresh(['reportedBy:id,name']);
@@ -121,7 +125,10 @@ class JobIncidentService
         }
     }
 
-    private function createIncidentMessage(Job $job, User $reporter, JobIncident $incident): void
+    /**
+     * @param  array<int, UploadedFile>  $attachments
+     */
+    private function createIncidentMessage(Job $job, User $reporter, JobIncident $incident, array $attachments = []): void
     {
         $thread = $this->resolveThread($job, $reporter);
 
@@ -136,8 +143,31 @@ class JobIncidentService
             ],
         ]);
 
+        $this->storeMessageAttachments($message, $attachments);
         $this->createReceipts($thread, $message, $reporter->id);
         $thread->touch();
+    }
+
+    /**
+     * @param  array<int, UploadedFile>  $files
+     */
+    private function storeMessageAttachments(Message $message, array $files): void
+    {
+        foreach ($files as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $path = $file->store('message-attachments', 'public');
+
+            $message->attachments()->create([
+                'disk' => 'public',
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+            ]);
+        }
     }
 
     private function createRecoverySentMessage(Job $job, User $dealer, JobIncident $incident): void

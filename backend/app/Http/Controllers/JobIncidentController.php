@@ -29,10 +29,12 @@ class JobIncidentController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'attachments' => ['array'],
+            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif', 'max:10240'],
         ]);
 
         return response()->json([
-            'data' => $incidents->report($job, $request->user(), $validated),
+            'data' => $incidents->report($job, $request->user(), $validated, $request->file('attachments', [])),
             'message' => 'Issue reported. The dealer has been notified.',
         ], 201);
     }

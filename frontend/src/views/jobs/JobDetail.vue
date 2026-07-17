@@ -2086,7 +2086,7 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <div v-if="loading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
       Loading run...
     </div>
@@ -2099,25 +2099,25 @@ watch(
       Run not found.
     </div>
 
-    <div v-else class="space-y-4">
+    <div v-else class="space-y-3">
       <BackPillButton label="Runs" to="/jobs" />
 
-      <header class="tile p-4" :class="isDriverDetailView ? 'space-y-3' : 'space-y-4'">
+      <header class="tile p-3" :class="isDriverDetailView ? 'space-y-2' : 'space-y-3'">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run details</p>
-            <h1 class="mt-1 break-words font-black text-slate-950 dark:text-white" :class="isDriverDetailView ? 'text-xl' : 'text-2xl'">
+            <h1 class="mt-0.5 break-words font-black leading-tight text-slate-950 dark:text-white" :class="isDriverDetailView ? 'text-xl' : 'text-2xl'">
               {{ job.title || `Run #${job.id}` }}
             </h1>
-            <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
+            <p class="mt-0.5 text-xs font-semibold text-slate-600 dark:text-emerald-100">
               {{ job.company || 'Customer' }} · {{ job.vehicle_make || 'Vehicle' }}
             </p>
           </div>
-          <div class="flex shrink-0 flex-col items-end gap-2">
-            <span class="badge bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-emerald-100">
+          <div class="flex shrink-0 flex-col items-end gap-1.5">
+            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-800 dark:bg-white/10 dark:text-emerald-100">
               {{ formatStatusLabel(job.status) }}
             </span>
-            <p class="text-2xl font-black leading-none text-emerald-600 dark:text-emerald-300">
+            <p class="text-xl font-black leading-none text-emerald-600 dark:text-emerald-300">
               {{ priceFormatter.format(headerDisplayAmount) }}
             </p>
           </div>
@@ -2125,7 +2125,7 @@ watch(
 
         <div
           v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode"
-          class="flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
+          class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
         >
           <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
             <button
@@ -2259,11 +2259,11 @@ watch(
         </div>
       </section>
 
-      <section v-if="job.incidents?.length" class="tile space-y-3 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
+      <section v-if="job.incidents?.length" class="tile space-y-2 border-amber-200 bg-amber-50/50 p-3 dark:border-amber-400/30 dark:bg-amber-400/10">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p class="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-200">Reported issues</p>
-            <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Incident history</h2>
+            <h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-white">Incident history</h2>
           </div>
           <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-300 dark:text-slate-950">
             {{ job.incidents.length }} logged
@@ -2279,7 +2279,7 @@ watch(
           <article
             v-for="incident in job.incidents"
             :key="incident.id"
-            class="rounded-2xl border border-amber-200 bg-white p-3 text-sm dark:border-amber-400/20 dark:bg-white/[0.06]"
+            class="rounded-xl border border-amber-200 bg-white p-2.5 text-sm dark:border-amber-400/20 dark:bg-white/[0.06]"
           >
             <div class="flex flex-wrap items-start justify-between gap-2">
               <div>
@@ -2385,7 +2385,7 @@ watch(
         </div>
       </section>
 
-      <section v-if="showRunProgress && !isDriverDetailView" class="tile space-y-4 p-4">
+      <section v-if="false" class="tile space-y-4 p-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-sm font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Run progress</h2>
@@ -2495,12 +2495,12 @@ watch(
 
       <section
         v-if="canManagePayment"
-        class="tile space-y-3 border-sky-200 bg-sky-50/40 p-3 dark:border-emerald-400/20 dark:bg-white/[0.04]"
+        class="tile space-y-2 border-sky-200 bg-sky-50/40 p-3 dark:border-emerald-400/20 dark:bg-white/[0.04]"
       >
-        <header class="flex flex-wrap items-center justify-between gap-3">
+        <header class="flex flex-wrap items-center justify-between gap-2">
           <div class="min-w-0">
             <p class="text-xs font-black uppercase tracking-wide text-sky-700 dark:text-emerald-300">{{ paymentCardEyebrow }}</p>
-            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 dark:text-emerald-100">
+            <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-emerald-100">
               <span class="font-black text-slate-950 dark:text-white">{{ paymentCardTitle }}</span>
               <span>{{ priceFormatter.format(dealerPaymentAmount) }} dealer charge</span>
               <span>{{ priceFormatter.format(driverPayoutAmount) }} driver payout</span>
@@ -2509,7 +2509,7 @@ watch(
           <span class="badge uppercase" :class="paymentStatusBadgeClass">{{ paymentStatus }}</span>
         </header>
 
-        <p class="text-xs text-slate-500">
+        <p class="text-xs text-slate-500 dark:text-emerald-100">
           <span v-if="job.paid_at">Paid {{ formatDateTime(job.paid_at) }}.</span>
           <span v-else>Not paid yet. Payment should be completed before a driver starts.</span>
         </p>
@@ -2524,7 +2524,7 @@ watch(
           {{ paymentConfirmationText }}
         </p>
 
-        <div class="grid gap-2 sm:flex sm:flex-wrap">
+        <div class="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
           <button
             v-if="canStartCheckout"
             type="button"
@@ -2555,9 +2555,7 @@ watch(
             <span v-if="payoutReleaseLoading">Releasing payout...</span>
             <span v-else>Release driver payout</span>
           </button>
-          <p
-            class="w-full text-xs text-slate-500"
-          >
+          <p class="w-full text-xs text-slate-500 dark:text-emerald-100">
             {{ paymentActionHelp }}
           </p>
         </div>

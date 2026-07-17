@@ -4,31 +4,15 @@ import { RouterLink, useRoute } from "vue-router";
 import {
   fetchJob,
   fetchJobApplications,
-  updateJobApplication,
-  fetchJobExpenses,
-  createJobExpense,
-  updateJobExpense,
-  deleteJobExpense,
-  reviewJobExpense,
   submitJobCompletion,
   uploadJobInspection,
-  approveJobInspection,
-  requestJobInspectionChanges,
-  approveJobCompletion,
-  rejectJobCompletion,
-  downloadExpenseReceipt,
   downloadDeliveryProof,
-  downloadInspectionPhoto,
   updateJobLocation,
   markJobCollected,
   markJobDelivered,
-  markIncidentRecoverySent,
-  markIncidentRecoveryCompleted,
-  reportJobIncident,
   applyForJob,
   requestJobLocationUpdate
 } from "@/services/jobs";
-import { fetchThreadMessages, fetchThreads, sendMessage } from "@/services/messages";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { createEchoClient } from "@/services/realtime";
 import { useAuthStore } from "@/stores/auth";
@@ -46,7 +30,6 @@ import RecoveryConfirmationModal from "@/components/jobs/RecoveryConfirmationMod
 import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
-import RunExpensesCard from "@/components/jobs/RunExpensesCard.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
 import RunPaymentCard from "@/components/jobs/RunPaymentCard.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
@@ -54,6 +37,10 @@ import RunQuickActions from "@/components/jobs/RunQuickActions.vue";
 import RunTrackingCard from "@/components/jobs/RunTrackingCard.vue";
 import { useRunPayments } from "@/composables/jobs/useRunPayments";
 import { useRunWorkflow } from "@/composables/jobs/useRunWorkflow";
+import { useDriverModeState } from "@/composables/jobs/useDriverModeState";
+import { useInspectionGallery } from "@/composables/jobs/useInspectionGallery";
+import { useDriverChat } from "@/composables/jobs/useDriverChat";
+import { useRunIncidents } from "@/composables/jobs/useRunIncidents";
 import { formatStatusLabel } from "@/utils/statusLabels";
 
 const route = useRoute();
@@ -68,76 +55,18 @@ const applicationsLoading = ref(false);
 const applicationsError = ref("");
 const applicationsSection = ref(null);
 
-const expenses = ref([]);
-const expensesSummary = ref({
-  submitted_total: 0,
-  approved_total: 0,
-  rejected_total: 0
-});
-const expensesLoading = ref(false);
-const expensesError = ref("");
-const expenseForm = reactive({
-  description: "",
-  amount: "",
-  vat_rate: "20",
-  receipt: null
-});
-const expenseFormKey = ref(0);
-const expenseFormError = ref("");
-const expenseSubmitting = ref(false);
-const editingExpenseId = ref(null);
-const receiptDownloadingId = ref(null);
-
 const completionForm = reactive({
   notes: "",
   proof: []
 });
-const completionFormKey = ref(0);
 const completionError = ref("");
 const completionSubmitting = ref(false);
-const completionDecisionLoading = ref(false);
 const proofDownloading = ref(false);
-const inspectionReviewLoading = ref("");
-const inspectionPhotoPreviews = ref({});
-const inspectionPreviewLoading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
 const driverModeOpen = ref(false);
-const driverModeUploadedPhotos = ref([]);
-const inspectionGalleryOpen = ref(false);
-const inspectionGalleryIndex = ref(0);
-const inspectionGalleryTouchStartX = ref(null);
-const driverChatOpen = ref(false);
-const driverChatLoading = ref(false);
-const driverChatSending = ref(false);
-const driverChatError = ref("");
-const driverChatThread = ref(null);
-const driverChatMessages = ref([]);
-const driverChatBody = ref("");
 const jobRequestLoading = ref(false);
 const jobRequestError = ref("");
-const incidentModalOpen = ref(false);
-const incidentSubmitting = ref(false);
-const incidentError = ref("");
-const recoverySendingId = ref(null);
-const recoverySendError = ref("");
-const recoveryCompletingId = ref(null);
-const recoveryCompleteError = ref("");
-const recoveryConfirmation = reactive({
-  open: false,
-  mode: "",
-  incident: null
-});
-const incidentForm = reactive({
-  type: "vehicle_breakdown",
-  recovery_required: true,
-  vehicle_safe: true,
-  blocking_road: false,
-  location_label: "",
-  latitude: null,
-  longitude: null,
-  description: ""
-});
 
 const trackingState = reactive({
   sending: false,
@@ -174,7 +103,31 @@ const requiredInspectionShots = [
   "Mileage"
 ];
 const minInspectionPhotoCount = requiredInspectionShots.length;
-const currentInspectionGalleryPhoto = computed(() => driverModeUploadedPhotos.value[inspectionGalleryIndex.value] ?? null);
+const {
+  uploadedPhotos: driverModeUploadedPhotos,
+  galleryOpen: inspectionGalleryOpen,
+  galleryIndex: inspectionGalleryIndex,
+  currentPhoto: currentInspectionGalleryPhoto,
+  resetUploadedPhotos: resetDriverModeUploadedPhotos,
+  appendFiles: appendInspectionFiles,
+  removeFile: removeInspectionFile,
+  openGallery: openInspectionGallery,
+  closeGallery: closeInspectionGallery,
+  previousPhoto: previousInspectionPhoto,
+  nextPhoto: nextInspectionPhoto,
+  onTouchStart: onInspectionGalleryTouchStart,
+  onTouchEnd: onInspectionGalleryTouchEnd
+} = useInspectionGallery({ completionForm });
+const {
+  open: driverChatOpen,
+  loading: driverChatLoading,
+  sending: driverChatSending,
+  error: driverChatError,
+  messages: driverChatMessages,
+  body: driverChatBody,
+  openChat: openDriverChatModal,
+  sendChatMessage: sendDriverChatMessage
+} = useDriverChat({ job });
 
 function formatCurrency(value, currencyCode = "GBP") {
   try {
@@ -391,246 +344,10 @@ function closeNavigationModal() {
   navigationModalOpen.value = false;
 }
 
-async function openDriverChatModal() {
-  if (!job.value?.id) return;
-
-  driverChatOpen.value = true;
-  driverChatError.value = "";
-  driverChatLoading.value = true;
-
-  try {
-    const payload = await fetchThreads();
-    const threads = Array.isArray(payload?.data) ? payload.data : [];
-    const thread = threads.find((item) => Number(item.job_id) === Number(job.value.id)) ?? null;
-    driverChatThread.value = thread;
-
-    if (thread?.id) {
-      const messagePayload = await fetchThreadMessages(thread.id);
-      driverChatMessages.value = Array.isArray(messagePayload?.data) ? messagePayload.data : [];
-    } else {
-      driverChatMessages.value = [];
-    }
-  } catch (error) {
-    console.error("Failed to open driver chat", error);
-    driverChatError.value = "Unable to load chat right now.";
-  } finally {
-    driverChatLoading.value = false;
-  }
-}
-
-async function sendDriverChatMessage() {
-  if (!job.value?.id || !driverChatBody.value.trim() || driverChatSending.value) return;
-
-  driverChatSending.value = true;
-  driverChatError.value = "";
-
-  try {
-    const payload = driverChatThread.value?.id
-      ? {
-          thread_id: driverChatThread.value.id,
-          body: driverChatBody.value.trim()
-        }
-      : {
-          job_id: job.value.id,
-          recipient_id: job.value.posted_by_id,
-          subject: job.value.title || `Run #${job.value.id}`,
-          body: driverChatBody.value.trim()
-        };
-
-    const response = await sendMessage(payload);
-    if (response?.thread) {
-      driverChatThread.value = response.thread;
-    }
-    if (response?.message) {
-      driverChatMessages.value.push(response.message);
-    }
-    driverChatBody.value = "";
-  } catch (error) {
-    console.error("Failed to send driver chat message", error);
-    driverChatError.value = error?.response?.data?.message || "Unable to send message right now.";
-  } finally {
-    driverChatSending.value = false;
-  }
-}
-
-function resetExpenseForm() {
-  expenseForm.description = "";
-  expenseForm.amount = "";
-  expenseForm.vat_rate = "20";
-  expenseForm.receipt = null;
-  expenseFormError.value = "";
-  editingExpenseId.value = null;
-  expenseFormKey.value += 1;
-}
-
 function resetCompletionForm() {
   completionForm.notes = "";
   completionForm.proof = [];
   completionError.value = "";
-  completionFormKey.value += 1;
-}
-
-function resetDriverModeUploadedPhotos() {
-  driverModeUploadedPhotos.value.forEach((photo) => {
-    if (photo.previewUrl) {
-      URL.revokeObjectURL(photo.previewUrl);
-    }
-  });
-  driverModeUploadedPhotos.value = [];
-}
-
-function syncSelectedInspectionPreviews() {
-  resetDriverModeUploadedPhotos();
-  driverModeUploadedPhotos.value = completionForm.proof.map((file, index) => ({
-    id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
-    name: file.name,
-    previewUrl: file.type?.startsWith("image/") ? URL.createObjectURL(file) : "",
-  }));
-}
-
-function appendInspectionFiles(files) {
-  const incoming = Array.from(files ?? []).filter((file) => file?.type?.startsWith("image/"));
-  if (!incoming.length) return;
-
-  const existing = completionForm.proof.map((file) => `${file.name}-${file.size}-${file.lastModified}`);
-  const nextFiles = [...completionForm.proof];
-
-  incoming.forEach((file) => {
-    const key = `${file.name}-${file.size}-${file.lastModified}`;
-    if (!existing.includes(key) && nextFiles.length < 20) {
-      nextFiles.push(file);
-      existing.push(key);
-    }
-  });
-
-  completionForm.proof = nextFiles;
-  completionFormKey.value += 1;
-  syncSelectedInspectionPreviews();
-}
-
-function removeInspectionFile(index) {
-  completionForm.proof = completionForm.proof.filter((_, fileIndex) => fileIndex !== index);
-  syncSelectedInspectionPreviews();
-
-  if (inspectionGalleryIndex.value >= driverModeUploadedPhotos.value.length) {
-    inspectionGalleryIndex.value = Math.max(driverModeUploadedPhotos.value.length - 1, 0);
-  }
-  if (!driverModeUploadedPhotos.value.length) {
-    inspectionGalleryOpen.value = false;
-  }
-}
-
-function openInspectionGallery(index = 0) {
-  if (!driverModeUploadedPhotos.value.length) return;
-  inspectionGalleryIndex.value = Math.min(Math.max(index, 0), driverModeUploadedPhotos.value.length - 1);
-  inspectionGalleryOpen.value = true;
-}
-
-function closeInspectionGallery() {
-  inspectionGalleryOpen.value = false;
-  inspectionGalleryTouchStartX.value = null;
-}
-
-function previousInspectionPhoto() {
-  if (!driverModeUploadedPhotos.value.length) return;
-  inspectionGalleryIndex.value = inspectionGalleryIndex.value === 0
-    ? driverModeUploadedPhotos.value.length - 1
-    : inspectionGalleryIndex.value - 1;
-}
-
-function nextInspectionPhoto() {
-  if (!driverModeUploadedPhotos.value.length) return;
-  inspectionGalleryIndex.value = inspectionGalleryIndex.value === driverModeUploadedPhotos.value.length - 1
-    ? 0
-    : inspectionGalleryIndex.value + 1;
-}
-
-function onInspectionGalleryTouchStart(event) {
-  inspectionGalleryTouchStartX.value = event.changedTouches?.[0]?.clientX ?? null;
-}
-
-function onInspectionGalleryTouchEnd(event) {
-  if (inspectionGalleryTouchStartX.value === null) return;
-
-  const endX = event.changedTouches?.[0]?.clientX ?? inspectionGalleryTouchStartX.value;
-  const delta = endX - inspectionGalleryTouchStartX.value;
-  inspectionGalleryTouchStartX.value = null;
-
-  if (Math.abs(delta) < 40) return;
-  if (delta < 0) {
-    nextInspectionPhoto();
-  } else {
-    previousInspectionPhoto();
-  }
-}
-
-function updateExpenseSummary(list) {
-  const totals = {
-    submitted_total: 0,
-    approved_total: 0,
-    rejected_total: 0
-  };
-
-  list.forEach((expense) => {
-    const totalAmount = Number(expense?.total_amount ?? 0);
-    if (expense.status === "submitted") {
-      totals.submitted_total += totalAmount;
-    } else if (expense.status === "approved") {
-      totals.approved_total += totalAmount;
-    } else if (expense.status === "rejected") {
-      totals.rejected_total += totalAmount;
-    }
-  });
-
-  expensesSummary.value = totals;
-}
-
-function syncExpensesFromJob() {
-  if (!job.value) {
-    expenses.value = [];
-    updateExpenseSummary([]);
-    return;
-  }
-
-  if (Array.isArray(job.value.expenses)) {
-    expenses.value = job.value.expenses;
-  } else {
-    expenses.value = [];
-  }
-
-  if (job.value.expenses_summary) {
-    expensesSummary.value = {
-      submitted_total: Number(job.value.expenses_summary.submitted_total ?? 0),
-      approved_total: Number(job.value.expenses_summary.approved_total ?? 0),
-      rejected_total: Number(job.value.expenses_summary.rejected_total ?? 0)
-    };
-  } else {
-    updateExpenseSummary(expenses.value);
-  }
-}
-
-async function refreshExpenses() {
-  if (!job.value || !canSeeExpenses.value) {
-    expenses.value = [];
-    updateExpenseSummary([]);
-    return;
-  }
-
-  expensesLoading.value = true;
-  expensesError.value = "";
-  try {
-    const payload = await fetchJobExpenses(job.value.id);
-    const list = Array.isArray(payload?.data) ? payload.data : [];
-    expenses.value = list;
-    updateExpenseSummary(list);
-  } catch (error) {
-    console.error("Failed to load expenses", error);
-    expensesError.value = "Unable to load expenses right now.";
-    expenses.value = [];
-    updateExpenseSummary([]);
-  } finally {
-    expensesLoading.value = false;
-  }
 }
 
 const assignedDriver = computed(() => job.value?.assigned_to ?? null);
@@ -658,8 +375,6 @@ const goLiveFormatted = computed(() => {
   }).format(goLiveDate.value);
 });
 
-
-const basicAnalytics = computed(() => job.value?.basic_analytics ?? null);
 
 const lastTrackedAt = computed(() => trackingState.lastUpdate ?? job.value?.last_tracked_at ?? null);
 
@@ -718,197 +433,6 @@ const dealerLiveTrackingUpdatedLabel = computed(() => {
   return `Updated ${lastTrackedDisplay.value}`;
 });
 
-const navigationDestination = computed(() => {
-  if (!job.value) return "";
-  const parts = [job.value.dropoff_label, job.value.dropoff_postcode].filter(Boolean);
-  return parts.join(", ");
-});
-
-const driverModeDestinationLabel = computed(() => {
-  if (!job.value) return "Destination";
-  const status = String(job.value.status || "").toLowerCase();
-
-  if (["accepted", "in_progress"].includes(status)) {
-    return job.value.pickup_label || job.value.pickup_postcode || "Pickup";
-  }
-
-  return job.value.dropoff_label || job.value.dropoff_postcode || "Drop-off";
-});
-
-const driverModeNavigationDestination = computed(() => {
-  if (!job.value) return "";
-  const status = String(job.value.status || "").toLowerCase();
-  const parts = ["accepted", "in_progress"].includes(status)
-    ? [job.value.pickup_label, job.value.pickup_postcode]
-    : [job.value.dropoff_label, job.value.dropoff_postcode];
-
-  return parts.filter(Boolean).join(", ");
-});
-
-const driverModeNavigationLinks = computed(() => {
-  const destination = driverModeNavigationDestination.value;
-  if (!destination) return [];
-  const encoded = encodeURIComponent(destination);
-  return [
-    {
-      id: "google",
-      label: "Google Maps",
-      href: `https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`
-    },
-    {
-      id: "waze",
-      label: "Waze",
-      href: `https://waze.com/ul?q=${encoded}&navigate=yes`
-    }
-  ];
-});
-
-const driverModePickupLabel = computed(() => {
-  if (!job.value) return "Pickup";
-  return job.value.pickup_label || job.value.pickup_postcode || "Pickup";
-});
-
-const driverModeDropoffLabel = computed(() => {
-  if (!job.value) return "Drop-off";
-  return job.value.dropoff_label || job.value.dropoff_postcode || "Drop-off";
-});
-
-const driverModePickupShort = computed(() => job.value?.pickup_postcode || driverModePickupLabel.value);
-const driverModeDropoffShort = computed(() => job.value?.dropoff_postcode || driverModeDropoffLabel.value);
-
-const driverModeRouteLabel = computed(() => {
-  return `${driverModePickupShort.value} to ${driverModeDropoffShort.value}`;
-});
-
-const driverModeStatusLabel = computed(() => formatStatusLabel(job.value?.status, "In progress"));
-
-const driverModeMapSrc = computed(() => {
-  if (!job.value) return "";
-
-  const start = [
-    job.value.current_latitude && job.value.current_longitude
-      ? `${job.value.current_latitude},${job.value.current_longitude}`
-      : "",
-    driverModePickupLabel.value
-  ].find(Boolean);
-  const destination = driverModeNavigationDestination.value || driverModeDropoffLabel.value;
-
-  if (!start && !destination) return "";
-
-  const params = new URLSearchParams({
-    output: "embed",
-    saddr: start || driverModePickupLabel.value,
-    daddr: destination,
-    dirflg: "d"
-  });
-
-  return `https://www.google.com/maps?${params.toString()}`;
-});
-
-const driverModeTrackingLabel = computed(() => {
-  if (trackingState.shared) return "Live location shared";
-  if (lastTrackedDisplay.value) return `Last shared ${lastTrackedDisplay.value}`;
-  return "Share live location when you start moving.";
-});
-
-const driverModeTimelineItems = computed(() => {
-  const status = String(job.value?.status || "").toLowerCase();
-  const items = [
-    {
-      id: "accepted",
-      label: "Run accepted",
-      meta: "Assigned to you",
-      complete: Boolean(job.value?.assigned_to_id)
-    },
-    {
-      id: "inspection",
-      label: "Inspection photos",
-      meta: hasDeliveryProof.value ? "Uploaded" : "Needed before collection",
-      complete: hasDeliveryProof.value
-    },
-    {
-      id: "collected",
-      label: "Vehicle collected",
-      meta: ["collected", "in_transit", "delivered", "completion_pending", "completed", "closed"].includes(status)
-        ? "Done"
-        : "Next driving step",
-      complete: ["collected", "in_transit", "delivered", "completion_pending", "completed", "closed"].includes(status)
-    },
-    {
-      id: "delivered",
-      label: "Vehicle delivered",
-      meta: ["delivered", "completion_pending", "completed", "closed"].includes(status) ? "Done" : "Not yet",
-      complete: ["delivered", "completion_pending", "completed", "closed"].includes(status)
-    }
-  ];
-
-  return items;
-});
-
-const driverModePrimaryAction = computed(() => {
-  if (canMarkCollected.value) {
-    return {
-      label: driverActionLoading.value === "collected" ? "Updating..." : "Mark collected",
-      disabled: driverActionLoading.value === "collected",
-      handler: handleDriverCollected
-    };
-  }
-
-  if (canMarkDeliveredFromDetail.value) {
-    return {
-      label: driverActionLoading.value === "delivered" ? "Updating..." : "Mark delivered",
-      disabled: driverActionLoading.value === "delivered",
-      handler: handleDriverDelivered
-    };
-  }
-
-  if (canSubmitCompletion.value) {
-    return {
-      label: completionSubmitting.value ? "Submitting..." : "Submit completion",
-      disabled: completionSubmitting.value,
-      handler: handleCompletionSubmit
-    };
-  }
-
-  if (canShareTracking.value && !trackingState.shared) {
-    return {
-      label: trackingState.sending ? "Sharing location..." : "Share live location",
-      disabled: trackingState.sending,
-      handler: shareLiveLocation
-    };
-  }
-
-  return null;
-});
-
-const driverModeShowSecondaryTracking = computed(() => {
-  return canShareTracking.value && !trackingState.shared && driverModePrimaryAction.value?.handler !== shareLiveLocation;
-});
-
-const navigationLinks = computed(() => {
-  const destination = navigationDestination.value;
-  if (!destination) return [];
-  const encoded = encodeURIComponent(destination);
-  return [
-    {
-      id: "google",
-      label: "Open in Google Maps",
-      href: `https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`
-    },
-    {
-      id: "waze",
-      label: "Open in Waze",
-      href: `https://waze.com/ul?q=${encoded}&navigate=yes`
-    }
-  ];
-});
-
-const runQuickNavigationLinks = computed(() => {
-  return isAssignedDriver.value ? driverModeNavigationLinks.value : navigationLinks.value;
-});
-
-const runQuickGoogleHref = computed(() => runQuickNavigationLinks.value.find((link) => link.id === "google")?.href || "");
-const runQuickWazeHref = computed(() => runQuickNavigationLinks.value.find((link) => link.id === "waze")?.href || "");
 const runPhotosRoute = computed(() => ({
   name: "job-photos",
   params: {
@@ -921,17 +445,6 @@ const runIssueRoute = computed(() => ({
     id: job.value?.id
   }
 }));
-const shouldShowRunQuickActions = computed(() => {
-  if (!job.value?.id) return false;
-  return Boolean(
-    runQuickGoogleHref.value ||
-      runQuickWazeHref.value ||
-      canReportIncident.value ||
-      hasInspectionPhotos.value ||
-      canUploadInspection.value ||
-      canReviewInspection.value
-  );
-});
 
 const statusDescription = computed(() => {
   if (!job.value) return "";
@@ -984,26 +497,6 @@ const isAssignedDriver = computed(() => {
 });
 const isDriverDetailView = computed(() => currentRole.value === "driver");
 
-const canSeeExpenses = computed(() => {
-  if (!job.value || !auth.token) return false;
-  if (currentRole.value === "admin") return true;
-  return isDealerForJob.value || isAssignedDriver.value;
-});
-
-const canSubmitExpenses = computed(() => {
-  if (!canSeeExpenses.value) return false;
-  if (!isAssignedDriver.value) return false;
-  return !job.value?.finalized_invoice_id;
-});
-
-const canReviewExpenses = computed(() => {
-  if (!canSeeExpenses.value) return false;
-  return currentRole.value === "admin" || isDealerForJob.value;
-});
-const shouldShowExpenses = computed(() => {
-  return false;
-});
-
 const shouldShowGoLiveBanner = computed(
   () => isDealerForJob.value && isAwaitingGoLive.value
 );
@@ -1051,6 +544,30 @@ const canReportIncident = computed(() => {
 });
 const canSendRecovery = computed(() => currentRole.value === "admin" || isDealerForJob.value);
 const canConfirmRecoveryCompleted = computed(() => currentRole.value === "admin" || isAssignedDriver.value);
+const {
+  incidentModalOpen,
+  incidentSubmitting,
+  incidentError,
+  incidentForm,
+  recoverySendingId,
+  recoverySendError,
+  recoveryCompletingId,
+  recoveryCompleteError,
+  recoveryConfirmation,
+  openIncidentModal,
+  closeIncidentModal,
+  useCurrentIncidentLocation,
+  handleIncidentSubmit,
+  openRecoveryConfirmation,
+  closeRecoveryConfirmation,
+  confirmRecoveryAction
+} = useRunIncidents({
+  job,
+  canReportIncident,
+  canSendRecovery,
+  canConfirmRecoveryCompleted,
+  reloadJob: loadJob
+});
 const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
   if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
@@ -1067,15 +584,6 @@ const driverNextActionText = computed(() => {
   if (paymentStatus.value === 'payout_released') return 'Payout has been released.';
   return '';
 });
-const showDriverNextAction = computed(() => Boolean(driverNextActionText.value));
-
-const canApproveCompletion = computed(() => {
-  if (!(currentRole.value === "admin" || isDealerForJob.value)) return false;
-  if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
-  if (!['delivered', 'completion_pending', 'completed', 'closed'].includes(String(job.value?.status || '').toLowerCase())) return false;
-  return completionStatus.value === "submitted";
-});
-
 const hasDeliveryProof = computed(() => Boolean(job.value?.delivery_proof_path || hasInspectionPhotos.value));
 const canReviewInspection = computed(() => {
   if (!(currentRole.value === "admin" || isDealerForJob.value)) return false;
@@ -1083,21 +591,47 @@ const canReviewInspection = computed(() => {
   if (job.value?.finalized_invoice_id) return false;
   return ['not_submitted', 'rejected', 'inspection_approved'].includes(String(completionStatus.value || '').toLowerCase());
 });
-const canApproveInspection = computed(() => canReviewInspection.value && completionStatus.value !== 'inspection_approved');
-const canRequestInspectionChanges = computed(() => canReviewInspection.value);
-const inspectionReviewTitle = computed(() => {
-  if (!hasDeliveryProof.value) return 'Waiting for photos';
-  if (completionStatus.value === 'inspection_approved') return 'Inspection approved';
-  if (completionStatus.value === 'rejected') return 'More photos requested';
-  return 'Inspection ready to review';
-});
-const inspectionReviewDescription = computed(() => {
-  if (!hasDeliveryProof.value) return 'The driver must upload inspection photos before collection.';
-  if (completionStatus.value === 'inspection_approved') return 'The driver can collect the vehicle and continue the run.';
-  if (completionStatus.value === 'rejected') return 'The previous upload was rejected. The driver needs to upload a fresh set.';
-  return 'Check the photos, then approve them or ask the driver for clearer images.';
-});
 
+const {
+  driverModeDestinationLabel,
+  driverModeNavigationLinks,
+  driverModePickupShort,
+  driverModeDropoffShort,
+  driverModeRouteLabel,
+  driverModeStatusLabel,
+  driverModeMapSrc,
+  driverModeTrackingLabel,
+  driverModeTimelineItems,
+  driverModePrimaryAction,
+  driverModeShowSecondaryTracking,
+  navigationDestination,
+  navigationLinks,
+  runQuickGoogleHref,
+  runQuickWazeHref,
+  shouldShowRunQuickActions
+} = useDriverModeState({
+  job,
+  trackingState,
+  lastTrackedDisplay,
+  hasDeliveryProof,
+  isAssignedDriver,
+  canMarkCollected,
+  canMarkDelivered: canMarkDeliveredFromDetail,
+  canSubmitCompletion,
+  canShareTracking,
+  canReportIncident,
+  canUploadInspection,
+  canReviewInspection,
+  hasInspectionPhotos,
+  driverActionLoading,
+  completionSubmitting,
+  handlers: {
+    markCollected: handleDriverCollected,
+    markDelivered: handleDriverDelivered,
+    submitCompletion: handleCompletionSubmit,
+    shareLocation: shareLiveLocation
+  }
+});
 const invoiceFinalized = computed(() => Boolean(job.value?.finalized_invoice_id));
 const jobInvoiceLink = computed(() => ({
   name: 'invoices',
@@ -1107,7 +641,7 @@ const jobInvoiceLink = computed(() => ({
   }
 }));
 const shouldShowCompletionPanel = computed(() => {
-  return canUploadInspection.value || canSubmitCompletion.value || canApproveCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
+  return canUploadInspection.value || canSubmitCompletion.value || completionStatus.value !== 'not_submitted' || hasDeliveryProof.value || invoiceFinalized.value;
 });
 const {
   completedWorkflowCount,
@@ -1190,15 +724,6 @@ const requestPanelText = computed(() => {
   return "Request this run so the dealer can review you and assign the driver.";
 });
 
-function applicationBadgeClass(status) {
-  const normalized = String(status || '').toLowerCase();
-
-  if (normalized === 'accepted') return 'bg-emerald-600 text-white ring-emerald-600';
-  if (normalized === 'declined') return 'bg-rose-50 text-rose-700 ring-rose-200';
-
-  return 'bg-white text-emerald-700 ring-emerald-200';
-}
-
 async function loadJob() {
   const jobId = route.params.id;
   if (!jobId) {
@@ -1211,17 +736,12 @@ async function loadJob() {
   try {
     const payload = await fetchJob(jobId);
     job.value = payload?.data ?? payload ?? null;
-    syncExpensesFromJob();
     trackingState.lastUpdate = job.value?.last_tracked_at ?? null;
-    await loadInspectionPhotoPreviews();
   } catch (error) {
     console.error("Failed to load run", error);
     errorMessage.value = "We could not load this run.";
     job.value = null;
-    expenses.value = [];
-    updateExpenseSummary([]);
     trackingState.lastUpdate = null;
-    clearInspectionPhotoPreviews();
   } finally {
     loading.value = false;
   }
@@ -1232,13 +752,6 @@ async function loadJob() {
   }
 
   await loadApplicationsIfNeeded();
-
-  if (canSeeExpenses.value) {
-    await refreshExpenses();
-  } else {
-    expenses.value = [];
-    updateExpenseSummary([]);
-  }
 }
 
 function scheduleRealtimeJobReload() {
@@ -1308,47 +821,6 @@ function stopLiveTrackingListener() {
   liveTrackingChannel.value = null;
 }
 
-function isImageInspectionPhoto(photo) {
-  const mime = String(photo?.mime_type || '').toLowerCase();
-  const name = String(photo?.original_name || photo?.path || '').toLowerCase();
-  return mime.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|heic|heif)$/.test(name);
-}
-
-function clearInspectionPhotoPreviews() {
-  Object.values(inspectionPhotoPreviews.value).forEach((url) => {
-    if (url) URL.revokeObjectURL(url);
-  });
-  inspectionPhotoPreviews.value = {};
-}
-
-async function loadInspectionPhotoPreviews() {
-  clearInspectionPhotoPreviews();
-
-  if (!job.value?.id || !inspectionPhotos.value.length) {
-    return;
-  }
-
-  inspectionPreviewLoading.value = true;
-  const previews = {};
-
-  try {
-    await Promise.all(
-      inspectionPhotos.value
-        .filter((photo) => photo?.id && isImageInspectionPhoto(photo))
-        .map(async (photo) => {
-          const response = await downloadInspectionPhoto(job.value.id, photo.id);
-          const contentType = response.headers?.["content-type"] || photo.mime_type || "image/jpeg";
-          previews[photo.id] = URL.createObjectURL(new Blob([response.data], { type: contentType }));
-        })
-    );
-    inspectionPhotoPreviews.value = previews;
-  } catch (error) {
-    console.error("Failed to load inspection photo previews", error);
-  } finally {
-    inspectionPreviewLoading.value = false;
-  }
-}
-
 async function loadApplicationsIfNeeded() {
   if (!job.value || !canReviewApplications.value) {
     applications.value = [];
@@ -1386,136 +858,6 @@ function scrollToApplicationsSection() {
   });
 }
 
-async function handleApplicationDecision(applicationId, status) {
-  if (!job.value) return;
-  try {
-    await updateJobApplication(job.value.id, applicationId, { status });
-    await loadJob();
-    await loadApplicationsIfNeeded();
-  } catch (error) {
-    console.error("Failed to update application", error);
-    alert(error.response?.data?.message || "Unable to update application. Please try again.");
-  }
-}
-
-function onExpenseReceiptChange(event) {
-  const [file] = event.target?.files ?? [];
-  expenseForm.receipt = file ?? null;
-}
-
-function startEditingExpense(expense) {
-  editingExpenseId.value = expense.id;
-  expenseForm.description = expense.description ?? "";
-  expenseForm.amount = expense.amount ?? "";
-  expenseForm.vat_rate = expense.vat_rate ?? "20";
-  expenseForm.receipt = null;
-  expenseFormError.value = "";
-  expenseFormKey.value += 1;
-}
-
-function cancelExpenseEdit() {
-  resetExpenseForm();
-}
-
-async function handleExpenseSubmit() {
-  if (!job.value) return;
-  if (!expenseForm.description?.trim() || expenseForm.amount === "") {
-    expenseFormError.value = "Description and amount are required.";
-    return;
-  }
-
-  expenseSubmitting.value = true;
-  expenseFormError.value = "";
-  try {
-    const payload = {
-      description: expenseForm.description,
-      amount: expenseForm.amount,
-      vat_rate: expenseForm.vat_rate,
-      receipt: expenseForm.receipt ?? undefined
-    };
-
-    if (editingExpenseId.value) {
-      await updateJobExpense(job.value.id, editingExpenseId.value, payload);
-    } else {
-      await createJobExpense(job.value.id, payload);
-    }
-
-    resetExpenseForm();
-    await refreshExpenses();
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to save expense", error);
-    expenseFormError.value = error.response?.data?.message || "Unable to save expense.";
-  } finally {
-    expenseSubmitting.value = false;
-  }
-}
-
-async function handleDeleteExpense(expense) {
-  if (!job.value || !expense?.id) return;
-  if (!window.confirm("Delete this expense?")) {
-    return;
-  }
-
-  try {
-    await deleteJobExpense(job.value.id, expense.id);
-    await refreshExpenses();
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to delete expense", error);
-    alert(error.response?.data?.message || "Unable to delete this expense.");
-  }
-}
-
-async function handleReviewExpense(expense, decision) {
-  if (!job.value || !expense?.id) return;
-  const note = window.prompt("Add a note for the driver (optional)", "");
-  if (note === null) {
-    return;
-  }
-
-  try {
-    await reviewJobExpense(job.value.id, expense.id, { decision, note });
-    await refreshExpenses();
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to review expense", error);
-    alert(error.response?.data?.message || "Unable to update this expense.");
-  }
-}
-
-async function handleDownloadReceipt(expense) {
-  if (!job.value || !expense?.id) return;
-
-  receiptDownloadingId.value = expense.id;
-  try {
-    const response = await downloadExpenseReceipt(job.value.id, expense.id);
-    const contentType = response.headers?.["content-type"] || "application/octet-stream";
-    const extension = contentType.includes("pdf")
-      ? "pdf"
-      : contentType.includes("png")
-      ? "png"
-      : contentType.includes("jpeg") || contentType.includes("jpg")
-      ? "jpg"
-      : "bin";
-    const blob = new Blob([response.data], { type: contentType });
-    const url = window.URL.createObjectURL(blob);
-    const safeName = (expense.description || "receipt").toString().replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${safeName || "receipt"}-${expense.id}.${extension}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Failed to download receipt", error);
-    alert("We could not download the receipt.");
-  } finally {
-    receiptDownloadingId.value = null;
-  }
-}
-
 function safeDownloadName(value) {
   return (value || "")
     .toString()
@@ -1538,10 +880,6 @@ function deliveryProofDownloadName() {
   );
 
   return baseName || "inspection";
-}
-
-function onCompletionProofChange(event) {
-  appendInspectionFiles(event.target?.files ?? []);
 }
 
 async function onDriverModeInspectionChange(event) {
@@ -1579,88 +917,6 @@ async function handleCompletionSubmit() {
   }
 }
 
-async function handleApproveCompletion() {
-  if (!job.value) return;
-  completionDecisionLoading.value = true;
-  try {
-    await approveJobCompletion(job.value.id);
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to approve completion", error);
-    alert(error.response?.data?.message || "Unable to approve completion.");
-  } finally {
-    completionDecisionLoading.value = false;
-  }
-}
-
-async function handleRejectCompletion() {
-  if (!job.value) return;
-  const reason = window.prompt("Add a note for the driver (optional)", "");
-  if (reason === null) {
-    return;
-  }
-
-  completionDecisionLoading.value = true;
-  try {
-    await rejectJobCompletion(job.value.id, { reason });
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to reject completion", error);
-    alert(error.response?.data?.message || "Unable to reject completion.");
-  } finally {
-    completionDecisionLoading.value = false;
-  }
-}
-
-async function handleApproveInspection() {
-  if (!job.value?.id || !canApproveInspection.value) return;
-
-  inspectionReviewLoading.value = "approve";
-  try {
-    await approveJobInspection(job.value.id);
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to approve inspection", error);
-    alert(error.response?.data?.message || "Unable to approve inspection photos.");
-  } finally {
-    inspectionReviewLoading.value = "";
-  }
-}
-
-async function handleRequestInspectionChanges() {
-  if (!job.value?.id || !canRequestInspectionChanges.value) return;
-  const reason = window.prompt("Tell the driver what extra photos you need (optional)", "");
-  if (reason === null) return;
-
-  inspectionReviewLoading.value = "changes";
-  try {
-    await requestJobInspectionChanges(job.value.id, { reason });
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to request inspection changes", error);
-    alert(error.response?.data?.message || "Unable to request more inspection photos.");
-  } finally {
-    inspectionReviewLoading.value = "";
-  }
-}
-
-async function handleRequestJob() {
-  if (!job.value?.id || !canRequestJob.value) return;
-
-  jobRequestLoading.value = true;
-  jobRequestError.value = "";
-
-  try {
-    await applyForJob(job.value.id);
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to request job", error);
-    jobRequestError.value = error.response?.data?.message || "We could not send your request. Please try again.";
-  } finally {
-    jobRequestLoading.value = false;
-  }
-}
-
 async function handleDriverCollected() {
   if (!job.value?.id || !canMarkCollected.value) return;
 
@@ -1692,138 +948,6 @@ async function handleDriverDelivered() {
     driverActionError.value = error.response?.data?.message || "Unable to mark this job as delivered.";
   } finally {
     driverActionLoading.value = "";
-  }
-}
-
-function openIncidentModal() {
-  incidentError.value = "";
-  incidentModalOpen.value = true;
-  incidentForm.location_label = job.value?.current_latitude && job.value?.current_longitude ? "Current tracked location" : "";
-  incidentForm.latitude = job.value?.current_latitude ?? null;
-  incidentForm.longitude = job.value?.current_longitude ?? null;
-}
-
-function closeIncidentModal() {
-  if (incidentSubmitting.value) return;
-  incidentModalOpen.value = false;
-}
-
-function useCurrentIncidentLocation() {
-  if (!navigator.geolocation) {
-    incidentError.value = "Location is not available on this device.";
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      incidentForm.latitude = position.coords.latitude;
-      incidentForm.longitude = position.coords.longitude;
-      incidentForm.location_label = "Driver current location";
-      incidentError.value = "";
-    },
-    () => {
-      incidentError.value = "Could not get your current location. You can still describe where you are.";
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-  );
-}
-
-async function handleIncidentSubmit() {
-  if (!job.value?.id || !canReportIncident.value) return;
-  if (!incidentForm.description.trim()) {
-    incidentError.value = "Add a short description so the dealer knows what happened.";
-    return;
-  }
-
-  incidentSubmitting.value = true;
-  incidentError.value = "";
-
-  try {
-    await reportJobIncident(job.value.id, {
-      type: incidentForm.type,
-      recovery_required: incidentForm.recovery_required,
-      vehicle_safe: incidentForm.vehicle_safe,
-      blocking_road: incidentForm.blocking_road,
-      location_label: incidentForm.location_label,
-      latitude: incidentForm.latitude,
-      longitude: incidentForm.longitude,
-      description: incidentForm.description
-    });
-    incidentModalOpen.value = false;
-    incidentForm.description = "";
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to report incident", error);
-    incidentError.value = error.response?.data?.message || "Unable to report this issue.";
-  } finally {
-    incidentSubmitting.value = false;
-  }
-}
-
-function openRecoveryConfirmation(mode, incident) {
-  recoverySendError.value = "";
-  recoveryCompleteError.value = "";
-  recoveryConfirmation.mode = mode;
-  recoveryConfirmation.incident = incident;
-  recoveryConfirmation.open = true;
-}
-
-function closeRecoveryConfirmation() {
-  if (recoverySendingId.value || recoveryCompletingId.value) return;
-  recoveryConfirmation.open = false;
-  recoveryConfirmation.mode = "";
-  recoveryConfirmation.incident = null;
-}
-
-async function confirmRecoveryAction() {
-  const incident = recoveryConfirmation.incident;
-  if (recoveryConfirmation.mode === "send") {
-    await handleRecoverySent(incident);
-    return;
-  }
-
-  if (recoveryConfirmation.mode === "complete") {
-    await handleRecoveryCompleted(incident);
-  }
-}
-
-async function handleRecoverySent(incident) {
-  if (!job.value?.id || !incident?.id || !canSendRecovery.value) return;
-
-  recoverySendingId.value = incident.id;
-  recoverySendError.value = "";
-
-  try {
-    await markIncidentRecoverySent(job.value.id, incident.id);
-    recoveryConfirmation.open = false;
-    recoveryConfirmation.mode = "";
-    recoveryConfirmation.incident = null;
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to mark recovery as sent", error);
-    recoverySendError.value = error.response?.data?.message || "Unable to mark recovery as sent.";
-  } finally {
-    recoverySendingId.value = null;
-  }
-}
-
-async function handleRecoveryCompleted(incident) {
-  if (!job.value?.id || !incident?.id || !canConfirmRecoveryCompleted.value) return;
-
-  recoveryCompletingId.value = incident.id;
-  recoveryCompleteError.value = "";
-
-  try {
-    await markIncidentRecoveryCompleted(job.value.id, incident.id);
-    recoveryConfirmation.open = false;
-    recoveryConfirmation.mode = "";
-    recoveryConfirmation.incident = null;
-    await loadJob();
-  } catch (error) {
-    console.error("Failed to confirm recovery happened", error);
-    recoveryCompleteError.value = error.response?.data?.message || "Unable to confirm recovery happened.";
-  } finally {
-    recoveryCompletingId.value = null;
   }
 }
 
@@ -1946,13 +1070,11 @@ onBeforeUnmount(() => {
 
   stopLiveTrackingListener();
   stopLiveTrackingUpdates();
-  clearInspectionPhotoPreviews();
 });
 
 watch(
   () => route.params.id,
   async () => {
-    resetExpenseForm();
     resetCompletionForm();
     trackingState.shared = false;
     stopLiveTrackingUpdates();
@@ -2148,29 +1270,6 @@ watch(
       />
 
 
-      <RunExpensesCard
-        v-if="shouldShowExpenses"
-        :expenses="expenses"
-        :summary="expensesSummary"
-        :loading="expensesLoading"
-        :error="expensesError"
-        :can-submit="canSubmitExpenses"
-        :can-review="canReviewExpenses"
-        :is-assigned-driver="isAssignedDriver"
-        :form="expenseForm"
-        :form-key="expenseFormKey"
-        :form-error="expenseFormError"
-        :submitting="expenseSubmitting"
-        :editing-id="editingExpenseId"
-        :receipt-downloading-id="receiptDownloadingId"
-        @submit="handleExpenseSubmit"
-        @receipt-change="onExpenseReceiptChange"
-        @cancel-edit="cancelExpenseEdit"
-        @download-receipt="handleDownloadReceipt"
-        @edit="startEditingExpense"
-        @delete="handleDeleteExpense"
-        @review="handleReviewExpense"
-      />
 
 
     </div>

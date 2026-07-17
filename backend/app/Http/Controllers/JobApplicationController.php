@@ -4,19 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use App\Models\JobApplication;
-use App\Models\MessageThread;
-use App\Notifications\JobStatusNotification;
+use App\Services\Jobs\JobApplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
-use Carbon\Carbon;
-use Illuminate\Support\Str;
 
 class JobApplicationController extends Controller
 {
-    public function index(Request $request, Job $job): JsonResponse
+    public function index(Request $request, Job $job, JobApplicationService $applications): JsonResponse
     {
         $user = $request->user();
 
@@ -24,18 +19,12 @@ class JobApplicationController extends Controller
             abort(403, 'You are not allowed to view applications for this job.');
         }
 
-        $applications = $job->applications()
-            ->with(['driver:id,name,email'])
-            ->orderByRaw("FIELD(status, 'pending', 'accepted', 'declined')")
-            ->latest()
-            ->get();
-
         return response()->json([
-            'data' => $applications,
+            'data' => $applications->listForJob($job),
         ]);
     }
 
-    public function store(Request $request, Job $job): JsonResponse
+    public function store(Request $request, Job $job, JobApplicationService $applications): JsonResponse
     {
         $user = $request->user();
 
@@ -43,62 +32,17 @@ class JobApplicationController extends Controller
             abort(403, 'Only drivers can apply for jobs.');
         }
 
-        if ($job->assigned_to_id) {
-            abort(422, 'Job has already been assigned.');
-        }
-
         $validated = $request->validate([
             'message' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $existingApplication = JobApplication::where('job_id', $job->id)
-            ->where('driver_id', $user->id)
-            ->first();
-
-        $planSlug = $user->plan_slug ?? Str::slug((string) $user->plan, '_');
-        if (!$existingApplication && $planSlug === 'starter' && !$user->isAdmin()) {
-            $dailyLimit = config('jobs.plan_limits.starter.daily_applications', 0);
-            if ($dailyLimit) {
-                $applicationsToday = JobApplication::where('driver_id', $user->id)
-                    ->where('created_at', '>=', Carbon::today())
-                    ->count();
-
-                if ($applicationsToday >= $dailyLimit) {
-                    abort(422, sprintf(
-                        'Starter plan allows up to %d applications per day. Please try again tomorrow or upgrade your plan.',
-                        $dailyLimit
-                    ));
-                }
-            }
-        }
-
-        $application = JobApplication::updateOrCreate(
-            [
-                'job_id' => $job->id,
-                'driver_id' => $user->id,
-            ],
-            [
-                'message' => $validated['message'] ?? null,
-                'status' => 'pending',
-                'responded_at' => null,
-            ]
+        return response()->json(
+            $applications->apply($job, $user, $validated['message'] ?? null),
+            201
         );
-
-        $job->loadMissing('postedBy:id,name');
-        if ($job->postedBy) {
-            Notification::send($job->postedBy, new JobStatusNotification($job->fresh(), 'driver_applied', [
-                'driver' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                ],
-                'message' => $validated['message'] ?? null,
-            ]));
-        }
-
-        return response()->json($application->fresh(), 201);
     }
 
-    public function update(Request $request, Job $job, JobApplication $application): JsonResponse
+    public function update(Request $request, Job $job, JobApplication $application, JobApplicationService $applications): JsonResponse
     {
         $user = $request->user();
 
@@ -106,87 +50,12 @@ class JobApplicationController extends Controller
             abort(403, 'Only the posting dealer can update applications.');
         }
 
-        if ($application->job_id !== $job->id) {
-            abort(404);
-        }
-
         $validated = $request->validate([
             'status' => ['required', Rule::in(['accepted', 'declined'])],
         ]);
 
-        $application = DB::transaction(function () use ($validated, $job, $application, $user) {
-            if ($application->status !== 'pending') {
-                abort(422, 'This application has already been processed.');
-            }
-
-            $status = $validated['status'];
-
-            $application->update([
-                'status' => $status,
-                'responded_at' => now(),
-            ]);
-
-            if ($status === 'accepted') {
-                $job->update([
-                    'assigned_to_id' => $application->driver_id,
-                    'status' => 'in_progress',
-                ]);
-
-                $job->applications()
-                    ->where('id', '!=', $application->id)
-                    ->where('status', 'pending')
-                    ->update([
-                        'status' => 'declined',
-                        'responded_at' => now(),
-                    ]);
-
-                $this->ensureConversationExists($job, $user->id, $application->driver_id);
-            }
-
-            return $application->fresh(['driver:id,name,email']);
-        });
-
-        $freshJob = $job->fresh(['postedBy:id,name', 'assignedTo:id,name']);
-
-        if ($application->status === 'accepted') {
-            $driver = $application->driver;
-            if ($driver) {
-                Notification::send($driver, new JobStatusNotification($freshJob, 'application_accepted', [
-                    'dealer' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                    ],
-                ]));
-            }
-        } elseif ($application->status === 'declined' && $application->driver) {
-            Notification::send($application->driver, new JobStatusNotification($freshJob, 'application_declined', [
-                'dealer' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                ],
-            ]));
-        }
-
-        return response()->json($application->fresh(['driver:id,name,email']));
-    }
-
-    protected function ensureConversationExists(Job $job, int $dealerId, int $driverId): void
-    {
-        $thread = MessageThread::query()
-            ->where('job_id', $job->id)
-            ->whereHas('participants', fn ($query) => $query->where('user_id', $dealerId))
-            ->whereHas('participants', fn ($query) => $query->where('user_id', $driverId))
-            ->first();
-
-        if ($thread) {
-            return;
-        }
-
-        $thread = MessageThread::create([
-            'job_id' => $job->id,
-            'subject' => $job->title ?: sprintf('Run #%s', $job->id),
-        ]);
-
-        $thread->participants()->attach([$dealerId, $driverId]);
+        return response()->json(
+            $applications->updateStatus($job, $application, $user, $validated['status'])
+        );
     }
 }

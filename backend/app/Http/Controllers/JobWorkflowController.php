@@ -2,59 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Invoice;
 use App\Models\Job;
-use App\Models\JobApplication;
 use App\Models\JobInspectionPhoto;
-use App\Notifications\JobStatusNotification;
-use App\Services\AwsS3Service;
-use App\Services\Invoices\InvoiceFinalizer;
+use App\Services\Jobs\JobApplicationService;
+use App\Services\Jobs\JobWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class JobWorkflowController extends Controller
 {
     private const MIN_INSPECTION_PHOTOS = 6;
 
+    public function __construct(
+        protected JobApplicationService $applications,
+        protected JobWorkflowService $workflow,
+    ) {
+    }
+
     public function accept(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
 
-        if (!$user || (!$user->isDriver() && !$user->isAdmin())) {
+        if (! $user || (! $user->isDriver() && ! $user->isAdmin())) {
             abort(403, 'Only drivers can apply for jobs.');
         }
 
-        if ($job->assigned_to_id) {
-            abort(422, 'Job has already been assigned.');
-        }
+        $validated = $request->validate([
+            'message' => ['nullable', 'string', 'max:1000'],
+        ]);
 
-        $application = JobApplication::updateOrCreate(
-            [
-                'job_id' => $job->id,
-                'driver_id' => $user->id,
-            ],
-            [
-                'status' => 'pending',
-                'message' => $request->filled('message')
-                    ? $request->string('message')->toString()
-                    : null,
-                'responded_at' => null,
-            ]
-        );
-
-        $job->loadMissing('postedBy:id,name');
-        if ($job->postedBy) {
-            Notification::send($job->postedBy, new JobStatusNotification($job->fresh(), 'driver_applied', [
-                'driver' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                ],
-                'message' => $request->filled('message') ? $request->string('message')->toString() : null,
-            ]));
-        }
+        $application = $this->applications->apply($job, $user, $validated['message'] ?? null);
 
         return response()->json([
             'message' => 'Application submitted. Waiting for dealer approval.',
@@ -64,64 +42,21 @@ class JobWorkflowController extends Controller
 
     public function collected(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->assigned_to_id !== $user->id)) {
-            abort(403, 'You cannot update this job.');
-        }
+        $this->authorizeAssignedDriver($request, $job, 'You cannot update this job.');
 
-        $this->ensureDealerPaymentHeld($job);
-
-        if (!$job->delivery_proof_path) {
-            abort(422, 'Upload the pre-delivery inspection photos before marking this run as collected.');
-        }
-
-        if ($job->completion_status !== 'inspection_approved') {
-            abort(422, 'The dealer must approve the inspection photos before collection.');
-        }
-
-        $job->update([
-            'status' => 'collected'
-        ]);
-
-        $this->notifyDealer($job->fresh(), 'driver_marked_collected');
-
-        return response()->json($job);
+        return response()->json($this->workflow->markCollected($job));
     }
 
     public function delivered(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->assigned_to_id !== $user->id)) {
-            abort(403, 'You cannot update this job.');
-        }
+        $this->authorizeAssignedDriver($request, $job, 'You cannot update this job.');
 
-        $this->ensureDealerPaymentHeld($job);
-
-        $job->update([
-            'status' => 'delivered'
-        ]);
-
-        $this->notifyDealer($job->fresh(), 'driver_marked_delivered');
-
-        return response()->json($job);
+        return response()->json($this->workflow->markDelivered($job));
     }
 
     public function inspection(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->assigned_to_id !== $user->id)) {
-            abort(403, 'Only the assigned driver can upload inspection photos.');
-        }
-
-        if ($job->finalized_invoice_id) {
-            abort(422, 'This job has already been finalized.');
-        }
-
-        $this->ensureDealerPaymentHeld($job);
-
-        if (!in_array(strtolower((string) $job->status), ['accepted', 'in_progress'], true)) {
-            abort(422, 'Inspection photos should be uploaded before collection starts.');
-        }
+        $user = $this->authorizeAssignedDriver($request, $job, 'Only the assigned driver can upload inspection photos.');
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -129,30 +64,18 @@ class JobWorkflowController extends Controller
             'proofs.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif', 'max:' . config('invoices.proof_max_size_kb')],
         ]);
 
-        $paths = $this->storeProofFiles($request, $job);
-        if (empty($paths)) {
-            abort(422, 'Upload inspection photos before collection.');
-        }
-
-        $job->update([
-            'completion_notes' => $validated['notes'] ?? $job->completion_notes,
-            'completion_status' => $job->completion_status === 'rejected' ? 'not_submitted' : $job->completion_status,
-            'completion_rejected_at' => null,
-            'delivery_proof_path' => $paths[0],
-            'delivery_proof_disk' => config('invoices.proof_disk'),
-        ]);
-
-        $this->notifyDealer($job->fresh(), 'driver_uploaded_inspection', [
-            'notes' => $validated['notes'] ?? null,
-        ]);
-
-        return response()->json($job->fresh());
+        return response()->json($this->workflow->uploadInspection(
+            $job,
+            $user,
+            $validated['notes'] ?? null,
+            $request->file('proofs', [])
+        ));
     }
 
     public function cancel(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -160,308 +83,80 @@ class JobWorkflowController extends Controller
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        if ($user->isAdmin() || $job->posted_by_id === $user->id) {
-            $assigned = $job->assignedTo;
-
-            $job->update([
-                'status' => 'cancelled',
-                'assigned_to_id' => null
-            ]);
-
-            if ($assigned) {
-                Notification::send($assigned, new JobStatusNotification($job, 'dealer_cancelled_job', [
-                    'reason' => $validated['reason'] ?? null,
-                ]));
-            }
-
-            return response()->json($job);
-        }
-
-        if ($job->assigned_to_id !== $user->id) {
-            abort(403, 'You cannot cancel this job.');
-        }
-
-        if (in_array(strtolower((string) $job->status), ['completed', 'delivered', 'closed'], true)) {
-            abort(422, 'Completed jobs cannot be cancelled.');
-        }
-
-        if ($job->delivery_proof_path) {
-            $this->deleteProofs($job);
-        }
-
-        $job->update([
-            'status' => 'open',
-            'assigned_to_id' => null,
-            'completion_status' => 'not_submitted',
-            'completion_submitted_at' => null,
-            'completion_notes' => null,
-            'completion_approved_at' => null,
-            'completion_rejected_at' => null,
-            'delivery_proof_path' => null,
-            'delivery_proof_disk' => null,
-        ]);
-
-        JobApplication::query()
-            ->where('job_id', $job->id)
-            ->where('driver_id', $user->id)
-            ->update([
-                'status' => 'withdrawn',
-                'responded_at' => now(),
-            ]);
-
-        $this->notifyDealer($job->fresh(), 'driver_cancelled_job', [
-            'reason' => $validated['reason'] ?? null,
-        ]);
-
-        return response()->json($job);
+        return response()->json($this->workflow->cancel($job, $user, $validated['reason'] ?? null));
     }
 
     public function complete(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->assigned_to_id !== $user->id)) {
-            abort(403, 'Only the assigned driver can submit completion.');
-        }
-
-        if ($job->finalized_invoice_id) {
-            abort(422, 'This job has already been finalized.');
-        }
-
-        $this->ensureDealerPaymentHeld($job);
+        $user = $this->authorizeAssignedDriver($request, $job, 'Only the assigned driver can submit completion.');
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:2000'],
             'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
         ]);
 
-        if (!in_array(strtolower((string) $job->status), ['delivered'], true)) {
-            abort(422, 'Mark the run as delivered before submitting completion.');
-        }
-
-        if (!$job->delivery_proof_path && !$request->hasFile('proof')) {
-            abort(422, 'Upload the pre-delivery inspection photos before submitting completion.');
-        }
-
-        if ($job->completion_status !== 'inspection_approved') {
-            abort(422, 'The dealer must approve the inspection photos before completion can be submitted.');
-        }
-
-        $updates = [
-            'status' => 'completion_pending',
-            'completion_status' => 'submitted',
-            'completion_submitted_at' => now(),
-            'completion_notes' => $validated['notes'] ?? null,
-        ];
-
-        if ($request->hasFile('proof')) {
-            $updates['delivery_proof_path'] = $this->storeProofFile($request, $job)[0] ?? $job->delivery_proof_path;
-            $updates['delivery_proof_disk'] = config('invoices.proof_disk');
-        }
-
-        $job->update($updates);
-
-        $this->notifyDealer($job->fresh(), 'driver_submitted_completion', [
-            'notes' => $validated['notes'] ?? null,
-        ]);
-
-        return response()->json($job->fresh());
+        return response()->json($this->workflow->submitCompletion(
+            $job,
+            $user,
+            $validated['notes'] ?? null,
+            $request->file('proof')
+        ));
     }
 
-    public function approveCompletion(Request $request, Job $job, InvoiceFinalizer $finalizer): JsonResponse
+    public function approveCompletion(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
-            abort(403, 'Only the posting dealer can approve completion.');
-        }
+        $user = $this->authorizePostingDealer($request, $job, 'Only the posting dealer can approve completion.');
 
-        if ($job->completion_status !== 'submitted') {
-            abort(422, 'Completion has not been submitted or was already handled.');
-        }
-
-        if (!$job->delivery_proof_path) {
-            abort(422, 'Pre-delivery inspection photos are required before approval.');
-        }
-
-        if (!in_array(strtolower((string) $job->status), ['delivered', 'completion_pending', 'completed', 'closed'], true)) {
-            abort(422, 'The run must be delivered before approval.');
-        }
-
-        $this->ensureDealerPaymentHeld($job);
-
-        $job->loadMissing(['expenses']);
-        $invoice = $finalizer->finalize($job, $user);
-
-        if ($job->assignedTo) {
-            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'completion_approved'));
-        }
-
-        return response()->json([
-            'message' => 'Job completion approved and invoice generated.',
-            'invoice' => $this->summariseInvoice($invoice),
-        ]);
+        return response()->json($this->workflow->approveCompletion($job, $user));
     }
 
     public function rejectCompletion(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
-            abort(403, 'Only the posting dealer can reject completion.');
-        }
-
-        if ($job->completion_status !== 'submitted') {
-            abort(422, 'There is no submitted completion to reject.');
-        }
+        $this->authorizePostingDealer($request, $job, 'Only the posting dealer can reject completion.');
 
         $validated = $request->validate([
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $job->update([
-            'status' => 'in_progress',
-            'completion_status' => 'rejected',
-            'completion_rejected_at' => now(),
-            'completion_notes' => $validated['reason'] ?? $job->completion_notes,
-        ]);
-
-        if ($job->assignedTo) {
-            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'completion_rejected', [
-                'reason' => $validated['reason'] ?? null,
-            ]));
-        }
-
-        return response()->json($job->fresh());
+        return response()->json($this->workflow->rejectCompletion($job, $validated['reason'] ?? null));
     }
 
     public function approveInspection(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
-            abort(403, 'Only the posting dealer can approve inspection photos.');
-        }
+        $this->authorizePostingDealer($request, $job, 'Only the posting dealer can approve inspection photos.');
 
-        if (!$job->delivery_proof_path) {
-            abort(422, 'Inspection photos are required before approval.');
-        }
-
-        if ($job->finalized_invoice_id) {
-            abort(422, 'This job has already been finalized.');
-        }
-
-        if (!in_array($job->completion_status, ['not_submitted', 'rejected', 'inspection_approved'], true)) {
-            abort(422, 'This inspection cannot be reviewed at this stage.');
-        }
-
-        $job->update([
-            'completion_status' => 'inspection_approved',
-            'completion_rejected_at' => null,
-        ]);
-
-        if ($job->assignedTo) {
-            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'inspection_approved'));
-        }
-
-        return response()->json($job->fresh(['inspectionPhotos']));
+        return response()->json($this->workflow->approveInspection($job));
     }
 
     public function requestInspectionChanges(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
-            abort(403, 'Only the posting dealer can request more inspection photos.');
-        }
-
-        if (!$job->delivery_proof_path) {
-            abort(422, 'There are no inspection photos to review.');
-        }
-
-        if ($job->finalized_invoice_id) {
-            abort(422, 'This job has already been finalized.');
-        }
+        $this->authorizePostingDealer($request, $job, 'Only the posting dealer can request more inspection photos.');
 
         $validated = $request->validate([
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $this->deleteProofs($job);
-
-        $job->update([
-            'completion_status' => 'rejected',
-            'completion_rejected_at' => now(),
-            'completion_notes' => $validated['reason'] ?? $job->completion_notes,
-            'delivery_proof_path' => null,
-            'delivery_proof_disk' => null,
-        ]);
-
-        if ($job->assignedTo) {
-            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'inspection_changes_requested', [
-                'reason' => $validated['reason'] ?? null,
-            ]));
-        }
-
-        return response()->json($job->fresh(['inspectionPhotos']));
+        return response()->json($this->workflow->requestInspectionChanges($job, $validated['reason'] ?? null));
     }
 
-    public function dealerComplete(Request $request, Job $job, InvoiceFinalizer $finalizer): JsonResponse
+    public function dealerComplete(Request $request, Job $job): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->authorizePostingDealer($request, $job, 'Only the posting dealer can mark this job as completed.', true);
 
-        if (!$user || (!$user->isAdmin() && !$user->isDealer()) || $job->posted_by_id !== $user->id) {
-            abort(403, 'Only the posting dealer can mark this job as completed.');
-        }
-
-        if (!$job->assigned_to_id) {
-            abort(422, 'Assign a driver before completing the job.');
-        }
-
-        if ($job->status === 'completed') {
-            return response()->json([
-                'job' => $job->fresh(),
-                'invoice' => $job->finalizedInvoice,
-            ]);
-        }
-
-        if (!$job->delivery_proof_path) {
-            abort(422, 'Pre-delivery inspection photos are required before completing the job.');
-        }
-
-        if (!in_array(strtolower((string) $job->status), ['delivered', 'completion_pending'], true)) {
-            abort(422, 'The driver must mark the run delivered before completion can be approved.');
-        }
-
-        if ($job->completion_status !== 'submitted') {
-            abort(422, 'The driver must submit completion before the dealer can approve it.');
-        }
-
-        $invoice = $finalizer->finalize($job->fresh(), $user);
-
-        if ($job->assignedTo) {
-            Notification::send($job->assignedTo, new JobStatusNotification($job->fresh(), 'completion_approved'));
-        }
-
-        return response()->json([
-            'job' => $job->fresh(),
-            'invoice' => $this->summariseInvoice($invoice),
-        ]);
+        return response()->json($this->workflow->dealerComplete($job, $user));
     }
 
     public function deliveryProof(Request $request, Job $job)
     {
-        $user = $request->user();
-        if (!$user) {
-            abort(401);
-        }
+        $this->authorizeProofViewer($request, $job);
 
-        if (!$user->isAdmin() && $job->posted_by_id !== $user->id && $job->assigned_to_id !== $user->id) {
-            abort(403, 'You cannot view this proof.');
-        }
-
-        if (!$job->delivery_proof_path) {
+        if (! $job->delivery_proof_path) {
             abort(404, 'No pre-delivery inspection photos uploaded.');
         }
 
         $disk = $job->delivery_proof_disk ?? config('invoices.proof_disk');
         $storage = Storage::disk($disk);
-        if (!$storage->exists($job->delivery_proof_path)) {
+        if (! $storage->exists($job->delivery_proof_path)) {
             abort(404, 'Proof file not found.');
         }
 
@@ -473,21 +168,14 @@ class JobWorkflowController extends Controller
 
     public function inspectionPhoto(Request $request, Job $job, JobInspectionPhoto $photo)
     {
-        $user = $request->user();
-        if (!$user) {
-            abort(401);
-        }
+        $this->authorizeProofViewer($request, $job);
 
         if ((int) $photo->job_id !== (int) $job->id) {
             abort(404);
         }
 
-        if (!$user->isAdmin() && $job->posted_by_id !== $user->id && $job->assigned_to_id !== $user->id) {
-            abort(403, 'You cannot view this inspection photo.');
-        }
-
         $storage = Storage::disk($photo->disk ?? config('invoices.proof_disk'));
-        if (!$storage->exists($photo->path)) {
+        if (! $storage->exists($photo->path)) {
             abort(404, 'Inspection photo not found.');
         }
 
@@ -496,111 +184,41 @@ class JobWorkflowController extends Controller
         return $storage->response($photo->path, $filename, [], 'inline');
     }
 
-    protected function deleteProofs(Job $job): void
+    protected function authorizeAssignedDriver(Request $request, Job $job, string $message)
     {
-        $photos = $job->inspectionPhotos()->get();
+        $user = $request->user();
 
-        if ($photos->isEmpty() && !$job->delivery_proof_path) {
-            return;
+        if (! $user || (! $user->isAdmin() && $job->assigned_to_id !== $user->id)) {
+            abort(403, $message);
         }
 
-        foreach ($photos as $photo) {
-            $storage = Storage::disk($photo->disk ?? config('invoices.proof_disk'));
-            if ($storage->exists($photo->path)) {
-                $storage->delete($photo->path);
-            }
-        }
-
-        if ($photos->isEmpty() && $job->delivery_proof_path) {
-            $disk = $job->delivery_proof_disk ?? config('invoices.proof_disk');
-            $storage = Storage::disk($disk);
-            if ($storage->exists($job->delivery_proof_path)) {
-                $storage->delete($job->delivery_proof_path);
-            }
-        }
-
-        $job->inspectionPhotos()->delete();
+        return $user;
     }
 
-    protected function storeProofFile(Request $request, Job $job): array
+    protected function authorizePostingDealer(Request $request, Job $job, string $message, bool $dealerRoleRequired = false)
     {
-        return $this->storeProofFiles($request, $job);
-    }
+        $user = $request->user();
 
-    protected function storeProofFiles(Request $request, Job $job): array
-    {
-        $proofDisk = config('invoices.proof_disk');
-        $files = collect($request->file('proofs', []));
-
-        if ($request->hasFile('proof')) {
-            $files->prepend($request->file('proof'));
+        if (! $user || (! $user->isAdmin() && $job->posted_by_id !== $user->id)) {
+            abort(403, $message);
         }
 
-        if ($job->delivery_proof_path) {
-            $this->deleteProofs($job);
+        if ($dealerRoleRequired && ! $user->isAdmin() && ! $user->isDealer()) {
+            abort(403, $message);
         }
 
-        return $files
-            ->filter()
-            ->values()
-            ->map(function ($file, int $index) use ($job, $proofDisk) {
-                $directory = $this->inspectionDirectory($job);
-                $extension = $file->getClientOriginalExtension() ?: 'jpg';
-                $filename = sprintf('%s-%02d-%s.%s', now()->format('YmdHis'), $index + 1, Str::ulid(), $extension);
-
-                $path = app(AwsS3Service::class)->uploadFile($file, $directory, $filename, $proofDisk);
-
-                JobInspectionPhoto::create([
-                    'job_id' => $job->id,
-                    'uploaded_by_id' => request()->user()?->id,
-                    'disk' => $proofDisk,
-                    'path' => $path,
-                    'original_name' => $file->getClientOriginalName() ?: $filename,
-                    'mime_type' => $file->getMimeType(),
-                    'size' => $file->getSize(),
-                    'sort_order' => $index + 1,
-                ]);
-
-                return $path;
-            })
-            ->all();
+        return $user;
     }
 
-    protected function inspectionDirectory(Job $job): string
+    protected function authorizeProofViewer(Request $request, Job $job): void
     {
-        $reference = Str::lower((string) ($job->title ?: sprintf('job-%d', $job->id)));
-        $reference = preg_replace('/[^a-z0-9]+/', '', $reference) ?: sprintf('job%d', $job->id);
-
-        return sprintf('%s/inspection', $reference);
-    }
-
-    protected function notifyDealer(Job $job, string $event, ?array $meta = null): void
-    {
-        $job->loadMissing(['postedBy:id,name']);
-        if (!$job->postedBy) {
-            return;
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
         }
 
-        Notification::send($job->postedBy, new JobStatusNotification($job, $event, $meta));
-    }
-
-    protected function ensureDealerPaymentHeld(Job $job): void
-    {
-        if (!in_array($job->payment_status, ['paid', 'payout_released'], true)) {
-            abort(422, 'Dealer payment must be held before the driver can progress this job.');
+        if (! $user->isAdmin() && $job->posted_by_id !== $user->id && $job->assigned_to_id !== $user->id) {
+            abort(403, 'You cannot view this proof.');
         }
-    }
-
-    protected function summariseInvoice(Invoice $invoice): array
-    {
-        return [
-            'id' => $invoice->id,
-            'number' => $invoice->number,
-            'status' => $invoice->status,
-            'currency' => $invoice->currency,
-            'total' => $invoice->total,
-            'issued_at' => $invoice->issued_at,
-            'finalized_at' => $invoice->finalized_at,
-        ];
     }
 }

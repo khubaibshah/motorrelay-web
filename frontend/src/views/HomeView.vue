@@ -1,15 +1,18 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useNotificationsStore } from '@/stores/notifications';
 import { fetchDriverOverview, fetchJobHighlights } from '@/services/jobs';
 import { formatSentenceStatus } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
+const notifications = useNotificationsStore();
 const jobs = ref([]);
 const driverActiveJobs = ref([]);
 const driverOverview = ref(null);
 const loading = ref(false);
+let dealerApplicationRefreshTimer = null;
 
 const priceFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -18,6 +21,11 @@ const priceFormatter = new Intl.NumberFormat('en-GB', {
 });
 
 onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+    window.addEventListener('motorrelay:notification', handleRealtimeNotification);
+  }
+
   if ((!auth.user || auth.role === 'dealer') && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
@@ -40,6 +48,23 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+    window.removeEventListener('motorrelay:notification', handleRealtimeNotification);
+    window.clearTimeout(dealerApplicationRefreshTimer);
+  }
+});
+
+watch(
+  () => notifications.items.map((notification) => notification?.id).join('|'),
+  () => {
+    if (notifications.items.some(isDealerApplicationNotification)) {
+      scheduleDealerApplicationRefresh();
+    }
+  }
+);
 
 const roleLabel = computed(() => {
   if (auth.role === 'driver') return 'Driver workspace';
@@ -156,6 +181,47 @@ function applicationCount(job) {
 function applicationCountLabel(job) {
   const count = applicationCount(job);
   return `${count} ${count === 1 ? 'app' : 'apps'}`;
+}
+
+function isDealerApplicationEvent(detail = {}) {
+  const eventName = String(
+    detail?.event
+    ?? detail?.notification?.data?.event
+    ?? detail?.notification?.event
+    ?? ''
+  );
+
+  return eventName === 'driver_applied' || eventName.includes('application');
+}
+
+function isDealerApplicationNotification(notification = {}) {
+  return isDealerApplicationEvent({
+    event: notification?.data?.event ?? notification?.event,
+    notification
+  });
+}
+
+function handleRealtimeJobEvent(event) {
+  if (auth.role !== 'dealer' || !auth.token) return;
+  if (!isDealerApplicationEvent(event?.detail)) return;
+  scheduleDealerApplicationRefresh();
+}
+
+function handleRealtimeNotification(event) {
+  if (auth.role !== 'dealer' || !auth.token) return;
+  if (!isDealerApplicationNotification(event?.detail)) return;
+  scheduleDealerApplicationRefresh();
+}
+
+function scheduleDealerApplicationRefresh() {
+  if (typeof window === 'undefined') return;
+
+  window.clearTimeout(dealerApplicationRefreshTimer);
+  dealerApplicationRefreshTimer = window.setTimeout(() => {
+    auth.fetchMe().catch((error) => {
+      console.warn('Failed to refresh dealer application runs', error);
+    });
+  }, 150);
 }
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));

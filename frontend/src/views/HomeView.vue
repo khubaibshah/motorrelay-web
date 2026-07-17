@@ -3,15 +3,17 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationsStore } from '@/stores/notifications';
-import { fetchDriverOverview, fetchJob, fetchJobHighlights } from '@/services/jobs';
+import { useDriverStore } from '@/stores/driver';
+import { useDealerStore } from '@/stores/dealer';
+import { useJobsStore } from '@/stores/jobs';
 import { formatSentenceStatus } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
 const notifications = useNotificationsStore();
-const jobs = ref([]);
-const realtimeApplicationJobs = ref([]);
-const driverActiveJobs = ref([]);
-const driverOverview = ref(null);
+const jobsStore = useJobsStore();
+const driverStore = useDriverStore();
+const dealerStore = useDealerStore();
+const jobs = computed(() => jobsStore.highlights);
 const loading = ref(false);
 let dealerApplicationRefreshTimer = null;
 
@@ -30,21 +32,20 @@ onMounted(async () => {
   if ((!auth.user || auth.role === 'dealer') && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
+  dealerStore.syncFromProfile(auth.jobs?.posted ?? []);
 
   loading.value = true;
   try {
-    const payload = await fetchJobHighlights();
-    jobs.value = Array.isArray(payload?.jobs) ? payload.jobs : [];
+    await jobsStore.fetchHighlights();
 
     if (auth.role === 'driver') {
-      driverOverview.value = await fetchDriverOverview();
-      driverActiveJobs.value = Array.isArray(driverOverview.value?.active) ? driverOverview.value.active : [];
+      await driverStore.fetchOverview();
     }
   } catch (error) {
     console.error('Failed to load highlight jobs', error);
-    jobs.value = [];
-    driverActiveJobs.value = [];
-    driverOverview.value = null;
+    jobsStore.highlights = [];
+    driverStore.reset();
+    dealerStore.reset();
   } finally {
     loading.value = false;
   }
@@ -75,8 +76,7 @@ const roleLabel = computed(() => {
 });
 
 const postedJobs = computed(() => {
-  const list = Array.isArray(auth.postedJobs) ? auth.postedJobs : auth.jobs?.posted;
-  return Array.isArray(list) ? [...list] : [];
+  return dealerStore.postedJobs;
 });
 
 const sortByRecentActivity = (items) =>
@@ -94,7 +94,7 @@ const dealerApplicationJobs = computed(() =>
 const visibleDealerApplicationJobs = computed(() => {
   const jobsById = new Map();
 
-  [...realtimeApplicationJobs.value, ...dealerApplicationJobs.value].forEach((job) => {
+  [...dealerStore.applicationJobs, ...dealerApplicationJobs.value].forEach((job) => {
     if (!job?.id) return;
     jobsById.set(Number(job.id), {
       ...(jobsById.get(Number(job.id)) ?? {}),
@@ -108,18 +108,16 @@ const visibleDealerApplicationJobs = computed(() => {
 
   return sortByRecentActivity(Array.from(jobsById.values()));
 });
-const driverUpcomingRuns = computed(() => sortByRecentActivity(driverActiveJobs.value).slice(0, 3));
+const driverUpcomingRuns = computed(() => sortByRecentActivity(driverStore.activeJobs).slice(0, 3));
 const driverCurrentJob = computed(() => driverUpcomingRuns.value[0] || null);
 const hasDriverCurrentJob = computed(() => Boolean(driverCurrentJob.value));
 const driverPendingApplications = computed(() => {
-  const applications = driverOverview.value?.applications ?? [];
-  return Array.isArray(applications) ? applications : [];
+  return Array.isArray(driverStore.pendingApplications) ? driverStore.pendingApplications : [];
 });
 const driverCompletedRuns = computed(() => {
-  const runs = driverOverview.value?.completed ?? [];
-  return Array.isArray(runs) ? runs : [];
+  return Array.isArray(driverStore.completedJobs) ? driverStore.completedJobs : [];
 });
-const driverStats = computed(() => driverOverview.value?.stats ?? {});
+const driverStats = computed(() => driverStore.stats);
 
 const primaryAction = computed(() => {
   if (auth.role === 'driver' && driverCurrentJob.value) return { to: `/jobs/${driverCurrentJob.value.id}`, label: 'Continue current run' };
@@ -250,50 +248,11 @@ function notificationJobTitle(detail = {}) {
 }
 
 function upsertDealerApplicationJob(job) {
-  if (!job?.id) return;
-
-  const jobId = Number(job.id);
-  const existing = realtimeApplicationJobs.value.find((item) => Number(item?.id) === jobId)
-    ?? postedJobs.value.find((item) => Number(item?.id) === jobId)
-    ?? {};
-
-  const mergedJob = {
-    ...existing,
-    ...job,
-    id: jobId,
-    pending_applications_count: Math.max(1, applicationCount(existing), applicationCount(job)),
-    applications_count: Math.max(1, Number(existing?.applications_count ?? 0), Number(job?.applications_count ?? 0)),
-    updated_at: job?.updated_at ?? new Date().toISOString()
-  };
-
-  realtimeApplicationJobs.value = [
-    mergedJob,
-    ...realtimeApplicationJobs.value.filter((item) => Number(item?.id) !== jobId)
-  ];
+  dealerStore.upsertApplicationJob(job);
 }
 
 function syncAuthPostedJob(job) {
-  if (!job?.id) return;
-
-  const currentPostedJobs = Array.isArray(auth.jobs?.posted) ? auth.jobs.posted : [];
-  const jobId = Number(job.id);
-  const existing = currentPostedJobs.find((item) => Number(item?.id) === jobId) ?? {};
-  const mergedJob = {
-    ...existing,
-    ...job,
-    id: jobId,
-    pending_applications_count: Math.max(1, applicationCount(existing), applicationCount(job)),
-    applications_count: Math.max(1, Number(existing?.applications_count ?? 0), Number(job?.applications_count ?? 0)),
-    updated_at: job?.updated_at ?? new Date().toISOString()
-  };
-
-  auth.jobs = {
-    ...(auth.jobs ?? {}),
-    posted: [
-      mergedJob,
-      ...currentPostedJobs.filter((item) => Number(item?.id) !== jobId)
-    ]
-  };
+  dealerStore.upsertApplicationJob(job);
 }
 
 async function handleDealerApplicationUpdate(detail = {}) {
@@ -309,17 +268,8 @@ async function handleDealerApplicationUpdate(detail = {}) {
       applications_count: 1
     });
 
-    fetchJob(jobId)
-      .then((job) => {
-        const applicationCountFromDetail = Array.isArray(job?.applications) ? job.applications.length : 1;
-        const enrichedJob = {
-          ...job,
-          pending_applications_count: Number(job?.pending_applications_count ?? applicationCountFromDetail) || 1,
-          applications_count: Number(job?.applications_count ?? applicationCountFromDetail) || 1
-        };
-        upsertDealerApplicationJob(enrichedJob);
-        syncAuthPostedJob(enrichedJob);
-      })
+    dealerStore.refreshApplicationJob(jobId)
+      .then((job) => upsertDealerApplicationJob(job))
       .catch((error) => {
         console.warn('Failed to fetch applied run for dealer home', error);
       });

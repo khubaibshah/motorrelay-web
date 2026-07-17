@@ -1,14 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { fetchDriverOverview } from '@/services/jobs';
 import { useAuthStore } from '@/stores/auth';
+import { useDriverStore } from '@/stores/driver';
 import { formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
+const driver = useDriverStore();
 
-const overview = ref(null);
-const loading = ref(false);
+const overview = computed(() => driver.overview);
+const loading = computed(() => driver.loading);
 const errorMessage = ref('');
 const driverTab = ref('active');
 
@@ -53,16 +54,12 @@ function formatDate(value) {
 }
 
 async function loadOverview() {
-  loading.value = true;
   errorMessage.value = '';
   try {
-    overview.value = await fetchDriverOverview();
+    await driver.fetchOverview();
   } catch (error) {
     console.error('Failed to load driver overview', error);
     errorMessage.value = 'We could not load your dashboard. Please try again.';
-    overview.value = null;
-  } finally {
-    loading.value = false;
   }
 }
 

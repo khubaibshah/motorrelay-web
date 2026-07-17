@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { fetchJob, fetchJobs } from '@/services/jobs';
+import { fetchJob, fetchJobs, fetchJobHighlights } from '@/services/jobs';
 
 function listKey(params = {}) {
   return JSON.stringify(
@@ -22,6 +22,9 @@ export const useJobsStore = defineStore('jobs', {
   state: () => ({
     lists: {},
     details: {},
+    highlights: [],
+    highlightsFetchedAt: null,
+    highlightsLoading: false,
     loading: false,
     error: null,
     lastUpdatedAt: null
@@ -33,6 +36,19 @@ export const useJobsStore = defineStore('jobs', {
   },
 
   actions: {
+    async fetchHighlights({ force = false } = {}) {
+      if (!force && this.highlightsFetchedAt !== null) return this.highlights;
+      this.highlightsLoading = true;
+      try {
+        const payload = await fetchJobHighlights();
+        this.highlights = Array.isArray(payload?.jobs) ? payload.jobs : [];
+        this.highlightsFetchedAt = Date.now();
+        return this.highlights;
+      } finally {
+        this.highlightsLoading = false;
+      }
+    },
+
     async fetchList(params = {}, { force = false } = {}) {
       const key = listKey(params);
       const cached = this.lists[key];
@@ -100,6 +116,9 @@ export const useJobsStore = defineStore('jobs', {
     reset() {
       this.lists = {};
       this.details = {};
+      this.highlights = [];
+      this.highlightsFetchedAt = null;
+      this.highlightsLoading = false;
       this.loading = false;
       this.error = null;
       this.lastUpdatedAt = null;

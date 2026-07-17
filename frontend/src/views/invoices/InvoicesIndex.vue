@@ -1,13 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { fetchInvoices, downloadInvoice } from '@/services/invoices';
+import { downloadInvoice } from '@/services/invoices';
 import { useAuthStore } from '@/stores/auth';
+import { useInvoicesStore } from '@/stores/invoices';
 
 const auth = useAuthStore();
+const invoiceStore = useInvoicesStore();
 const route = useRoute();
-const invoices = ref([]);
-const loading = ref(false);
+const invoices = computed(() => invoiceStore.items);
+const loading = computed(() => invoiceStore.loading);
 const downloadingId = ref(null);
 const errorMessage = ref('');
 const focusedJobId = computed(() => (typeof route.query.job === 'string' ? route.query.job : null));
@@ -49,15 +51,13 @@ async function loadInvoices() {
     return;
   }
 
-  loading.value = true;
   errorMessage.value = '';
   try {
-    const payload = await fetchInvoices();
-    invoices.value = Array.isArray(payload?.data) ? payload.data : [];
+    await invoiceStore.fetch();
   } catch (error) {
     console.error('Failed to load invoices', error);
     errorMessage.value = 'Unable to load invoices right now.';
-    invoices.value = [];
+    invoiceStore.reset();
   } finally {
     loading.value = false;
   }

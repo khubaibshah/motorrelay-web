@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\JobLocationUpdated;
 use App\Models\Job;
 use App\Models\Message;
 use App\Models\MessageThread;
@@ -41,7 +42,7 @@ class JobTrackingController extends Controller
             'source' => ['nullable', 'string', 'max:100'],
         ]);
 
-        [$messagePayload, $jobPayload] = DB::transaction(function () use ($validated, $job, $user) {
+        [$messagePayload, $jobPayload, $locationPayload] = DB::transaction(function () use ($validated, $job, $user) {
             $job->update([
                 'current_latitude' => $validated['latitude'],
                 'current_longitude' => $validated['longitude'],
@@ -110,8 +111,11 @@ class JobTrackingController extends Controller
                     'current_longitude' => $job->current_longitude,
                     'last_tracked_at' => $job->last_tracked_at,
                 ],
+                $meta['location'],
             ];
         });
+
+        broadcast(new JobLocationUpdated($job->fresh(), $locationPayload));
 
         return response()->json([
             'message' => $messagePayload,

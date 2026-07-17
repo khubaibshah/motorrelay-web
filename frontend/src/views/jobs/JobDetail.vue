@@ -30,6 +30,7 @@ import {
 } from "@/services/jobs";
 import { fetchThreadMessages, fetchThreads, sendMessage } from "@/services/messages";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
+import { createEchoClient } from "@/services/realtime";
 import { useAuthStore } from "@/stores/auth";
 import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
@@ -139,6 +140,8 @@ const payoutReleaseLoading = ref(false);
 const paymentError = ref("");
 const paymentNotice = ref("");
 const realtimeReloadTimer = ref(null);
+const liveTrackingChannel = ref(null);
+const liveTrackingInterval = ref(null);
 
 const priceFormatter = new Intl.NumberFormat("en-GB", {
   style: "currency",
@@ -210,13 +213,17 @@ async function getCurrentPosition(options = {}) {
   });
 }
 
-async function shareLiveLocation() {
+async function sendLiveLocationUpdate({ silent = false } = {}) {
   if (!job.value) return;
-  trackingState.error = "";
-  trackingState.requestNotice = "";
-  trackingState.locationBlocked = false;
-  trackingState.locationServicesOff = false;
-  trackingState.sending = true;
+
+  if (!silent) {
+    trackingState.error = "";
+    trackingState.requestNotice = "";
+    trackingState.locationBlocked = false;
+    trackingState.locationServicesOff = false;
+    trackingState.sending = true;
+  }
+
   try {
     const position = await getCurrentPosition({
       enableHighAccuracy: true,
@@ -255,12 +262,45 @@ async function shareLiveLocation() {
     console.error("Failed to share live location", error);
     trackingState.locationServicesOff = isLocationServicesDisabledError(error);
     trackingState.locationBlocked = !trackingState.locationServicesOff && isLocationPermissionBlockedError(error);
-    trackingState.error =
-      error?.response?.data?.message ||
-      geolocationErrorMessage(error) ||
-      "We could not determine your current location. Please try again.";
+    if (!silent) {
+      trackingState.error =
+        error?.response?.data?.message ||
+        geolocationErrorMessage(error) ||
+        "We could not determine your current location. Please try again.";
+    } else if (trackingState.locationBlocked || trackingState.locationServicesOff) {
+      stopLiveTrackingUpdates();
+    }
   } finally {
-    trackingState.sending = false;
+    if (!silent) {
+      trackingState.sending = false;
+    }
+  }
+}
+
+function startLiveTrackingUpdates() {
+  if (typeof window === "undefined" || liveTrackingInterval.value || !canShareTracking.value) return;
+
+  liveTrackingInterval.value = window.setInterval(() => {
+    if (!canShareTracking.value || hasTrackingEnded.value) {
+      stopLiveTrackingUpdates();
+      return;
+    }
+
+    sendLiveLocationUpdate({ silent: true }).catch(() => null);
+  }, 25000);
+}
+
+function stopLiveTrackingUpdates() {
+  if (liveTrackingInterval.value && typeof window !== "undefined") {
+    window.clearInterval(liveTrackingInterval.value);
+  }
+  liveTrackingInterval.value = null;
+}
+
+async function shareLiveLocation() {
+  await sendLiveLocationUpdate();
+  if (!trackingState.error && trackingState.shared) {
+    startLiveTrackingUpdates();
   }
 }
 
@@ -631,6 +671,35 @@ const shouldShowTrackingCard = computed(() => canShareTracking.value || canReque
 const canUseDriverMode = computed(() => {
   if (!Capacitor.isNativePlatform()) return false;
   return canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value;
+});
+
+const liveTrackingLocation = computed(() => {
+  const latitude = Number(job.value?.current_latitude);
+  const longitude = Number(job.value?.current_longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    lat: latitude,
+    lng: longitude
+  };
+});
+
+const shouldShowDealerLiveTracking = computed(() => {
+  return (currentRole.value === "admin" || isDealerForJob.value) && Boolean(liveTrackingLocation.value);
+});
+
+const dealerLiveTrackingMapSrc = computed(() => {
+  if (!liveTrackingLocation.value) return "";
+  const { lat, lng } = liveTrackingLocation.value;
+  return `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+});
+
+const dealerLiveTrackingUpdatedLabel = computed(() => {
+  if (!lastTrackedDisplay.value) return "Waiting for the driver to share location.";
+  return `Updated ${lastTrackedDisplay.value}`;
 });
 
 const navigationDestination = computed(() => {
@@ -1298,6 +1367,49 @@ function handleRealtimeJobEvent(event) {
   scheduleRealtimeJobReload();
 }
 
+function applyLiveLocationPayload(payload = {}) {
+  const incomingJobId = Number(payload?.job_id || payload?.jobId || 0);
+  const currentJobId = Number(route.params.id || job.value?.id || 0);
+
+  if (!incomingJobId || !currentJobId || incomingJobId !== currentJobId || !job.value) {
+    return;
+  }
+
+  const location = payload.location || {};
+  const latitude = Number(location.lat ?? location.latitude);
+  const longitude = Number(location.lng ?? location.longitude);
+  const trackedAt = payload.last_tracked_at || location.recorded_at || new Date().toISOString();
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return;
+  }
+
+  job.value = {
+    ...job.value,
+    current_latitude: latitude,
+    current_longitude: longitude,
+    last_tracked_at: trackedAt
+  };
+  trackingState.lastUpdate = trackedAt;
+}
+
+function startLiveTrackingListener() {
+  if (typeof window === "undefined" || liveTrackingChannel.value || !auth.user?.id) return;
+
+  const echo = createEchoClient();
+  if (!echo) return;
+
+  liveTrackingChannel.value = echo.private(`App.Models.User.${auth.user.id}`);
+  liveTrackingChannel.value.listen(".job.location.updated", applyLiveLocationPayload);
+}
+
+function stopLiveTrackingListener() {
+  if (!liveTrackingChannel.value) return;
+
+  liveTrackingChannel.value.stopListening?.(".job.location.updated");
+  liveTrackingChannel.value = null;
+}
+
 function isImageInspectionPhoto(photo) {
   const mime = String(photo?.mime_type || '').toLowerCase();
   const name = String(photo?.original_name || photo?.path || '').toLowerCase();
@@ -1920,6 +2032,7 @@ onMounted(async () => {
   if (!auth.user && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
+  startLiveTrackingListener();
   await loadJob();
   if (route.query.payment === "success") {
     await handlePaymentSync(route.query.session_id || null);
@@ -1938,6 +2051,8 @@ onBeforeUnmount(() => {
     }
   }
 
+  stopLiveTrackingListener();
+  stopLiveTrackingUpdates();
   clearInspectionPhotoPreviews();
 });
 
@@ -1947,6 +2062,7 @@ watch(
     resetExpenseForm();
     resetCompletionForm();
     trackingState.shared = false;
+    stopLiveTrackingUpdates();
     await loadJob();
     scrollToApplicationsSection();
   }
@@ -2106,6 +2222,42 @@ watch(
       </section>
 
       <RunRouteSummary :job="job" compact />
+
+      <section
+        v-if="shouldShowDealerLiveTracking"
+        class="tile overflow-hidden border-emerald-200 bg-emerald-50/40 p-0 dark:border-emerald-400/30 dark:bg-emerald-400/10"
+      >
+        <div class="flex items-center justify-between gap-3 px-4 py-3">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Live tracking</p>
+            <h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-white">Driver location</h2>
+          </div>
+          <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-300 dark:text-slate-950">
+            Live
+          </span>
+        </div>
+        <div class="relative h-52 bg-slate-200 dark:bg-slate-900">
+          <iframe
+            :key="`${liveTrackingLocation?.lat}-${liveTrackingLocation?.lng}`"
+            :src="dealerLiveTrackingMapSrc"
+            class="h-full w-full border-0"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            title="Driver live location map"
+          />
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs font-bold text-slate-600 dark:text-emerald-100">
+          <span>{{ dealerLiveTrackingUpdatedLabel }}</span>
+          <a
+            :href="`https://www.google.com/maps/search/?api=1&query=${liveTrackingLocation?.lat},${liveTrackingLocation?.lng}`"
+            target="_blank"
+            rel="noopener"
+            class="text-emerald-700 underline dark:text-emerald-300"
+          >
+            Open map
+          </a>
+        </div>
+      </section>
 
       <section v-if="job.incidents?.length" class="tile space-y-3 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
         <div class="flex flex-wrap items-center justify-between gap-3">

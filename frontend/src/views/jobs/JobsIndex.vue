@@ -590,7 +590,7 @@ const dealerJobsProgress = computed(() => {
 const dealerJobsSearch = ref('');
 const dealerJobsStatusFilter = ref('all');
 const dealerJobsPaymentFilter = ref('all');
-const showAllDealerRuns = ref(false);
+const showAllDealerRuns = ref(true);
 const filteredDealerJobs = computed(() => {
   const query = dealerJobsSearch.value.trim().toLowerCase();
   return dealerJobsProgress.value.filter((job) => {
@@ -628,8 +628,7 @@ const filteredDealerJobs = computed(() => {
     return haystack.includes(query);
   });
 });
-const dealerPreviewJobs = computed(() => dealerJobsProgress.value.slice(0, 2));
-const displayedDealerJobs = computed(() => (showAllDealerRuns.value ? filteredDealerJobs.value : dealerPreviewJobs.value));
+const displayedDealerJobs = computed(() => filteredDealerJobs.value);
 const dealerRunStats = computed(() => {
   const jobs = dealerJobsProgress.value;
   const openStatuses = ['open', 'pending'];

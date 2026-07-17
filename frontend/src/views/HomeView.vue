@@ -62,7 +62,7 @@ const sortByRecentActivity = (items) =>
 
 const dealerApplicationJobs = computed(() =>
   sortByRecentActivity(
-    postedJobs.value.filter((job) => Number(job?.pending_applications_count ?? job?.applications_count ?? 0) > 0)
+    postedJobs.value.filter((job) => applicationCount(job) > 0)
   )
 );
 const driverUpcomingRuns = computed(() => sortByRecentActivity(driverActiveJobs.value).slice(0, 3));
@@ -134,7 +134,7 @@ const liveBoardJobs = computed(() => {
   return jobsToDisplay.value;
 });
 const liveBoardTitle = computed(() => {
-  if (auth.role === 'dealer') return 'Driver applications';
+  if (auth.role === 'dealer') return 'Your runs';
   return 'Open runs';
 });
 const liveBoardEmptyText = computed(() => {
@@ -148,6 +148,15 @@ const liveBoardCountText = computed(() => {
   if (loading.value) return 'Syncing';
   return `${liveBoardJobs.value.length} shown`;
 });
+
+function applicationCount(job) {
+  return Number(job?.pending_applications_count ?? job?.applications_count ?? 0);
+}
+
+function applicationCountLabel(job) {
+  const count = applicationCount(job);
+  return `${count} ${count === 1 ? 'app' : 'apps'}`;
+}
 
 const jobsToDisplay = computed(() => jobs.value.slice(0, 3));
 
@@ -291,7 +300,7 @@ const openJobsEmptyText = computed(() => {
         <RouterLink
           v-for="job in liveBoardJobs"
           :key="job.id"
-          :to="`/jobs/${job.id}`"
+          :to="auth.role === 'dealer' ? `/jobs/${job.id}?section=applications` : `/jobs/${job.id}`"
           class="block rounded-2xl border border-white/10 bg-white/[0.06] p-3 transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
         >
           <div class="flex items-center justify-between gap-3">
@@ -304,7 +313,7 @@ const openJobsEmptyText = computed(() => {
               </p>
             </div>
             <span class="shrink-0 rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950 dark:text-slate-950">
-              {{ Number(job?.pending_applications_count ?? job?.applications_count ?? 0) }} waiting
+              {{ applicationCountLabel(job) }}
             </span>
           </div>
         </RouterLink>

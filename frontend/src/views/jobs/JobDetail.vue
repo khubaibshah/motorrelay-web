@@ -47,6 +47,7 @@ const errorMessage = ref("");
 const applications = ref([]);
 const applicationsLoading = ref(false);
 const applicationsError = ref("");
+const applicationsSection = ref(null);
 
 const expenses = ref([]);
 const expensesSummary = ref({
@@ -1272,6 +1273,23 @@ async function loadApplicationsIfNeeded() {
   }
 }
 
+function scrollToApplicationsSection() {
+  if (route.query.section !== "applications") {
+    return;
+  }
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    applicationsSection.value?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+}
+
 async function handleApplicationDecision(applicationId, status) {
   if (!job.value) return;
   try {
@@ -1822,6 +1840,7 @@ onMounted(async () => {
   } else if (route.query.payment === "cancelled") {
     paymentNotice.value = "Stripe checkout was cancelled. No payment was taken.";
   }
+  scrollToApplicationsSection();
 });
 
 onBeforeUnmount(() => {
@@ -1838,11 +1857,19 @@ onBeforeUnmount(() => {
 
 watch(
   () => route.params.id,
-  () => {
+  async () => {
     resetExpenseForm();
     resetCompletionForm();
     trackingState.shared = false;
-    loadJob();
+    await loadJob();
+    scrollToApplicationsSection();
+  }
+);
+
+watch(
+  () => route.query.section,
+  () => {
+    scrollToApplicationsSection();
   }
 );
 
@@ -2204,7 +2231,12 @@ watch(
         </p>
       </section>
 
-      <section v-if="showApplicationsAtTop" class="tile space-y-4 border-emerald-200 bg-emerald-50/40 p-4">
+      <section
+        v-if="showApplicationsAtTop"
+        ref="applicationsSection"
+        id="run-applications"
+        class="tile scroll-mt-28 space-y-4 border-emerald-200 bg-emerald-50/40 p-4"
+      >
         <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Next step</p>
@@ -2368,7 +2400,7 @@ watch(
         </div>
       </section>
 
-      <section v-if="false" class="tile space-y-4 p-4">
+      <section v-if="false" ref="applicationsSection" id="run-applications" class="tile scroll-mt-28 space-y-4 p-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Run progress</h2>

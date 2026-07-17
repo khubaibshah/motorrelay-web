@@ -5,8 +5,10 @@ import { fetchJobs, applyForJob, cancelJob, markJobDelivered, sendJobInvoice } f
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { formatStatusLabel } from '@/utils/statusLabels';
-import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
+import DriverRunMarketplace from '@/components/jobs/DriverRunMarketplace.vue';
+import DealerRunsOverview from '@/components/jobs/DealerRunsOverview.vue';
+import ActiveRunsSection from '@/components/jobs/ActiveRunsSection.vue';
+import JobActionConfirmDialog from '@/components/jobs/JobActionConfirmDialog.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -38,7 +40,6 @@ const driverLocation = reactive({
   loading: false,
   error: ''
 });
-const driverLocationPermissionBlocked = ref(false);
 const driverMarketplaceNearbyActive = ref(false);
 const actionState = reactive({
   id: null,
@@ -180,7 +181,7 @@ async function submitDriverSearch() {
 
   if (driverRadius.value === 'all') {
     clearDriverLocation();
-  } else if (isDriver.value && !(driverLocation.source === 'gps' && driverHasLocation.value)) {
+  } else if (isDriver.value && !driverHasLocation.value) {
     await resolveDriverLocationQuery();
   }
 
@@ -209,26 +210,6 @@ function driverMarketplaceQuery() {
     ...(driverLocationQuery.value.trim() ? { location: driverLocationQuery.value.trim() } : {}),
     ...(driverRadius.value !== defaultNearbyRadiusMiles ? { radius: driverRadius.value } : {})
   };
-}
-
-async function useDriverLocation() {
-  driverLocationFocused.value = false;
-  driverLocationAutocomplete.value = [];
-  if (driverRadius.value === 'all') {
-    driverRadius.value = defaultNearbyRadiusMiles;
-  }
-
-  await ensureDriverLocation({ force: true });
-
-  if (!driverHasLocation.value) {
-    return;
-  }
-
-  await router.replace({
-    name: 'jobs',
-    query: driverMarketplaceQuery()
-  });
-  await loadJobs();
 }
 
 async function chooseDriverLocationSuggestion(suggestion) {
@@ -293,7 +274,7 @@ async function resolveDriverLocationQuery() {
 }
 
 async function useDriverPostcode(postcode) {
-  const normalisedPostcode = postcode.trim();
+  const normalisedPostcode = extractDriverLocationPostcode(postcode) || postcode.trim();
 
   if (!normalisedPostcode) {
     clearDriverLocation();
@@ -331,6 +312,17 @@ async function useDriverPostcode(postcode) {
   } finally {
     driverLocation.loading = false;
   }
+}
+
+function extractDriverLocationPostcode(value) {
+  const input = String(value || '').toUpperCase();
+  const fullPostcode = input.match(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/);
+  if (fullPostcode?.[0]) {
+    return fullPostcode[0].replace(/\s+/, ' ').trim();
+  }
+
+  const outwardPostcode = input.match(/\b[A-Z]{1,2}\d[A-Z\d]?\b/);
+  return outwardPostcode?.[0]?.trim() || '';
 }
 
 async function useDriverPlace(placeId, fallbackLabel = '') {
@@ -385,147 +377,6 @@ function clearDriverLocation() {
   driverLocation.label = '';
   driverLocation.postcode = '';
   driverMarketplaceNearbyActive.value = false;
-  driverLocationPermissionBlocked.value = false;
-}
-
-async function getDriverCurrentPosition(options = {}) {
-  if (Capacitor.isNativePlatform()) {
-    driverLocationPermissionBlocked.value = false;
-    const currentPermission = await Geolocation.checkPermissions();
-
-    if (currentPermission.location !== 'granted') {
-      const requestedPermission = await Geolocation.requestPermissions({
-        permissions: ['location']
-      });
-
-      if (requestedPermission.location !== 'granted') {
-        driverLocationPermissionBlocked.value = true;
-        throw createDriverLocationPermissionError();
-      }
-    }
-
-    return Geolocation.getCurrentPosition(options);
-  }
-
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Location is not supported in this browser.'));
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
-  });
-}
-
-function createDriverLocationPermissionError() {
-  const error = new Error('Location permission is blocked.');
-  error.code = 1;
-  return error;
-}
-
-function applyDriverGpsPosition(position) {
-  const coords = position?.coords || {};
-  const latitude = Number(coords.latitude);
-  const longitude = Number(coords.longitude);
-
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    throw new Error('No coordinates were returned from the phone.');
-  }
-
-  driverLocation.latitude = latitude;
-  driverLocation.longitude = longitude;
-  driverLocation.enabled = true;
-  driverLocation.source = 'gps';
-  driverLocation.label = 'your current location';
-  driverLocation.postcode = '';
-  driverLocationQuery.value = 'Using current location';
-  driverLocationPermissionBlocked.value = false;
-}
-
-async function ensureDriverLocation({ force = false } = {}) {
-  if (driverLocation.loading) {
-    return;
-  }
-
-  if (!force && !driverLocation.enabled) {
-    return;
-  }
-
-  if (driverHasLocation.value) {
-    return;
-  }
-
-  driverLocation.loading = true;
-  driverLocation.error = '';
-
-  try {
-    const position = await getDriverCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 60000
-    });
-
-    applyDriverGpsPosition(position);
-
-    try {
-      const { data } = await api.get('/postcodes/reverse', {
-        params: {
-          latitude: driverLocation.latitude,
-          longitude: driverLocation.longitude
-        }
-      });
-      const location = data?.data ?? {};
-      driverLocation.postcode = location.outward_code || location.postcode || '';
-      driverLocation.label = location.label || driverLocation.label;
-      driverLocationQuery.value = location.outward_code || location.postcode || location.locality || location.label || 'Using current location';
-    } catch (error) {
-      console.warn('Current location postcode unavailable', error);
-    }
-
-    driverLocationPermissionBlocked.value = false;
-  } catch (error) {
-    console.warn('Driver marketplace location unavailable', error);
-    const permissionBlocked = isDriverLocationPermissionBlockedError(error);
-    const wasPermissionBlocked = driverLocationPermissionBlocked.value;
-    clearDriverLocation();
-    driverLocationPermissionBlocked.value = wasPermissionBlocked || permissionBlocked;
-    driverLocationQuery.value = '';
-    driverLocation.error = driverLocationErrorMessage(error) || 'Location services are off. Enable location or search by postcode.';
-  } finally {
-    driverLocation.loading = false;
-  }
-}
-
-function driverLocationErrorMessage(error) {
-  if (!error) return '';
-
-  if (isDriverLocationServicesDisabledError(error)) {
-    return 'Location Services are switched off on this iPhone. Turn them on in Settings > Privacy & Security > Location Services, then tap Current Location again.';
-  }
-
-  if (isDriverLocationPermissionBlockedError(error)) {
-    return 'Location permission is blocked. Open MotorRelay settings, allow Location while using the app, then tap Current Location again.';
-  }
-
-  if (error.code === 2) {
-    return 'Your current location is unavailable right now. Check signal/location services and try again.';
-  }
-
-  if (error.code === 3) {
-    return 'Location lookup timed out. Try again somewhere with better GPS signal.';
-  }
-
-  return error.message || '';
-}
-
-function isDriverLocationPermissionBlockedError(error) {
-  const message = String(error?.message || error?.errorMessage || '').toLowerCase();
-  return error?.code === 1 || message.includes('denied') || message.includes('permission');
-}
-
-function isDriverLocationServicesDisabledError(error) {
-  const message = String(error?.message || error?.errorMessage || '').toLowerCase();
-  return error?.code === 'OS-PLUG-GLOC-0007' || message.includes('location services are not enabled');
 }
 
 function jobIsAwaitingLive(job) {
@@ -937,43 +788,6 @@ function formatDriverDistance(job) {
   return `Pickup ${distance.toFixed(distance >= 10 ? 0 : 1)} mi away`;
 }
 
-function formatDate(value) {
-  if (!value) return '--';
-  try {
-    return new Intl.DateTimeFormat('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-function formatShortDate(value) {
-  if (!value) return '--';
-  try {
-    return new Intl.DateTimeFormat('en-GB', {
-      day: 'numeric',
-      month: 'short'
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-function resolveInvoiceLink(job) {
-  if (!job) return null;
-  return (
-    job.invoice_download_url ||
-    job.invoice_url ||
-    job.invoice ||
-    job.invoice_pdf ||
-    job.invoice_link ||
-    null
-  );
-}
-
 onMounted(async () => {
   if ((!auth.user || auth.role === 'dealer') && auth.token) {
     await auth.fetchMe().catch(() => null);
@@ -1014,214 +828,18 @@ onMounted(async () => {
       </div>
     </div>
 
-    <section v-if="isDealer" class="section-card space-y-4 dark:border-white/10 dark:bg-slate-950 dark:text-white">
-      <header class="space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Dealer operations</p>
-          <RouterLink
-            to="/jobs/new"
-            class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-          >
-            Create run
-          </RouterLink>
-        </div>
-
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 class="text-xl font-black text-slate-950 dark:text-emerald-300">Your runs</h2>
-            <p class="mt-2 text-sm text-slate-600 dark:text-emerald-100">
-              Keep an eye on your posted jobs, then expand the table when you need the full view.
-            </p>
-          </div>
-          <div class="grid w-full grid-cols-3 gap-2 lg:w-auto">
-            <div
-              v-for="stat in dealerRunStats"
-              :key="stat.label"
-              class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.06]"
-            >
-              <p class="text-base font-black text-slate-950 dark:text-emerald-300">{{ stat.value }}</p>
-              <p class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-emerald-100">{{ stat.label }}</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div v-if="showAllDealerRuns" class="grid w-full gap-3 sm:grid-cols-3">
-          <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-search" class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
-              Search
-            </label>
-            <input
-              id="dealer-jobs-search"
-              v-model="dealerJobsSearch"
-              type="search"
-              placeholder="Title, route, driver..."
-              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-            >
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-status" class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
-              Status
-            </label>
-            <select
-              id="dealer-jobs-status"
-              v-model="dealerJobsStatusFilter"
-              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="all">All statuses</option>
-              <option value="open">Open</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In progress</option>
-              <option value="accepted">Accepted</option>
-              <option value="collected">Collected</option>
-              <option value="in_transit">In transit</option>
-              <option value="completion_pending">Completion pending</option>
-              <option value="delivered">Delivered</option>
-              <option value="completed">Completed</option>
-              <option value="closed">Closed</option>
-            </select>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label for="dealer-jobs-payment" class="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
-              Payment
-            </label>
-            <select
-              id="dealer-jobs-payment"
-              v-model="dealerJobsPaymentFilter"
-              class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="all">All payments</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="checkout_pending">Checkout pending</option>
-              <option value="paid">Paid</option>
-              <option value="payout_released">Payout released</option>
-            </select>
-          </div>
-      </div>
-
-      <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
-        Loading your runs...
-      </div>
-
-      <div v-else-if="!displayedDealerJobs.length" class="space-y-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
-        <p>{{ showAllDealerRuns ? 'No runs match your search.' : 'No runs yet. Create a run to start receiving driver requests.' }}</p>
-        <button
-          v-if="showAllDealerRuns"
-          type="button"
-          class="text-xs font-bold text-emerald-700 hover:text-emerald-800"
-          @click="showAllDealerRuns = false"
-        >
-          Show preview
-        </button>
-      </div>
-
-      <div v-else class="space-y-4">
-        <div class="space-y-3 md:hidden">
-          <article
-            v-for="job in displayedDealerJobs"
-            :key="`mobile-job-${job.id}`"
-            class="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/[0.06]"
-            role="button"
-            tabindex="0"
-            @click="openJob(job)"
-            @keydown.enter="openJob(job)"
-            @keydown.space.prevent="openJob(job)"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-base font-black text-slate-950 dark:text-white">{{ job.title || `Run #${job.id}` }}</p>
-                <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
-                  {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
-                </p>
-              </div>
-              <span class="badge bg-emerald-100 text-emerald-700">{{ formatStatusLabel(job.status) }}</span>
-            </div>
-
-            <div class="mt-3 flex items-center justify-between gap-3">
-              <span class="text-xs font-semibold text-slate-500 dark:text-emerald-100">
-                {{ formatShortDate(job.updated_at || job.created_at) }}
-              </span>
-              <a
-                v-if="resolveInvoiceLink(job)"
-                :href="resolveInvoiceLink(job)"
-                target="_blank"
-                rel="noreferrer"
-                class="inline-flex rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700"
-                @click.stop
-              >
-                Invoice
-              </a>
-            </div>
-          </article>
-        </div>
-
-        <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block dark:border-white/10 dark:bg-white/[0.06]">
-        <div :class="showAllDealerRuns ? 'max-h-[34rem] overflow-auto' : ''">
-          <table class="min-w-full divide-y divide-slate-200 text-left dark:divide-white/10">
-            <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950">
-              <tr class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-emerald-100">
-                <th class="px-4 py-3">Run</th>
-                <th class="px-4 py-3">Now</th>
-                <th class="px-4 py-3">Payment</th>
-                <th class="px-4 py-3">Updated</th>
-                <th class="px-4 py-3 text-right">Open</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-white/10">
-              <tr
-                v-for="job in displayedDealerJobs"
-                :key="job.id"
-                class="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-white/[0.08]"
-                @click="openJob(job)"
-              >
-                <td class="px-4 py-4 align-top">
-                <p class="font-black text-slate-950 dark:text-white">{{ job.title || `Run #${job.id}` }}</p>
-                  <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">
-                    {{ job.pickup_label || job.pickup_postcode || '--' }} to {{ job.dropoff_label || job.dropoff_postcode || '--' }}
-                  </p>
-                  <p class="mt-1 text-xs text-slate-500 dark:text-emerald-100">{{ job.assigned_to?.name || job.driver_name || 'Not assigned yet' }}</p>
-                </td>
-                <td class="px-4 py-4 align-top">
-                  <span class="badge bg-emerald-100 text-emerald-700">{{ formatStatusLabel(job.status) }}</span>
-                </td>
-                <td class="px-4 py-4 align-top">
-                  <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">{{ paymentLabel(job) }}</span>
-                </td>
-                <td class="px-4 py-4 align-top text-sm text-slate-600 dark:text-emerald-100">
-                  {{ formatShortDate(job.updated_at || job.created_at) }}
-                </td>
-                <td class="px-4 py-4 align-top text-right">
-                  <RouterLink
-                    :to="`/jobs/${job.id}`"
-                    class="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-200 hover:text-emerald-700 dark:border-white/10 dark:text-emerald-100 dark:hover:border-emerald-300 dark:hover:text-emerald-300"
-                    @click.stop
-                  >
-                    Open
-                  </RouterLink>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <p v-if="!showAllDealerRuns && dealerJobsProgress.length > displayedDealerJobs.length" class="text-xs text-slate-500 dark:text-emerald-100">
-            Showing {{ displayedDealerJobs.length }} of {{ dealerJobsProgress.length }} runs.
-          </p>
-          <button
-            v-if="showAllDealerRuns || dealerJobsProgress.length > displayedDealerJobs.length"
-            type="button"
-            class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
-            @click="showAllDealerRuns = !showAllDealerRuns"
-          >
-            {{ showAllDealerRuns ? 'Show less' : 'View all runs' }}
-          </button>
-        </div>
-      </div>
-    </section>
+    <DealerRunsOverview
+      v-if="isDealer"
+      v-model:show-all="showAllDealerRuns"
+      v-model:search="dealerJobsSearch"
+      v-model:status-filter="dealerJobsStatusFilter"
+      v-model:payment-filter="dealerJobsPaymentFilter"
+      :jobs="displayedDealerJobs"
+      :stats="dealerRunStats"
+      :loading="activeLoading"
+      :total-jobs="dealerJobsProgress.length"
+      @open-job="openJob"
+    />
     <div class="flex flex-col gap-4">
     <p v-if="errorMessage" class="text-sm text-amber-600">{{ errorMessage }}</p>
 
@@ -1251,407 +869,42 @@ onMounted(async () => {
       {{ successMessage }}
     </p>
 
-    <section v-if="isDriver" class="section-card order-1 space-y-3 p-4 dark:border-white/10 dark:bg-slate-950 sm:p-5">
-      <header class="space-y-3">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run marketplace</p>
-            <h2 class="mt-1 text-lg font-black tracking-tight text-slate-950 dark:text-emerald-300">Available runs</h2>
-          </div>
-          <span class="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-emerald-100">
-            {{ selectedDriverJobs.length }} shown
-          </span>
-        </div>
-
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-300/20 dark:bg-emerald-300/10">
-          <button
-            type="button"
-            class="btn-primary min-h-0 w-full px-4 py-2 text-sm disabled:cursor-wait disabled:opacity-60"
-            :disabled="driverLocation.loading"
-            @click="useDriverLocation"
-          >
-            {{ driverLocation.loading ? 'Getting phone location...' : driverLocation.source === 'gps' ? 'Using phone location' : 'Use phone location' }}
-          </button>
-          <p v-if="driverHasLocation && driverLocation.source === 'gps'" class="mt-2 text-xs font-black text-emerald-800 dark:text-emerald-100">
-            {{ driverLocationQuery }} · Lat {{ Number(driverLocation.latitude).toFixed(5) }} · Lng {{ Number(driverLocation.longitude).toFixed(5) }}
-          </p>
-          <p v-if="driverLocation.error" class="mt-2 text-xs font-black text-amber-700 dark:text-amber-200">
-            {{ driverLocation.error }}
-          </p>
-        </div>
-
-        <form class="grid gap-2 rounded-3xl border-2 border-emerald-700/70 bg-white p-3 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-100 dark:border-emerald-300/40 dark:bg-white/[0.04] dark:focus-within:ring-emerald-300/10 sm:grid-cols-[minmax(0,1fr)_auto_auto]" @submit.prevent="submitDriverSearch">
-          <label class="flex min-w-0 items-center gap-3">
-            <span class="text-lg text-slate-700 dark:text-emerald-200">●</span>
-            <input
-              v-model="driverLocationQuery"
-              type="text"
-              inputmode="search"
-              autocomplete="off"
-              placeholder="City, town, or postcode"
-              class="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm font-black uppercase text-slate-900 outline-none placeholder:normal-case placeholder:font-semibold placeholder:text-slate-400 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
-              @focus="driverLocationFocused = true"
-              @input="handleDriverLocationInput"
-            >
-            <button
-              v-if="driverLocationQuery"
-              type="button"
-              class="rounded-full px-2 py-1 text-xs font-black text-slate-500 hover:bg-slate-100 hover:text-emerald-700 dark:text-emerald-100 dark:hover:bg-white/10"
-              @click="clearDriverSearch"
-            >
-              Clear
-            </button>
-          </label>
-          <select
-            v-model="driverRadius"
-            class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
-            @change="submitDriverSearch"
-          >
-            <option :value="25">25 mi</option>
-            <option :value="50">50 mi</option>
-            <option :value="100">100 mi</option>
-            <option value="all">All jobs</option>
-          </select>
-          <button type="submit" class="btn-primary min-h-0 px-4 py-2 text-sm">
-            Search
-          </button>
-        </form>
-
-        <div v-if="driverLocationFocused" class="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-          <p v-if="driverLocationAutocompleteLoading" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
-            Finding places...
-          </p>
-          <button
-            v-for="suggestion in driverLocationSuggestions"
-            :key="`${suggestion.label}-${suggestion.value}`"
-            type="button"
-            class="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-300/10"
-            @click="chooseDriverLocationSuggestion(suggestion)"
-          >
-            <span class="grid size-8 place-items-center rounded-full bg-slate-100 text-sm text-slate-700 dark:bg-slate-900 dark:text-emerald-100">
-              {{ suggestion.icon === 'home' ? '⌂' : '⌖' }}
-            </span>
-            <span class="min-w-0">
-              <span class="block truncate text-sm font-black text-slate-900 dark:text-white">
-                {{ suggestion.label }}
-              </span>
-              <span v-if="suggestion.sublabel" class="block truncate text-xs font-semibold text-slate-500 dark:text-emerald-100">
-                {{ suggestion.sublabel }}
-              </span>
-            </span>
-          </button>
-          <p v-if="!driverLocationAutocompleteLoading && driverLocationQuery.trim().length >= 2 && !driverLocationSuggestions.length" class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-emerald-100">
-            No places found. Try a postcode like BB9 or a nearby town.
-          </p>
-        </div>
-
-        <p class="px-1 text-xs font-bold text-slate-500 dark:text-emerald-100">
-          {{ driverMarketplaceLabel }}
-        </p>
-        <div
-          v-if="driverLocationPermissionBlocked"
-          class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100"
-        >
-          Location permission is blocked. Open iPhone Settings, allow MotorRelay location access, or search by postcode instead.
-        </div>
-      </header>
-
-      <p v-if="selectedDriverError" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
-        {{ selectedDriverError }}
-      </p>
-
-      <div v-if="selectedDriverLoading && !selectedDriverJobs.length" class="rounded-2xl border bg-white p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
-        Loading runs...
-      </div>
-
-      <div v-else-if="!selectedDriverJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
-        {{ selectedDriverEmptyMessage }}
-      </div>
-
-      <div v-else class="space-y-2">
-        <article
-          v-for="job in selectedDriverJobs"
-          :key="`${driverRunsTab}-${job.id}`"
-          class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-xl dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.09]"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <button type="button" class="min-w-0 flex-1 text-left" @click="openJob(job)">
-              <p class="truncate text-base font-black text-slate-950 dark:text-white">
-                {{ job.pickup_postcode || job.pickup_label || '--' }} to {{ job.dropoff_postcode || job.dropoff_label || '--' }}
-              </p>
-              <p class="mt-1 truncate text-xs font-semibold text-slate-600 dark:text-emerald-100">
-                {{ job.vehicle_make || 'Vehicle' }} · {{ formatTransportType(job.transport_type) }}
-              </p>
-              <p v-if="formatDriverDistance(job)" class="mt-1 text-xs font-black text-emerald-700 dark:text-emerald-300">
-                {{ formatDriverDistance(job) }}
-              </p>
-            </button>
-
-            <div class="shrink-0 text-right">
-              <p class="text-lg font-black text-emerald-600 dark:text-emerald-300">
-                {{ priceFormatter.format(visibleAmountForJob(job)) }}
-              </p>
-              <span class="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-600 dark:bg-white/10 dark:text-emerald-100">
-                {{ formatStatusLabel(job.status) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="mt-3 flex gap-2">
-            <button
-              v-if="driverRunsTab === 'available'"
-              type="button"
-              class="btn-primary min-h-0 flex-1 px-3 py-2 text-xs disabled:opacity-60"
-              :disabled="hasApplied(job.id)"
-              @click.stop="handleApply(job)"
-            >
-              <span v-if="hasApplied(job.id)">Application sent</span>
-              <span v-else>Request this run</span>
-            </button>
-            <button
-              type="button"
-              class="btn-secondary min-h-0 flex-1 px-3 py-2 text-xs"
-              @click="openJob(job)"
-            >
-              View details
-            </button>
-            <button
-              v-if="driverRunsTab === 'active'"
-              type="button"
-              class="btn-primary w-full px-3 py-2 text-xs disabled:opacity-60 sm:w-auto"
-              :disabled="isActionPending(job.id, 'deliver')"
-              @click="handleMarkDelivered(job)"
-            >
-              <span v-if="isActionPending(job.id, 'deliver')">Updating...</span>
-              <span v-else>Mark as delivered</span>
-            </button>
-            <button
-              v-if="driverRunsTab === 'active'"
-              type="button"
-              class="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
-              :disabled="isActionPending(job.id, 'cancel')"
-              @click="handleCancelJob(job)"
-            >
-              <span v-if="isActionPending(job.id, 'cancel')">Cancelling...</span>
-              <span v-else>Cancel run</span>
-            </button>
-          </div>
-        </article>
-      </div>
-    </section>
+    <DriverRunMarketplace
+      v-if="isDriver"
+      v-model:query="driverLocationQuery"
+      v-model:radius="driverRadius"
+      v-model:focused="driverLocationFocused"
+      :jobs="selectedDriverJobs"
+      :suggestions="driverLocationSuggestions"
+      :suggestions-loading="driverLocationAutocompleteLoading"
+      :loading="selectedDriverLoading"
+      :error="selectedDriverError"
+      :empty-message="selectedDriverEmptyMessage"
+      :marketplace-label="driverMarketplaceLabel"
+      :applied-job-ids="appliedJobIds"
+      @search="submitDriverSearch"
+      @input="handleDriverLocationInput"
+      @clear="clearDriverSearch"
+      @choose-suggestion="chooseDriverLocationSuggestion"
+      @open-job="openJob"
+      @apply="handleApply"
+    />
 
     <div v-if="availableLoading && !activeLoading && !isDriver" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
       Loading runs&hellip;
     </div>
 
-    <section v-if="showActiveSection && !isDriver" class="section-card order-1 space-y-4">
-      <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 class="text-lg font-black text-slate-950">
-          {{ isDriver ? 'Your active runs' : 'Active runs' }}
-        </h2>
-        <span v-if="isDealer" class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-          {{ mainJobs.length }} active
-        </span>
-        <RouterLink v-if="isDriver" to="/driver" class="text-xs font-semibold text-emerald-600 hover:underline">
-          Driver dashboard
-        </RouterLink>
-      </header>
-
-      <p v-if="activeErrorMessage" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-        {{ activeErrorMessage }}
-      </p>
-
-      <div v-if="activeLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading your active runs...
-      </div>
-      <div v-else-if="!mainJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        {{ activeEmptyMessage }}
-      </div>
-      <div v-else class="space-y-4">
-        <article
-          v-for="job in mainJobs"
-          :key="`active-${job.id}`"
-          class="rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-xl sm:p-5"
-          :class="isDealer ? 'border-slate-200 bg-white shadow-sm' : 'border-slate-200 bg-slate-50/80 hover:bg-white'"
-        >
-          <div v-if="isDealer" class="space-y-4">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="badge" :class="statusClass(job)">{{ formatStatusLabel(job.status) }}</span>
-              <span class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
-            </div>
-
-            <div>
-              <p class="text-lg font-black text-slate-950">
-              {{ job.title || `Run #${job.id}` }}
-              </p>
-              <p class="mt-1 text-sm text-slate-600">
-                {{ job.pickup_label || job.pickup_postcode || '--' }} → {{ job.dropoff_label || job.dropoff_postcode || '--' }}
-              </p>
-              <p class="mt-1 text-xs text-slate-500">
-                Updated {{ formatShortDate(job.updated_at || job.created_at) }}
-              </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-              <button
-                type="button"
-                class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-                @click="openJob(job)"
-              >
-                Manage run
-              </button>
-              <RouterLink
-                v-if="canEditDealerJob(job)"
-                :to="`/jobs/${job.id}/edit`"
-                class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
-              >
-                Edit
-              </RouterLink>
-              <button
-                type="button"
-                class="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
-                :disabled="isActionPending(job.id, 'cancel')"
-                @click="handleCancelJob(job)"
-              >
-                <span v-if="isActionPending(job.id, 'cancel')">Cancelling...</span>
-                <span v-else>Cancel</span>
-              </button>
-            </div>
-          </div>
-
-          <div v-else class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div class="min-w-0 flex-1">
-              <div class="mb-3 flex flex-wrap gap-2">
-                <span class="badge" :class="statusClass(job)">{{ formatStatusLabel(job.status) }}</span>
-                <span class="badge" :class="paymentClass(job)">{{ paymentLabel(job) }}</span>
-                <span class="badge bg-slate-100 text-slate-700">{{ formatTransportType(job.transport_type) }}</span>
-              </div>
-
-              <p class="text-xl font-black text-slate-950">
-                {{ job.title || `Run #${job.id}` }}
-              </p>
-
-              <div class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-                <div class="rounded-2xl bg-slate-50 p-3">
-                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Route</p>
-                  <p class="mt-1 font-semibold text-slate-800">{{ job.pickup_postcode || '--' }} to {{ job.dropoff_postcode || '--' }}</p>
-                </div>
-                <div class="rounded-2xl bg-slate-50 p-3">
-                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Driver</p>
-                  <p class="mt-1 font-semibold text-slate-800">
-                    <template v-if="isDriver">
-                      {{ job.posted_by?.name || 'Dealer' }}
-                    </template>
-                    <template v-else>
-                      {{ job.assigned_to?.name || 'Not assigned yet' }}
-                    </template>
-                  </p>
-                </div>
-                <div class="rounded-2xl bg-slate-50 p-3">
-                  <p class="text-xs font-black uppercase tracking-wide text-slate-500">Next action</p>
-                  <p class="mt-1 font-semibold text-emerald-700">{{ formatStatusLabel(job.status) }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="rounded-3xl bg-slate-950 p-4 text-white lg:min-w-[180px] lg:text-right">
-              <p class="text-xs font-black uppercase tracking-wide text-slate-400">Driver payout</p>
-              <div class="mt-1 text-3xl font-black">
-                {{ priceFormatter.format(visibleAmountForJob(job)) }}
-              </div>
-              <span class="badge mt-3 bg-emerald-100 text-emerald-700">{{ formatStatusLabel(job.status) }}</span>
-            </div>
-          </div>
-
-          <div v-if="!isDealer" class="mt-4 grid gap-2 sm:flex sm:flex-wrap">
-            <button
-              type="button"
-              class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-              @click="openJob(job)"
-            >
-              View details
-            </button>
-            <RouterLink
-              v-if="canEditDealerJob(job)"
-              :to="`/jobs/${job.id}/edit`"
-              class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
-            >
-              Edit run
-            </RouterLink>
-            <button
-              type="button"
-              class="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
-              :disabled="isActionPending(job.id, 'cancel')"
-              @click="handleCancelJob(job)"
-            >
-              <span v-if="isActionPending(job.id, 'cancel')">Cancelling...</span>
-              <span v-else>Cancel run</span>
-            </button>
-            <button
-              v-if="isDriver"
-              type="button"
-              class="btn-primary w-full px-3 py-2 text-xs disabled:opacity-60 sm:w-auto"
-              :disabled="isActionPending(job.id, 'deliver')"
-              @click="handleMarkDelivered(job)"
-            >
-              <span v-if="isActionPending(job.id, 'deliver')">Updating...</span>
-              <span v-else>Mark as delivered</span>
-            </button>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section v-if="false" id="completed-jobs" class="section-card order-3 space-y-4">
-      <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 class="text-xl font-black tracking-tight text-slate-950">Completed runs</h2>
-          <p class="text-xs text-slate-500">Finished runs and delivery history live here, not in your profile.</p>
-        </div>
-        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-          {{ completedJobs.length }} completed
-        </span>
-      </header>
-
-      <div v-if="completedLoading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600">
-        Loading completed runs...
-      </div>
-
-      <div v-else-if="completedErrorMessage" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-        {{ completedErrorMessage }}
-      </div>
-
-      <div v-else-if="!completedJobs.length" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        You have no completed runs yet.
-      </div>
-
-      <div v-else class="space-y-3">
-        <RouterLink
-          v-for="job in completedJobs"
-          :key="job.id"
-          :to="`/jobs/${job.id}`"
-          class="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
-        >
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div class="min-w-0">
-              <p class="text-xl font-black tracking-tight text-slate-950">{{ job.title || `Run #${job.id}` }}</p>
-              <p class="mt-1 text-xs text-slate-500">
-                Completed {{ formatDate(job.completed_at || job.updated_at || job.created_at) }}
-              </p>
-              <p class="mt-2 text-sm text-slate-600">
-                {{ job.pickup_postcode || '--' }} ? {{ job.dropoff_postcode || '--' }}
-              </p>
-            </div>
-            <div class="flex items-center gap-2 sm:flex-col sm:items-end">
-              <span class="text-lg font-black text-slate-950">
-                {{ priceFormatter.format(driverPayoutForJob(job)) }}
-              </span>
-              <span class="badge bg-slate-900 text-white">{{ formatStatusLabel(job.status) }}</span>
-            </div>
-          </div>
-        </RouterLink>
-      </div>
-    </section>
+    <ActiveRunsSection
+      v-if="showActiveSection && !isDriver"
+      :jobs="mainJobs"
+      :loading="activeLoading"
+      :error="activeErrorMessage"
+      :empty-message="activeEmptyMessage"
+      :action-state="actionState"
+      @open-job="openJob"
+      @cancel-job="handleCancelJob"
+      @mark-delivered="handleMarkDelivered"
+    />
 
     <section v-if="isAdmin" class="section-card order-2 space-y-4">
       <header class="flex items-center justify-between gap-3" v-if="isDriver">
@@ -1719,55 +972,13 @@ onMounted(async () => {
 
   </div>
 
-  <div
-    v-if="confirmDialog.open"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-  >
-    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-      <h3 class="text-lg font-semibold text-slate-900">
-        {{
-          confirmDialog.mode === 'deliver'
-            ? 'Mark run as delivered'
-            : confirmDialog.mode === 'invoice'
-            ? 'Send invoice'
-            : 'Cancel run'
-        }}
-      </h3>
-      <p class="mt-3 text-sm text-slate-600">
-        {{ confirmDialog.message }}
-      </p>
-
-      <div v-if="confirmDialog.mode === 'cancel'" class="mt-4 space-y-2">
-        <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Optional note
-        </label>
-        <textarea
-          v-model="confirmDialog.note"
-          rows="3"
-          class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-          placeholder="Let them know why you're cancelling"
-        ></textarea>
-      </div>
-
-      <div class="mt-6 flex justify-end gap-2">
-        <button
-          type="button"
-          class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          :disabled="confirmDialog.pending"
-          @click="closeConfirmDialog"
-        >
-          Close
-        </button>
-        <button
-          type="button"
-          class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-          :disabled="confirmDialog.pending"
-          @click="confirmAction"
-        >
-          <span v-if="confirmDialog.pending">Working...</span>
-          <span v-else>Confirm</span>
-        </button>
-      </div>
-    </div>
-  </div>
+  <JobActionConfirmDialog
+    v-model:note="confirmDialog.note"
+    :open="confirmDialog.open"
+    :mode="confirmDialog.mode"
+    :message="confirmDialog.message"
+    :pending="confirmDialog.pending"
+    @close="closeConfirmDialog"
+    @confirm="confirmAction"
+  />
 </template>

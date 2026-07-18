@@ -215,9 +215,6 @@ class JobService
     {
         if ($scope === 'available') {
             $query->where('status', 'open')->whereNull('assigned_to_id');
-            if ($user?->isDriver()) {
-                $query->where('payment_status', 'paid');
-            }
 
             return;
         }

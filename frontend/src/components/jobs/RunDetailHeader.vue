@@ -70,7 +70,7 @@ defineEmits(['request-job', 'start-driver-mode', 'cancel-job']);
     </div>
 
     <div
-      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode"
+      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || canCancelJob"
       class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
     >
       <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">

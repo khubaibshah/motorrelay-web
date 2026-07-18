@@ -1408,7 +1408,7 @@ watch(
     <JobActionConfirmDialog
       :open="cancelDialogOpen"
       mode="cancel"
-      message="Cancel this run? The assigned driver will be notified and live tracking will end. Add a reason so everyone has a clear record."
+      message="Cancel this run? The assigned driver will be notified and live tracking will end."
       :pending="cancelSubmitting"
       :note="cancelDialogNote"
       @close="closeCancelDialog"

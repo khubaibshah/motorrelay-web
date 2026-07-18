@@ -2,9 +2,9 @@
 
 namespace App\Services\Jobs;
 
+use App\Events\JobStatusChanged;
 use App\Models\Invoice;
 use App\Models\Job;
-use App\Events\JobStatusChanged;
 use App\Models\JobApplication;
 use App\Models\JobInspectionPhoto;
 use App\Models\User;
@@ -19,8 +19,7 @@ class JobWorkflowService
     public function __construct(
         protected AwsS3Service $s3,
         protected InvoiceFinalizer $invoiceFinalizer,
-    ) {
-    }
+    ) {}
 
     public function markCollected(Job $job): Job
     {
@@ -108,6 +107,7 @@ class JobWorkflowService
         $job->update([
             'status' => 'open',
             'assigned_to_id' => null,
+            'cancellation_reason' => $reason,
             'completion_status' => 'not_submitted',
             'completion_submitted_at' => null,
             'completion_notes' => null,
@@ -313,6 +313,7 @@ class JobWorkflowService
         $job->update([
             'status' => 'cancelled',
             'assigned_to_id' => null,
+            'cancellation_reason' => $reason,
         ]);
 
         if ($assigned) {

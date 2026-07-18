@@ -15,6 +15,7 @@ class Job extends Model
         'title',
         'price',
         'status',
+        'cancellation_reason',
         'goes_live_at',
         'company',
         'pickup_label',

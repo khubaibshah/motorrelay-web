@@ -17,8 +17,7 @@ class JobWorkflowController extends Controller
     public function __construct(
         protected JobApplicationService $applications,
         protected JobWorkflowService $workflow,
-    ) {
-    }
+    ) {}
 
     public function accept(Request $request, Job $job): JsonResponse
     {
@@ -60,8 +59,8 @@ class JobWorkflowController extends Controller
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:2000'],
-            'proofs' => ['required', 'array', 'min:' . self::MIN_INSPECTION_PHOTOS, 'max:20'],
-            'proofs.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif', 'max:' . config('invoices.proof_max_size_kb')],
+            'proofs' => ['required', 'array', 'min:'.self::MIN_INSPECTION_PHOTOS, 'max:20'],
+            'proofs.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif', 'max:'.config('invoices.proof_max_size_kb')],
         ]);
 
         return response()->json($this->workflow->uploadInspection(
@@ -80,10 +79,10 @@ class JobWorkflowController extends Controller
         }
 
         $validated = $request->validate([
-            'reason' => ['nullable', 'string', 'max:2000'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
         ]);
 
-        return response()->json($this->workflow->cancel($job, $user, $validated['reason'] ?? null));
+        return response()->json($this->workflow->cancel($job, $user, $validated['reason']));
     }
 
     public function complete(Request $request, Job $job): JsonResponse
@@ -92,7 +91,7 @@ class JobWorkflowController extends Controller
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:2000'],
-            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:' . config('invoices.proof_max_size_kb')],
+            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:'.config('invoices.proof_max_size_kb')],
         ]);
 
         return response()->json($this->workflow->submitCompletion(

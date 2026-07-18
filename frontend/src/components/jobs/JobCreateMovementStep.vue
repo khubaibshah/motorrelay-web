@@ -1,4 +1,21 @@
 <script setup>
+function formatDateTime(value) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date).replace(',', ' ·');
+}
+
 defineProps({
   form: { type: Object, required: true },
   transportOptions: { type: Array, required: true },
@@ -46,12 +63,20 @@ defineEmits(['select-transport', 'back', 'next']);
       >
         <label class="block min-w-0">
           <span class="text-xs font-black uppercase tracking-wide text-slate-500">Pickup ready</span>
-          <input
-            v-model="form.pickup_at"
-            type="datetime-local"
-            class="mt-2 block w-full max-w-full min-w-0 appearance-none box-border rounded-2xl border border-slate-200 bg-white px-3 py-3 text-[16px] shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
-            :class="validationState.pickup_at ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200 dark:border-rose-400 dark:bg-rose-400/10 dark:ring-rose-400/30' : ''"
-          />
+          <div class="relative mt-2 min-h-14 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition focus-within:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06]">
+            <div class="pointer-events-none flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+              <span class="truncate text-base font-semibold text-slate-800 dark:text-emerald-100">
+                {{ formatDateTime(form.pickup_at) || 'Select date and time' }}
+              </span>
+              <span class="shrink-0 text-lg text-emerald-700 dark:text-emerald-300" aria-hidden="true">⌄</span>
+            </div>
+            <input
+              v-model="form.pickup_at"
+              type="datetime-local"
+              aria-label="Pickup ready date and time"
+              class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </div>
         </label>
       </div>
 
@@ -61,12 +86,20 @@ defineEmits(['select-transport', 'back', 'next']);
       >
         <label class="block min-w-0">
           <span class="text-xs font-black uppercase tracking-wide text-slate-500">Delivery due</span>
-          <input
-            v-model="form.delivery_at"
-            type="datetime-local"
-            class="mt-2 block w-full max-w-full min-w-0 appearance-none box-border rounded-2xl border border-slate-200 bg-white px-3 py-3 text-[16px] shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
-            :class="validationState.delivery_at ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-200 dark:border-rose-400 dark:bg-rose-400/10 dark:ring-rose-400/30' : ''"
-          />
+          <div class="relative mt-2 min-h-14 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition focus-within:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06]">
+            <div class="pointer-events-none flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+              <span class="truncate text-base font-semibold text-slate-800 dark:text-emerald-100">
+                {{ formatDateTime(form.delivery_at) || 'Select date and time' }}
+              </span>
+              <span class="shrink-0 text-lg text-emerald-700 dark:text-emerald-300" aria-hidden="true">⌄</span>
+            </div>
+            <input
+              v-model="form.delivery_at"
+              type="datetime-local"
+              aria-label="Delivery due date and time"
+              class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </div>
         </label>
       </div>
     </div>

@@ -103,7 +103,7 @@ onMounted(loadApplicationsPage);
 
 <template>
   <div class="space-y-4">
-    <BackPillButton label="Runs" to="/jobs" />
+    <BackPillButton label="Run details" :to="`/jobs/${jobId}`" />
 
     <section class="tile p-4">
       <div class="flex flex-wrap items-start justify-between gap-3">

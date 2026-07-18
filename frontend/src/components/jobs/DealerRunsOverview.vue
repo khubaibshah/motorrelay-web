@@ -242,6 +242,7 @@ function resolveInvoiceLink(job) {
             {{ formatStatusLabel(job.status) }}
           </span>
           <RouterLink
+            v-if="runsTab !== 'assigned'"
             :to="`/jobs/${job.id}/applications`"
             class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100"
             @click.stop

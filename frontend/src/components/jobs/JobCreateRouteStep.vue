@@ -77,7 +77,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           >
             <option value="">Choose the exact pickup address</option>
             <option v-for="address in addressLookup.pickup.addresses" :key="address.id" :value="address.id">
-              {{ address.label }}{{ address.secondary ? ` â€” ${address.secondary}` : '' }}
+              {{ address.label }}{{ address.secondary ? ` — ${address.secondary}` : '' }}
             </option>
           </select>
         </label>
@@ -151,7 +151,7 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           >
             <option value="">Choose the exact drop-off address</option>
             <option v-for="address in addressLookup.dropoff.addresses" :key="address.id" :value="address.id">
-              {{ address.label }}{{ address.secondary ? ` â€” ${address.secondary}` : '' }}
+              {{ address.label }}{{ address.secondary ? ` — ${address.secondary}` : '' }}
             </option>
           </select>
         </label>

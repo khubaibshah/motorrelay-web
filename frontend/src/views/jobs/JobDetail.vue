@@ -10,28 +10,29 @@ import {
   markJobCollected,
   markJobDelivered,
   applyForJob,
-  requestJobLocationUpdate
+  requestJobLocationUpdate,
+  cancelJob
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { createEchoClient } from "@/services/realtime";
 import { useAuthStore } from "@/stores/auth";
+import { useDriverStore } from "@/stores/driver";
 import { useJobsStore } from "@/stores/jobs";
 import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import BackPillButton from "@/components/BackPillButton.vue";
-import DealerLiveTrackingCard from "@/components/jobs/DealerLiveTrackingCard.vue";
 import DriverChatModal from "@/components/jobs/DriverChatModal.vue";
 import DriverModeOverlay from "@/components/jobs/DriverModeOverlay.vue";
 import InspectionGalleryOverlay from "@/components/jobs/InspectionGalleryOverlay.vue";
 import JobIncidentModal from "@/components/jobs/JobIncidentModal.vue";
 import NavigationAppModal from "@/components/jobs/NavigationAppModal.vue";
 import RecoveryConfirmationModal from "@/components/jobs/RecoveryConfirmationModal.vue";
+import JobActionConfirmDialog from "@/components/jobs/JobActionConfirmDialog.vue";
 import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
-import RunPaymentCard from "@/components/jobs/RunPaymentCard.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
 import RunQuickActions from "@/components/jobs/RunQuickActions.vue";
 import RunTrackingCard from "@/components/jobs/RunTrackingCard.vue";
@@ -45,6 +46,7 @@ import { formatStatusLabel } from "@/utils/statusLabels";
 
 const route = useRoute();
 const auth = useAuthStore();
+const driverStore = useDriverStore();
 const jobsStore = useJobsStore();
 
 const job = ref(null);
@@ -68,6 +70,10 @@ const driverActionError = ref("");
 const driverModeOpen = ref(false);
 const jobRequestLoading = ref(false);
 const jobRequestError = ref("");
+const cancelDialogOpen = ref(false);
+const cancelDialogNote = ref("");
+const cancelSubmitting = ref(false);
+const cancelError = ref("");
 
 const trackingState = reactive({
   sending: false,
@@ -405,35 +411,6 @@ const canUseDriverMode = computed(() => {
   return canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value;
 });
 
-const liveTrackingLocation = computed(() => {
-  const latitude = Number(job.value?.current_latitude);
-  const longitude = Number(job.value?.current_longitude);
-
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-
-  return {
-    lat: latitude,
-    lng: longitude
-  };
-});
-
-const shouldShowDealerLiveTracking = computed(() => {
-  return (currentRole.value === "admin" || isDealerForJob.value) && Boolean(liveTrackingLocation.value);
-});
-
-const dealerLiveTrackingMapSrc = computed(() => {
-  if (!liveTrackingLocation.value) return "";
-  const { lat, lng } = liveTrackingLocation.value;
-  return `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
-});
-
-const dealerLiveTrackingUpdatedLabel = computed(() => {
-  if (!lastTrackedDisplay.value) return "Waiting for the driver to share location.";
-  return `Updated ${lastTrackedDisplay.value}`;
-});
-
 const runPhotosRoute = computed(() => ({
   name: "job-photos",
   params: {
@@ -692,6 +669,10 @@ const canRequestJob = computed(() => {
   if (job.value.assigned_to_id) return false;
   if (String(job.value.status || "").toLowerCase() !== "open") return false;
   return !myApplication.value;
+});
+const canCancelJob = computed(() => {
+  if (!job.value || !(isDealerForJob.value || currentRole.value === "admin")) return false;
+  return !['completed', 'delivered', 'closed', 'cancelled'].includes(String(job.value.status || '').toLowerCase());
 });
 const showDriverRequestPanel = computed(() => {
   if (!job.value || currentRole.value !== "driver") return false;
@@ -952,6 +933,52 @@ async function handleDriverDelivered() {
   }
 }
 
+async function handleRequestJob() {
+  if (!job.value?.id || !canRequestJob.value || jobRequestLoading.value) return;
+
+  jobRequestLoading.value = true;
+  jobRequestError.value = "";
+
+  try {
+    const response = await applyForJob(job.value.id);
+    driverStore.addPendingApplication(job.value, response?.application ?? response?.data ?? response);
+    await loadJob();
+  } catch (error) {
+    console.error("Failed to request run", error);
+    jobRequestError.value = error.response?.data?.message || "Unable to request this run right now.";
+  } finally {
+    jobRequestLoading.value = false;
+  }
+}
+
+function openCancelDialog() {
+  cancelDialogNote.value = "";
+  cancelError.value = "";
+  cancelDialogOpen.value = true;
+}
+
+function closeCancelDialog() {
+  if (cancelSubmitting.value) return;
+  cancelDialogOpen.value = false;
+}
+
+async function confirmCancelJob() {
+  if (!job.value?.id || !canCancelJob.value) return;
+
+  cancelSubmitting.value = true;
+  cancelError.value = "";
+  try {
+    await cancelJob(job.value.id, cancelDialogNote.value.trim() ? { reason: cancelDialogNote.value.trim() } : {});
+    cancelDialogOpen.value = false;
+    await loadJob();
+  } catch (error) {
+    console.error("Failed to cancel run", error);
+    cancelError.value = error.response?.data?.message || "Unable to cancel this run right now.";
+  } finally {
+    cancelSubmitting.value = false;
+  }
+}
+
 async function handleCheckout() {
   if (!job.value?.id) return;
 
@@ -1127,9 +1154,19 @@ watch(
         :show-driver-request-panel="showDriverRequestPanel"
         :my-application="myApplication"
         :can-use-driver-mode="canUseDriverMode"
+        :can-cancel-job="canCancelJob"
+        :cancel-loading="cancelSubmitting"
         @request-job="handleRequestJob"
         @start-driver-mode="driverModeOpen = true"
+        @cancel-job="openCancelDialog"
       />
+
+      <p
+        v-if="jobRequestError"
+        class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100"
+      >
+        {{ jobRequestError }}
+      </p>
 
       <section
         v-if="shouldShowGoLiveBanner"
@@ -1173,13 +1210,6 @@ watch(
         :photos-to="runPhotosRoute"
         :show-issue="canReportIncident"
         :show-photos="canUploadInspection || hasInspectionPhotos || canReviewInspection"
-      />
-
-      <DealerLiveTrackingCard
-        v-if="shouldShowDealerLiveTracking"
-        :location="liveTrackingLocation"
-        :map-src="dealerLiveTrackingMapSrc"
-        :updated-label="dealerLiveTrackingUpdatedLabel"
       />
 
       <RunIncidentHistory
@@ -1232,33 +1262,8 @@ watch(
         </p>
       </section>
 
-      <RunPaymentCard
-        v-if="canManagePayment"
-        :eyebrow="paymentCardEyebrow"
-        :title="paymentCardTitle"
-        :dealer-charge="priceFormatter.format(dealerPaymentAmount)"
-        :driver-payout="priceFormatter.format(driverPayoutAmount)"
-        :status="paymentStatus"
-        :status-class="paymentStatusBadgeClass"
-        :paid-text="job.paid_at ? `Paid ${formatDateTime(job.paid_at)}.` : ''"
-        :payment-error="paymentError"
-        :payment-notice="paymentNotice"
-        :confirmation-text="paymentConfirmationText"
-        :can-start-checkout="canStartCheckout"
-        :can-release-payout="canReleasePayout"
-        :checkout-loading="checkoutLoading"
-        :payout-release-loading="payoutReleaseLoading"
-        :action-help="paymentActionHelp"
-        @checkout="handleCheckout"
-        @sync-payment="handlePaymentSync()"
-        @release-payout="handleReleasePayout"
-      />
-
-
-
-
       <RunTrackingCard
-        v-if="shouldShowTrackingCard && !isAssignedDriver"
+        v-if="shouldShowTrackingCard && isDriverDetailView"
         :has-tracking-ended="hasTrackingEnded"
         :can-share-tracking="canShareTracking"
         :can-request-tracking="canRequestTracking"
@@ -1362,5 +1367,23 @@ watch(
       :links="navigationLinks"
       @close="closeNavigationModal"
     />
+
+    <JobActionConfirmDialog
+      :open="cancelDialogOpen"
+      mode="cancel"
+      message="Cancel this run? The assigned driver will be notified and live tracking will end. Add a reason so everyone has a clear record."
+      :pending="cancelSubmitting"
+      :note="cancelDialogNote"
+      @close="closeCancelDialog"
+      @confirm="confirmCancelJob"
+      @update:note="cancelDialogNote = $event"
+    />
+
+    <p
+      v-if="cancelError"
+      class="fixed bottom-24 left-1/2 z-[60] w-[min(90vw,32rem)] -translate-x-1/2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700 shadow-xl"
+    >
+      {{ cancelError }}
+    </p>
   </div>
 </template>

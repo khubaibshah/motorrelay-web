@@ -33,10 +33,18 @@ defineProps({
   canUseDriverMode: {
     type: Boolean,
     default: false
+  },
+  canCancelJob: {
+    type: Boolean,
+    default: false
+  },
+  cancelLoading: {
+    type: Boolean,
+    default: false
   }
 });
 
-defineEmits(['request-job', 'start-driver-mode']);
+defineEmits(['request-job', 'start-driver-mode', 'cancel-job']);
 </script>
 
 <template>
@@ -89,6 +97,16 @@ defineEmits(['request-job', 'start-driver-mode']);
           @click="$emit('start-driver-mode')"
         >
           Start driver mode
+        </button>
+        <button
+          v-if="canCancelJob"
+          type="button"
+          class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+          :disabled="cancelLoading"
+          @click="$emit('cancel-job')"
+        >
+          <span v-if="cancelLoading">Cancelling...</span>
+          <span v-else>Cancel run</span>
         </button>
       </div>
     </div>

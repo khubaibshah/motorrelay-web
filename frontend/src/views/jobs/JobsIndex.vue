@@ -6,6 +6,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { applyForJob, cancelJob, markJobDelivered, sendJobInvoice } from '@/services/jobs';
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
+import { useDriverStore } from '@/stores/driver';
 import { useJobsStore } from '@/stores/jobs';
 import { formatStatusLabel } from '@/utils/statusLabels';
 import DriverRunMarketplace from '@/components/jobs/DriverRunMarketplace.vue';
@@ -14,6 +15,7 @@ import ActiveRunsSection from '@/components/jobs/ActiveRunsSection.vue';
 import JobActionConfirmDialog from '@/components/jobs/JobActionConfirmDialog.vue';
 
 const auth = useAuthStore();
+const driver = useDriverStore();
 const jobsStore = useJobsStore();
 const router = useRouter();
 const route = useRoute();
@@ -29,6 +31,7 @@ const activeErrorMessage = ref('');
 const completedErrorMessage = ref('');
 const successMessage = ref('');
 const appliedJobIds = ref(new Set());
+const applyingJobId = ref(null);
 const driverLocationQuery = ref(typeof route.query.location === 'string' ? route.query.location : '');
 const driverLocationFocused = ref(false);
 const driverLocationAutocomplete = ref([]);
@@ -164,14 +167,18 @@ async function loadJobs({ force = true } = {}) {
 }
 
 async function handleApply(job) {
-  if (appliedJobIds.value.has(job.id)) return;
+  if (appliedJobIds.value.has(job.id) || applyingJobId.value === job.id) return;
 
+  applyingJobId.value = job.id;
   try {
-    await applyForJob(job.id);
+    const response = await applyForJob(job.id);
+    driver.addPendingApplication(job, response?.application ?? response?.data ?? response);
     appliedJobIds.value = new Set([...appliedJobIds.value, job.id]);
   } catch (error) {
     console.error('Run application failed', error);
     alert(error.response?.data?.message || 'We could not submit your application. Please try again.');
+  } finally {
+    applyingJobId.value = null;
   }
 }
 
@@ -975,6 +982,7 @@ onMounted(async () => {
       :empty-message="selectedDriverEmptyMessage"
       :marketplace-label="driverMarketplaceLabel"
       :applied-job-ids="appliedJobIds"
+      :applying-job-id="applyingJobId"
       :location-loading="driverLocation.loading"
       @search="submitDriverSearch"
       @input="handleDriverLocationInput"
@@ -1018,10 +1026,9 @@ onMounted(async () => {
       </div>
 
       <div v-else class="space-y-4">
-        <button
+        <article
           v-for="job in visibleJobs"
           :key="job.id"
-          type="button"
           class="w-full cursor-pointer rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl sm:p-5"
           @click="openJob(job)"
         >
@@ -1053,14 +1060,15 @@ onMounted(async () => {
               v-if="isDriver"
               type="button"
               class="btn-primary w-full px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
-              :disabled="hasApplied(job.id)"
+              :disabled="hasApplied(job.id) || applyingJobId === job.id"
               @click.stop="handleApply(job)"
             >
               <span v-if="hasApplied(job.id)">Application sent</span>
-            <span v-else>Request this run</span>
+              <span v-else-if="applyingJobId === job.id">Sending request...</span>
+              <span v-else>Request this run</span>
             </button>
           </div>
-        </button>
+        </article>
       </div>
     </section>
     </div>

@@ -51,6 +51,10 @@ const props = defineProps({
   appliedJobIds: {
     type: Object,
     default: () => new Set()
+  },
+  applyingJobId: {
+    type: [Number, String],
+    default: null
   }
 });
 
@@ -298,11 +302,12 @@ function formatRunTime(job) {
             <button
               type="button"
               class="rounded-2xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-950"
-              :disabled="hasApplied(job.id)"
+              :disabled="hasApplied(job.id) || props.applyingJobId === job.id"
               @click.stop="emit('apply', job)"
             >
-              <span v-if="hasApplied(job.id)">Sent</span>
-              <span v-else>Request run</span>
+            <span v-if="hasApplied(job.id)">Sent</span>
+            <span v-else-if="props.applyingJobId === job.id">Sending...</span>
+            <span v-else>Request run</span>
             </button>
             <button
               type="button"
@@ -458,10 +463,11 @@ function formatRunTime(job) {
           <button
             type="button"
             class="btn-primary min-h-0 flex-1 px-3 py-2 text-xs disabled:opacity-60"
-            :disabled="hasApplied(job.id)"
+            :disabled="hasApplied(job.id) || props.applyingJobId === job.id"
             @click.stop="emit('apply', job)"
           >
             <span v-if="hasApplied(job.id)">Application sent</span>
+            <span v-else-if="props.applyingJobId === job.id">Sending...</span>
             <span v-else>Request this run</span>
           </button>
           <button

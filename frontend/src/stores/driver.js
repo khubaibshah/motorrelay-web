@@ -6,7 +6,8 @@ export const useDriverStore = defineStore('driver', {
     overview: null,
     loading: false,
     error: null,
-    fetchedAt: null
+    fetchedAt: null,
+    stale: false
   }),
 
   getters: {
@@ -18,12 +19,13 @@ export const useDriverStore = defineStore('driver', {
 
   actions: {
     async fetchOverview({ force = false } = {}) {
-      if (!force && this.overview) return this.overview;
+      if (!force && this.overview && !this.stale) return this.overview;
       this.loading = true;
       this.error = null;
       try {
         this.overview = await fetchDriverOverview();
         this.fetchedAt = Date.now();
+        this.stale = false;
         return this.overview;
       } catch (error) {
         this.error = error;
@@ -33,9 +35,36 @@ export const useDriverStore = defineStore('driver', {
       }
     },
 
+    addPendingApplication(job, application = {}) {
+      if (!job?.id) return;
+
+      const existingApplications = this.overview?.applications ?? [];
+      const applicationRecord = {
+        ...application,
+        job: application.job ?? job,
+        job_id: application.job_id ?? job.id,
+        status: application.status ?? 'pending',
+        created_at: application.created_at ?? new Date().toISOString()
+      };
+      const withoutExisting = existingApplications.filter(
+        (item) => Number(item.job_id ?? item.job?.id) !== Number(job.id)
+      );
+
+      this.overview = {
+        ...(this.overview ?? { stats: {}, active: [], completed: [] }),
+        applications: [applicationRecord, ...withoutExisting],
+        stats: {
+          ...(this.overview?.stats ?? {}),
+          pending_applications: withoutExisting.length + 1
+        }
+      };
+      this.stale = true;
+    },
+
     invalidate() {
       this.overview = null;
       this.fetchedAt = null;
+      this.stale = true;
     },
 
     reset() {
@@ -43,6 +72,7 @@ export const useDriverStore = defineStore('driver', {
       this.loading = false;
       this.error = null;
       this.fetchedAt = null;
+      this.stale = false;
     }
   }
 });

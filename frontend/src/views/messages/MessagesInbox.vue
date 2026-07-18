@@ -104,6 +104,15 @@ async function loadThreads() {
 }
 
 async function openThreadFromRoute() {
+  const threadId = route.query.thread;
+  if (threadId) {
+    const thread = threads.value.find((item) => String(item.id) === String(threadId));
+    if (thread?.id) {
+      await selectThread(thread.id);
+      return;
+    }
+  }
+
   const jobId = route.query.job;
   if (!jobId) return;
 
@@ -276,7 +285,7 @@ watch(selectedThreadId, () => {
 });
 
 watch(
-  () => route.query.job,
+  () => [route.query.job, route.query.thread],
   async () => {
     await openThreadFromRoute();
   }
@@ -390,38 +399,39 @@ function scrollMessagesToBottom() {
 
         <template v-else>
           <header class="shrink-0 border-b border-slate-200 px-3 pb-3 pt-3 dark:border-white/10 sm:px-0 sm:pt-0">
-              <div class="flex items-center justify-between gap-3">
-                <button
-                  v-if="mobileView === 'thread'"
-                  type="button"
-                  class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
-                  @click="backToThreadList"
-                >
-                  <span aria-hidden="true">←</span>
-                  Threads
-                </button>
-              <div v-if="selectedThread.job_id" class="ml-auto flex items-center gap-2">
-                <RouterLink
-                  :to="{ name: 'job-detail', params: { id: selectedThread.job_id }, query: { from: 'messages', thread: selectedThread.id } }"
-                  class="btn-secondary inline-flex items-center px-3 py-2 text-xs"
-                >
-                  View run
-                </RouterLink>
-                <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">
-                  Run #{{ selectedThread.job_id }}
-                </span>
-              </div>
+            <div class="flex items-center justify-between gap-3">
+              <button
+                v-if="mobileView === 'thread'"
+                type="button"
+                class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
+                @click="backToThreadList"
+              >
+                <span aria-hidden="true">←</span>
+                Threads
+              </button>
+              <span v-if="selectedThread.job_id" class="badge ml-auto bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">
+                Run #{{ selectedThread.job_id }}
+              </span>
             </div>
 
-            <div class="mt-3 min-w-0">
-              <h2 class="truncate text-xl font-black text-slate-950 dark:text-emerald-300">
-                {{ selectedThread.subject || selectedThread.job?.title || 'Conversation' }}
-              </h2>
-              <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">
-                <span v-for="(participant, index) in selectedThread.participants" :key="participant.id">
-                  {{ participant.name }}<span v-if="index < selectedThread.participants.length - 1">, </span>
-                </span>
-              </p>
+            <div class="mt-3 flex items-end justify-between gap-3 min-w-0">
+              <div class="min-w-0">
+                <h2 class="truncate text-xl font-black text-slate-950 dark:text-emerald-300">
+                  {{ selectedThread.subject || selectedThread.job?.title || 'Conversation' }}
+                </h2>
+                <p class="mt-1 truncate text-sm text-slate-600 dark:text-emerald-100">
+                  <span v-for="(participant, index) in selectedThread.participants" :key="participant.id">
+                    {{ participant.name }}<span v-if="index < selectedThread.participants.length - 1">, </span>
+                  </span>
+                </p>
+              </div>
+              <RouterLink
+                v-if="selectedThread.job_id"
+                :to="{ name: 'job-detail', params: { id: selectedThread.job_id }, query: { from: 'messages', thread: selectedThread.id } }"
+                class="inline-flex shrink-0 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:bg-emerald-400/20"
+              >
+                View run
+              </RouterLink>
             </div>
           </header>
 

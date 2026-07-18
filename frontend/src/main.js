@@ -88,5 +88,11 @@ router.beforeEach(async (to, from, next) => {
   next();
 });
 
-app.use(router);
-app.mount('#app');
+async function bootstrap() {
+  app.use(router);
+  await initialization;
+  await router.isReady();
+  app.mount('#app');
+}
+
+void bootstrap();

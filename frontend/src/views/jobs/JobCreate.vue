@@ -519,14 +519,6 @@ watch(
     if (next) {
       validationState.transport_type = false;
     }
-    applySuggestedPrice();
-  }
-);
-
-watch(
-  () => suggestedJobPrice.value,
-  () => {
-    applySuggestedPrice();
   }
 );
 

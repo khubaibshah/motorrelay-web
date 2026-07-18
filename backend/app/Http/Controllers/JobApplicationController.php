@@ -15,7 +15,7 @@ class JobApplicationController extends Controller
     {
         $user = $request->user();
 
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
+        if (! $user || (! $user->isAdmin() && $job->posted_by_id !== $user->id)) {
             abort(403, 'You are not allowed to view applications for this job.');
         }
 
@@ -28,7 +28,7 @@ class JobApplicationController extends Controller
     {
         $user = $request->user();
 
-        if (!$user || (!$user->isDriver() && !$user->isAdmin())) {
+        if (! $user || (! $user->isDriver() && ! $user->isAdmin())) {
             abort(403, 'Only drivers can apply for jobs.');
         }
 
@@ -46,12 +46,15 @@ class JobApplicationController extends Controller
     {
         $user = $request->user();
 
-        if (!$user || (!$user->isAdmin() && $job->posted_by_id !== $user->id)) {
+        if (! $user || (! $user->isAdmin() && $job->posted_by_id !== $user->id)) {
             abort(403, 'Only the posting dealer can update applications.');
         }
 
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['accepted', 'declined'])],
+            'status' => ['required', Rule::in([
+                JobApplication::STATUS_ACCEPTED,
+                JobApplication::STATUS_DECLINED,
+            ])],
         ]);
 
         return response()->json(

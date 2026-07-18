@@ -10,6 +10,21 @@ class JobApplication extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_ACCEPTED = 'accepted';
+
+    public const STATUS_DECLINED = 'declined';
+
+    public const STATUS_WITHDRAWN = 'withdrawn';
+
+    public const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_ACCEPTED,
+        self::STATUS_DECLINED,
+        self::STATUS_WITHDRAWN,
+    ];
+
     protected $fillable = [
         'job_id',
         'driver_id',
@@ -21,6 +36,11 @@ class JobApplication extends Model
     protected $casts = [
         'responded_at' => 'datetime',
     ];
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
 
     public function job(): BelongsTo
     {

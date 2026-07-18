@@ -2,11 +2,11 @@
 
 namespace App\Services\Jobs;
 
+use App\Events\JobStatusChanged;
 use App\Models\Job;
 use App\Models\JobApplication;
 use App\Models\MessageThread;
 use App\Models\User;
-use App\Events\JobStatusChanged;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,7 +17,13 @@ class JobApplicationService
     {
         return $job->applications()
             ->with(['driver:id,name,email'])
-            ->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'accepted' THEN 1 WHEN 'declined' THEN 2 ELSE 3 END")
+            ->orderByRaw(sprintf(
+                "CASE status WHEN '%s' THEN 0 WHEN '%s' THEN 1 WHEN '%s' THEN 2 WHEN '%s' THEN 3 ELSE 4 END",
+                JobApplication::STATUS_PENDING,
+                JobApplication::STATUS_ACCEPTED,
+                JobApplication::STATUS_DECLINED,
+                JobApplication::STATUS_WITHDRAWN,
+            ))
             ->latest()
             ->get();
     }
@@ -42,7 +48,7 @@ class JobApplicationService
             ],
             [
                 'message' => $message,
-                'status' => 'pending',
+                'status' => JobApplication::STATUS_PENDING,
                 'responded_at' => null,
             ]
         );
@@ -65,7 +71,7 @@ class JobApplicationService
         }
 
         $application = DB::transaction(function () use ($status, $job, $application, $dealer) {
-            if ($application->status !== 'pending') {
+            if (! $application->isPending()) {
                 abort(422, 'This application has already been processed.');
             }
 
@@ -74,7 +80,7 @@ class JobApplicationService
                 'responded_at' => now(),
             ]);
 
-            if ($status === 'accepted') {
+            if ($status === JobApplication::STATUS_ACCEPTED) {
                 $job->update([
                     'assigned_to_id' => $application->driver_id,
                     'status' => 'in_progress',
@@ -82,7 +88,7 @@ class JobApplicationService
 
                 $job->applications()
                     ->where('id', '!=', $application->id)
-                    ->where('status', 'pending')
+                    ->where('status', JobApplication::STATUS_PENDING)
                     ->update([
                         'status' => 'declined',
                         'responded_at' => now(),
@@ -95,7 +101,7 @@ class JobApplicationService
         });
 
         if ($application->driver) {
-            JobStatusChanged::dispatch($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $application->status === 'accepted' ? 'application_accepted' : 'application_declined', [$application->driver->id], [
+            JobStatusChanged::dispatch($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $application->status === JobApplication::STATUS_ACCEPTED ? 'application_accepted' : 'application_declined', [$application->driver->id], [
                 'dealer' => ['id' => $dealer->id, 'name' => $dealer->name],
             ]);
         }
@@ -109,12 +115,12 @@ class JobApplicationService
             abort(404);
         }
 
-        if ($application->status !== 'pending') {
+        if (! $application->isPending()) {
             abort(422, 'Only pending applications can be withdrawn.');
         }
 
         $application->update([
-            'status' => 'withdrawn',
+            'status' => JobApplication::STATUS_WITHDRAWN,
             'responded_at' => now(),
         ]);
 
@@ -136,7 +142,7 @@ class JobApplicationService
         }
 
         $dailyLimit = config('jobs.plan_limits.starter.daily_applications', 0);
-        if (!$dailyLimit) {
+        if (! $dailyLimit) {
             return;
         }
 

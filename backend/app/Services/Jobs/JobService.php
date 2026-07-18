@@ -2,10 +2,11 @@
 
 namespace App\Services\Jobs;
 
+use App\Events\JobStatusChanged;
 use App\Models\Job;
+use App\Models\JobApplication;
 use App\Models\JobDailyMetric;
 use App\Models\User;
-use App\Events\JobStatusChanged;
 use App\Services\VehicleLookupService;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -14,8 +15,7 @@ class JobService
 {
     public function __construct(
         protected VehicleLookupService $vehicles,
-    ) {
-    }
+    ) {}
 
     public function highlights()
     {
@@ -154,7 +154,13 @@ class JobService
                     'applications',
                     $job->applications()
                         ->with(['driver:id,name,email'])
-                        ->orderByRaw("FIELD(status, 'pending', 'accepted', 'declined')")
+                        ->orderByRaw(sprintf(
+                            "FIELD(status, '%s', '%s', '%s', '%s')",
+                            JobApplication::STATUS_PENDING,
+                            JobApplication::STATUS_ACCEPTED,
+                            JobApplication::STATUS_DECLINED,
+                            JobApplication::STATUS_WITHDRAWN,
+                        ))
                         ->latest()
                         ->get()
                 );
@@ -212,6 +218,7 @@ class JobService
             if ($user?->isDriver()) {
                 $query->where('payment_status', 'paid');
             }
+
             return;
         }
 
@@ -223,6 +230,7 @@ class JobService
                             ->orWhere('posted_by_id', $user->id);
                     });
                 });
+
             return;
         }
 

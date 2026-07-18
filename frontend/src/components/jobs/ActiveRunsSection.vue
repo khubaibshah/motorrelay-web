@@ -74,6 +74,20 @@ function driverPayoutForJob(job) {
 function isActionPending(jobId, type) {
   return actionState?.id === jobId && actionState?.type === type;
 }
+
+function nextAction(job) {
+  const status = String(job?.status || '').toLowerCase();
+  const completionStatus = String(job?.completion_status || '').toLowerCase();
+  const paymentStatus = String(job?.payment_status || '').toLowerCase();
+
+  if (paymentStatus === 'unpaid' || paymentStatus === 'checkout_pending') return 'Confirm dealer payment';
+  if (completionStatus === 'submitted') return 'Approve completion';
+  if (completionStatus === 'not_submitted' && ['accepted', 'in_progress'].includes(status)) return 'Await inspection photos';
+  if (completionStatus === 'inspection_approved' && ['accepted', 'in_progress'].includes(status)) return 'Driver should collect vehicle';
+  if (['collected', 'in_transit'].includes(status)) return 'Track delivery';
+  if (status === 'delivered') return 'Review completion';
+  return formatStatusLabel(status, 'Review run');
+}
 </script>
 
 <template>
@@ -121,7 +135,7 @@ function isActionPending(jobId, type) {
               </div>
               <div class="rounded-2xl bg-slate-50 p-3">
                 <p class="text-xs font-black uppercase tracking-wide text-slate-500">Next action</p>
-                <p class="mt-1 font-semibold text-emerald-700">{{ formatStatusLabel(job.status) }}</p>
+                <p class="mt-1 font-semibold text-emerald-700">{{ nextAction(job) }}</p>
               </div>
             </div>
           </div>

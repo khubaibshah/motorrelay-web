@@ -67,9 +67,11 @@ function handleRealtimeJobEvent(event) {
   if (auth.role !== 'driver') return;
 
   const eventName = String(event?.detail?.event || '').toLowerCase();
-  if (eventName !== 'application_accepted') return;
+  if (!['application_accepted', 'inspection_approved', 'inspection_changes_requested', 'driver_uploaded_inspection'].includes(eventName)) return;
 
-  driverTab.value = 'active';
+  if (eventName === 'application_accepted' || eventName === 'inspection_approved') {
+    driverTab.value = 'active';
+  }
 
   // Acceptance changes both lists: remove the pending application and add the
   // assigned run to Active. Refresh this small overview payload immediately so
@@ -102,6 +104,10 @@ function jobStatusLabel(status) {
 function currentJobAction(job) {
   const status = String(job?.status || '').toLowerCase();
   const completionStatus = String(job?.completion_status || '').toLowerCase();
+
+  if (completionStatus === 'inspection_approved' && ['accepted', 'in_progress'].includes(status)) {
+    return 'Inspection approved — collect the vehicle and mark it collected.';
+  }
 
   if ((status === 'in_progress' || status === 'accepted' || status === 'pending') && !job?.delivery_proof_path) {
     return 'Open this run and upload inspection photos before collection.';

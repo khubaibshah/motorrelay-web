@@ -34,6 +34,14 @@ defineProps({
     type: Boolean,
     default: false
   },
+  canMarkCollected: {
+    type: Boolean,
+    default: false
+  },
+  collectedLoading: {
+    type: Boolean,
+    default: false
+  },
   canCancelJob: {
     type: Boolean,
     default: false
@@ -52,7 +60,7 @@ defineProps({
   }
 });
 
-defineEmits(['request-job', 'start-driver-mode', 'cancel-job', 'withdraw-application']);
+defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'cancel-job', 'withdraw-application']);
 </script>
 
 <template>
@@ -78,7 +86,7 @@ defineEmits(['request-job', 'start-driver-mode', 'cancel-job', 'withdraw-applica
     </div>
 
     <div
-      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || canCancelJob"
+      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || canMarkCollected || canCancelJob"
       class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
     >
       <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
@@ -117,6 +125,16 @@ defineEmits(['request-job', 'start-driver-mode', 'cancel-job', 'withdraw-applica
           @click="$emit('start-driver-mode')"
         >
           Start driver mode
+        </button>
+        <button
+          v-if="canMarkCollected"
+          type="button"
+          class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+          :disabled="collectedLoading"
+          @click="$emit('mark-collected')"
+        >
+          <span v-if="collectedLoading">Updating...</span>
+          <span v-else>Mark vehicle collected</span>
         </button>
         <button
           v-if="canCancelJob"

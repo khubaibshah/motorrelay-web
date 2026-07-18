@@ -449,6 +449,10 @@ const statusDescription = computed(() => {
     return "This run is open and awaiting driver applications.";
   }
 
+  if (completionStatus.value === 'inspection_approved' && ['accepted', 'in_progress'].includes(status)) {
+    return 'Inspection approved. The driver should collect the vehicle and mark it as collected.';
+  }
+
   if (["pending", "accepted", "in_progress", "collected", "in_transit"].includes(status)) {
     if (assignedDriver.value) {
       return `This run is currently in progress with ${assignedDriver.value.name}.`;
@@ -1205,12 +1209,15 @@ watch(
         :show-driver-request-panel="showDriverRequestPanel"
         :my-application="myApplication"
         :can-use-driver-mode="canUseDriverMode"
+        :can-mark-collected="canMarkCollected"
+        :collected-loading="driverActionLoading === 'collected'"
         :can-cancel-job="canCancelJob"
         :cancel-loading="cancelSubmitting"
         :can-withdraw-application="canWithdrawApplication"
         :withdraw-loading="withdrawSubmitting"
         @request-job="handleRequestJob"
         @start-driver-mode="driverModeOpen = true"
+        @mark-collected="handleDriverCollected"
         @cancel-job="openCancelDialog"
         @withdraw-application="handleWithdrawApplication"
       />

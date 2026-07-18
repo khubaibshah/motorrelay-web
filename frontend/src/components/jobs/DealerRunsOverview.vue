@@ -119,6 +119,17 @@ function applicationCount(job) {
   return Number(job?.applications_count ?? job?.job_applications_count ?? job?.applications?.length ?? 0);
 }
 
+function nextAction(job) {
+  const status = String(job?.status || '').toLowerCase();
+  const completionStatus = String(job?.completion_status || '').toLowerCase();
+  if (!job?.assigned_to_id) return 'Review driver applications';
+  if (completionStatus === 'submitted') return 'Approve completion';
+  if (completionStatus === 'inspection_approved' && ['accepted', 'in_progress'].includes(status)) return 'Driver collecting vehicle';
+  if (['collected', 'in_transit'].includes(status)) return 'Track delivery';
+  if (status === 'delivered') return 'Review completion';
+  return formatStatusLabel(status, 'Review run');
+}
+
 const needsDriverJobs = computed(() => props.jobs.filter((job) => !job?.assigned_to_id));
 const assignedJobs = computed(() => props.jobs.filter((job) => Boolean(job?.assigned_to_id)));
 const visibleJobs = computed(() => runsTab.value === 'assigned' ? assignedJobs.value : needsDriverJobs.value);
@@ -251,6 +262,9 @@ function resolveInvoiceLink(job) {
           </RouterLink>
           <span class="min-w-0 truncate rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100">
             {{ assignedDriverLabel(job) }}
+          </span>
+          <span class="min-w-0 truncate rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200">
+            Next: {{ nextAction(job) }}
           </span>
         </div>
 

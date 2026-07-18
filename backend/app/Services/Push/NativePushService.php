@@ -12,7 +12,9 @@ class NativePushService
 
     public function sendToUser(User $user, array $notification): void
     {
-        $subscriptions = $user->pushSubscriptions()->get();
+        // Protect against legacy duplicate rows while the registration
+        // endpoint cleans up rotated device tokens.
+        $subscriptions = $user->pushSubscriptions()->get()->unique('token');
 
         foreach ($subscriptions as $subscription) {
             try {

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import BackPillButton from '@/components/BackPillButton.vue';
 import {
   approveJobInspection,
@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
 
 const job = ref(null);
@@ -22,6 +23,7 @@ const localPreviews = ref([]);
 const previewLoading = ref(false);
 const selectedPhotoIndex = ref(0);
 const actionLoading = ref('');
+const successNotice = ref('');
 
 const form = reactive({
   notes: '',
@@ -144,6 +146,7 @@ async function submitPhotos() {
 
   form.submitting = true;
   form.error = '';
+  successNotice.value = '';
 
   try {
     await uploadJobInspection(job.value.id, {
@@ -154,12 +157,26 @@ async function submitPhotos() {
     form.files = [];
     syncLocalPreviews();
     await loadPage();
+    successNotice.value = 'Inspection photos and notes uploaded. The dealer can now review them.';
   } catch (error) {
     console.error('Failed to upload inspection photos', error);
     form.error = error?.response?.data?.message || 'Unable to upload photos.';
   } finally {
     form.submitting = false;
   }
+}
+
+function finishUpload() {
+  router.push({ name: 'job-detail', params: { id: jobId.value } });
+}
+
+function handleRealtimeJobEvent(event) {
+  const incomingJobId = Number(event?.detail?.job_id || 0);
+  if (incomingJobId !== Number(jobId.value)) return;
+
+  loadPage().catch((error) => {
+    console.error('Failed to refresh inspection photos after realtime update', error);
+  });
 }
 
 async function approvePhotos() {
@@ -192,9 +209,13 @@ async function requestChanges() {
   }
 }
 
-onMounted(loadPage);
+onMounted(() => {
+  window.addEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+  loadPage();
+});
 
 onBeforeUnmount(() => {
+  window.removeEventListener('motorrelay:job-event', handleRealtimeJobEvent);
   Object.values(photoPreviews.value).forEach((url) => URL.revokeObjectURL(url));
   localPreviews.value.forEach((preview) => URL.revokeObjectURL(preview.url));
 });
@@ -219,6 +240,10 @@ onBeforeUnmount(() => {
 
     <p v-if="loading" class="tile p-4 text-sm text-slate-600 dark:text-emerald-100">Loading photos...</p>
     <p v-else-if="errorMessage" class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-700">{{ errorMessage }}</p>
+    <section v-if="successNotice" class="tile border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10">
+      <p class="text-sm font-black text-emerald-800 dark:text-emerald-200">{{ successNotice }}</p>
+      <button type="button" class="btn-primary mt-3 w-full px-4 py-3 text-sm" @click="finishUpload">Done — back to run</button>
+    </section>
 
     <section v-if="canUploadPhotos" class="tile space-y-3 p-3">
       <div class="flex flex-wrap items-center justify-between gap-2">

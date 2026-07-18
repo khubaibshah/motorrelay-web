@@ -25,7 +25,9 @@ async function saveToken(token) {
   await api.post('/push-subscriptions', {
     platform: platform(),
     token: token.value,
-    device_id: `${platform()}-${token.value.slice(-12)}`
+    // Keep the device key stable across APNs token rotations so the backend
+    // can retire the previous token instead of sending duplicate pushes.
+    device_id: platform()
   });
 }
 

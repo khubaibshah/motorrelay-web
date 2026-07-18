@@ -16,6 +16,22 @@ class PushSubscriptionController extends Controller
             'device_id' => ['nullable', 'string', 'max:255'],
         ]);
 
+        // A device can rotate its APNs/FCM token. Remove the previous token
+        // for this device before registering the new one, otherwise every
+        // notification is delivered once for each stale subscription.
+        if (! empty($validated['device_id'])) {
+            $request->user()->pushSubscriptions()
+                ->where('platform', $validated['platform'])
+                ->where(function ($query) use ($validated) {
+                    $query->where('device_id', $validated['device_id'])
+                        // Also clean tokens registered by older app builds,
+                        // which used a token suffix as the device key.
+                        ->orWhere('device_id', 'like', $validated['platform'].'-%');
+                })
+                ->where('token', '!=', $validated['token'])
+                ->delete();
+        }
+
         $subscription = $request->user()->pushSubscriptions()->updateOrCreate(
             [
                 'platform' => $validated['platform'],

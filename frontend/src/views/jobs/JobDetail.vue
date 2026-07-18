@@ -50,6 +50,13 @@ const auth = useAuthStore();
 const driverStore = useDriverStore();
 const jobsStore = useJobsStore();
 
+const returnToMessages = computed(() => {
+  const threadId = String(route.query.thread || '').trim();
+  return route.query.from === 'messages' && threadId
+    ? { name: 'messages', query: { thread: threadId } }
+    : null;
+});
+
 const job = ref(null);
 const loading = ref(false);
 const errorMessage = ref("");
@@ -1170,7 +1177,8 @@ watch(
     </div>
 
     <div v-else class="space-y-3">
-      <BackPillButton label="Runs" to="/jobs" />
+      <BackPillButton v-if="returnToMessages" label="Chat" :to="returnToMessages" />
+      <BackPillButton v-else label="Runs" to="/jobs" />
 
       <RunDetailHeader
         :job="job"

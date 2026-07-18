@@ -390,19 +390,27 @@ function scrollMessagesToBottom() {
 
         <template v-else>
           <header class="shrink-0 border-b border-slate-200 px-3 pb-3 pt-3 dark:border-white/10 sm:px-0 sm:pt-0">
-            <div class="flex items-center justify-between gap-3">
-              <button
-                v-if="mobileView === 'thread'"
-                type="button"
-                class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
-                @click="backToThreadList"
-              >
-                <span aria-hidden="true">←</span>
-                Threads
-              </button>
-              <span v-if="selectedThread.job_id" class="badge ml-auto bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">
-                Run #{{ selectedThread.job_id }}
-              </span>
+              <div class="flex items-center justify-between gap-3">
+                <button
+                  v-if="mobileView === 'thread'"
+                  type="button"
+                  class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
+                  @click="backToThreadList"
+                >
+                  <span aria-hidden="true">←</span>
+                  Threads
+                </button>
+              <div v-if="selectedThread.job_id" class="ml-auto flex items-center gap-2">
+                <RouterLink
+                  :to="{ name: 'job-detail', params: { id: selectedThread.job_id }, query: { from: 'messages', thread: selectedThread.id } }"
+                  class="btn-secondary inline-flex items-center px-3 py-2 text-xs"
+                >
+                  View run
+                </RouterLink>
+                <span class="badge bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-emerald-100">
+                  Run #{{ selectedThread.job_id }}
+                </span>
+              </div>
             </div>
 
             <div class="mt-3 min-w-0">

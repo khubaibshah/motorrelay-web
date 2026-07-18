@@ -47,12 +47,19 @@ const emit = defineEmits([
 ]);
 
 const runsTab = ref('needs-driver');
+const filterOpen = ref(false);
 const jobs = computed(() => props.jobs);
 const loading = computed(() => props.loading);
 const search = computed(() => props.search);
 const statusFilter = computed(() => props.statusFilter);
 const paymentFilter = computed(() => props.paymentFilter);
 const totalJobs = computed(() => props.totalJobs);
+
+function clearFilters() {
+  emit('update:search', '');
+  emit('update:statusFilter', 'all');
+  emit('update:paymentFilter', 'all');
+}
 
 function formatShortDate(value) {
   if (!value) return '--';
@@ -133,18 +140,27 @@ function resolveInvoiceLink(job) {
   <section class="flex h-[calc(100dvh-13rem)] min-h-[32rem] flex-col gap-3 overflow-hidden dark:text-white">
     <div class="shrink-0">
       <div class="section-card space-y-3 bg-white opacity-100 dark:border-white/10 dark:bg-slate-950">
-      <header class="space-y-3">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Dealer operations</p>
-        <RouterLink
-          to="/jobs/new"
-          class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-        >
-          Create run
-        </RouterLink>
-      </div>
+      <header class="space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Dealer operations</p>
+          <div class="flex items-center gap-2">
+            <RouterLink
+              to="/jobs/new"
+              class="btn-primary px-3 py-2 text-xs sm:px-4 sm:text-sm"
+            >
+              Create run
+            </RouterLink>
+            <button
+              type="button"
+              aria-label="Open run filters"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-black text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
+              @click="filterOpen = true"
+            >
+              <span aria-hidden="true">☷</span>
+            </button>
+          </div>
+        </div>
 
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="grid w-full grid-cols-3 gap-1.5">
           <div
             v-for="stat in stats"
@@ -155,57 +171,7 @@ function resolveInvoiceLink(job) {
             <p class="mt-0.5 text-[0.55rem] font-black uppercase tracking-[0.1em] text-slate-500 dark:text-emerald-100">{{ stat.label }}</p>
           </div>
         </div>
-      </div>
       </header>
-
-      <div class="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
-        <div>
-          <input
-            id="dealer-jobs-search"
-            :value="search"
-            type="search"
-            placeholder="Title, route, driver..."
-            class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
-            @input="emit('update:search', $event.target.value)"
-          >
-        </div>
-
-        <div>
-          <select
-            id="dealer-jobs-status"
-            :value="statusFilter"
-            class="h-10 w-24 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
-            @change="emit('update:statusFilter', $event.target.value)"
-          >
-            <option value="all">Status</option>
-            <option value="open">Open</option>
-            <option value="pending">Pending</option>
-            <option value="in_progress">In progress</option>
-            <option value="accepted">Accepted</option>
-            <option value="collected">Collected</option>
-            <option value="in_transit">In transit</option>
-            <option value="completion_pending">Completion pending</option>
-            <option value="delivered">Delivered</option>
-            <option value="completed">Completed</option>
-            <option value="closed">Closed</option>
-          </select>
-        </div>
-
-        <div>
-          <select
-            id="dealer-jobs-payment"
-            :value="paymentFilter"
-            class="h-10 w-24 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
-            @change="emit('update:paymentFilter', $event.target.value)"
-          >
-            <option value="all">Payment</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="checkout_pending">Checkout pending</option>
-            <option value="paid">Paid</option>
-            <option value="payout_released">Payout released</option>
-          </select>
-        </div>
-      </div>
       </div>
     </div>
 
@@ -323,4 +289,66 @@ function resolveInvoiceLink(job) {
       </div>
     </div>
   </section>
+
+  <div
+    v-if="filterOpen"
+    class="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-4 sm:items-center"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Run filters"
+    @click.self="filterOpen = false"
+  >
+    <div class="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl dark:border dark:border-white/10 dark:bg-slate-950">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-lg font-black text-slate-950 dark:text-white">Filter runs</h2>
+        <button type="button" class="text-sm font-bold text-slate-500 dark:text-emerald-100" @click="filterOpen = false">Close</button>
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <input
+          id="dealer-jobs-search"
+          :value="search"
+          type="search"
+          placeholder="Title, route, driver..."
+          class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
+          @input="emit('update:search', $event.target.value)"
+        >
+        <select
+          id="dealer-jobs-status"
+          :value="statusFilter"
+          class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
+          @change="emit('update:statusFilter', $event.target.value)"
+        >
+          <option value="all">All statuses</option>
+          <option value="open">Open</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In progress</option>
+          <option value="accepted">Accepted</option>
+          <option value="collected">Collected</option>
+          <option value="in_transit">In transit</option>
+          <option value="completion_pending">Completion pending</option>
+          <option value="delivered">Delivered</option>
+          <option value="completed">Completed</option>
+          <option value="closed">Closed</option>
+        </select>
+        <select
+          id="dealer-jobs-payment"
+          :value="paymentFilter"
+          class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
+          @change="emit('update:paymentFilter', $event.target.value)"
+        >
+          <option value="all">All payment states</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="checkout_pending">Checkout pending</option>
+          <option value="paid">Paid</option>
+          <option value="payout_released">Payout released</option>
+        </select>
+      </div>
+
+      <div class="mt-5 flex gap-2">
+        <button type="button" class="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-700 dark:border-white/10 dark:text-emerald-100" @click="clearFilters">Clear filters</button>
+        <button type="button" class="flex-1 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white dark:bg-emerald-400 dark:text-slate-950" @click="filterOpen = false">Apply filters</button>
+      </div>
+    </div>
+  </div>
 </template>

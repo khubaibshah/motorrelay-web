@@ -357,7 +357,10 @@ async function selectAddress(type, selectedId) {
   try {
     const { data } = await api.get(`/postcodes/places/${encodeURIComponent(selectedId)}`);
     const result = data?.data ?? data ?? {};
-    const label = result.label || address.label;
+    // Keep the exact place/business name selected by the user. Google’s
+    // details response can contain only the postal street label, while the
+    // autocomplete prediction includes the selected organisation name.
+    const label = address.label || result.label;
 
     state.selected = {
       ...address,

@@ -1,8 +1,9 @@
 <script setup>
+import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { formatStatusLabel } from '@/utils/statusLabels';
 
-defineProps({
+const props = defineProps({
   jobs: {
     type: Array,
     default: () => []
@@ -44,6 +45,14 @@ const emit = defineEmits([
   'update:paymentFilter',
   'open-job'
 ]);
+
+const runsTab = ref('needs-driver');
+const jobs = computed(() => props.jobs);
+const loading = computed(() => props.loading);
+const search = computed(() => props.search);
+const statusFilter = computed(() => props.statusFilter);
+const paymentFilter = computed(() => props.paymentFilter);
+const totalJobs = computed(() => props.totalJobs);
 
 function formatShortDate(value) {
   if (!value) return '--';
@@ -102,6 +111,10 @@ function assignedDriverLabel(job) {
 function applicationCount(job) {
   return Number(job?.applications_count ?? job?.job_applications_count ?? job?.applications?.length ?? 0);
 }
+
+const needsDriverJobs = computed(() => props.jobs.filter((job) => !job?.assigned_to_id));
+const assignedJobs = computed(() => props.jobs.filter((job) => Boolean(job?.assigned_to_id)));
+const visibleJobs = computed(() => runsTab.value === 'assigned' ? assignedJobs.value : needsDriverJobs.value);
 
 function resolveInvoiceLink(job) {
   if (!job) return null;
@@ -196,18 +209,39 @@ function resolveInvoiceLink(job) {
       </div>
     </div>
 
+    <div class="shrink-0 rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-white/10 dark:bg-white/[0.06]">
+      <div class="grid grid-cols-2 gap-1">
+        <button
+          type="button"
+          class="rounded-xl px-3 py-2 text-xs font-black transition"
+          :class="runsTab === 'needs-driver' ? 'bg-slate-950 text-white dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-emerald-100 dark:hover:bg-white/10'"
+          @click="runsTab = 'needs-driver'"
+        >
+          Needs driver ({{ needsDriverJobs.length }})
+        </button>
+        <button
+          type="button"
+          class="rounded-xl px-3 py-2 text-xs font-black transition"
+          :class="runsTab === 'assigned' ? 'bg-slate-950 text-white dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-emerald-100 dark:hover:bg-white/10'"
+          @click="runsTab = 'assigned'"
+        >
+          Assigned ({{ assignedJobs.length }})
+        </button>
+      </div>
+    </div>
+
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-32 pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div v-if="loading" class="rounded-2xl border bg-white p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
         Loading your runs...
       </div>
 
-      <div v-else-if="!jobs.length" class="space-y-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
-        <p>No runs match your search.</p>
+      <div v-else-if="!visibleJobs.length" class="space-y-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100">
+        <p>{{ runsTab === 'assigned' ? 'No assigned runs yet.' : 'No runs waiting for a driver.' }}</p>
       </div>
 
       <div v-else class="space-y-2">
       <article
-        v-for="job in jobs"
+        v-for="job in visibleJobs"
         :key="job.id"
         class="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.06]"
         role="button"
@@ -283,7 +317,7 @@ function resolveInvoiceLink(job) {
 
       <div class="flex flex-wrap items-center justify-between gap-3">
         <p class="text-xs text-slate-500 dark:text-emerald-100">
-          Showing {{ jobs.length }} of {{ totalJobs }} runs.
+          Showing {{ visibleJobs.length }} of {{ totalJobs }} runs.
         </p>
       </div>
       </div>

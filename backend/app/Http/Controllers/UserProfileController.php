@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Stripe\Exception\ApiErrorException;
 use Stripe\StripeClient;
@@ -15,9 +15,9 @@ class UserProfileController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
-                'message' => 'Unauthenticated.'
+                'message' => 'Unauthenticated.',
             ], 401);
         }
 
@@ -36,7 +36,7 @@ class UserProfileController extends Controller
                 'pickup_postcode',
                 'dropoff_postcode',
                 'created_at',
-                'assigned_to_id'
+                'assigned_to_id',
             ])
             ->orderByDesc('created_at')
             ->limit(50)
@@ -58,8 +58,10 @@ class UserProfileController extends Controller
                     'dropoff_postcode',
                     'created_at',
                     'updated_at',
-                    'posted_by_id'
+                    'posted_by_id',
+                    'assigned_to_id',
                 ])
+                ->with('assignedTo:id,name,email')
                 ->withCount([
                     'applications',
                     'applications as pending_applications_count' => function ($query) {
@@ -76,6 +78,7 @@ class UserProfileController extends Controller
             ->merge($postedJobs)
             ->filter(function ($job) use ($completedStatuses) {
                 $status = strtolower((string) ($job->status ?? ''));
+
                 return in_array($status, $completedStatuses, true);
             })
             ->sortByDesc('created_at')
@@ -116,14 +119,14 @@ class UserProfileController extends Controller
             'jobs' => [
                 'assigned' => $assignedJobs->values(),
                 'posted' => $postedJobs->values(),
-                'completed' => $completedJobs
-            ]
+                'completed' => $completedJobs,
+            ],
         ]);
     }
 
     protected function syncStripePayoutStatus($user): void
     {
-        if (!$user->isDriver() || !$user->stripe_account_id || !config('stripe.secret_key')) {
+        if (! $user->isDriver() || ! $user->stripe_account_id || ! config('stripe.secret_key')) {
             return;
         }
 

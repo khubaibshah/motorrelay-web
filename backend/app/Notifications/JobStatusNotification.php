@@ -69,6 +69,12 @@ class JobStatusNotification extends Notification
                 'action_label' => 'Review request',
                 'url' => $route,
             ],
+            'driver_withdrew_application' => [
+                'title' => 'Driver withdrew application',
+                'body' => sprintf('A driver withdrew their application for %s.', $jobLabel),
+                'action_label' => 'Open job',
+                'url' => $route,
+            ],
             'application_accepted' => [
                 'title' => 'Job request accepted',
                 'body' => sprintf('Your request was accepted for %s.', $jobLabel),

@@ -61,6 +61,24 @@ export const useDriverStore = defineStore('driver', {
       this.stale = true;
     },
 
+    removePendingApplication(applicationId) {
+      if (!this.overview?.applications) return;
+
+      const applications = this.overview.applications.filter(
+        (application) => Number(application.id) !== Number(applicationId)
+      );
+
+      this.overview = {
+        ...this.overview,
+        applications,
+        stats: {
+          ...(this.overview.stats ?? {}),
+          pending_applications: applications.length
+        }
+      };
+      this.stale = true;
+    },
+
     invalidate() {
       this.overview = null;
       this.fetchedAt = null;

@@ -58,4 +58,15 @@ class JobApplicationController extends Controller
             $applications->updateStatus($job, $application, $user, $validated['status'])
         );
     }
+
+    public function destroy(Request $request, Job $job, JobApplication $application, JobApplicationService $applications): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $user->isDriver(), 403, 'Only drivers can withdraw applications.');
+
+        return response()->json([
+            'message' => 'Application withdrawn.',
+            'application' => $applications->withdraw($job, $application, $user),
+        ]);
+    }
 }

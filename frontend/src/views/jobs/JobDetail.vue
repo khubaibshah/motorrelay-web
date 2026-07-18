@@ -11,7 +11,8 @@ import {
   markJobDelivered,
   applyForJob,
   requestJobLocationUpdate,
-  cancelJob
+  cancelJob,
+  withdrawJobApplication
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { createEchoClient } from "@/services/realtime";
@@ -74,6 +75,8 @@ const cancelDialogOpen = ref(false);
 const cancelDialogNote = ref("");
 const cancelSubmitting = ref(false);
 const cancelError = ref("");
+const withdrawSubmitting = ref(false);
+const withdrawError = ref("");
 
 const trackingState = reactive({
   sending: false,
@@ -668,11 +671,14 @@ const canRequestJob = computed(() => {
   if (!job.value || currentRole.value !== "driver") return false;
   if (job.value.assigned_to_id) return false;
   if (String(job.value.status || "").toLowerCase() !== "open") return false;
-  return !myApplication.value;
+  return !myApplication.value || ['declined', 'withdrawn'].includes(String(myApplication.value.status || '').toLowerCase());
 });
 const canCancelJob = computed(() => {
   if (!job.value || !(isDealerForJob.value || currentRole.value === "admin")) return false;
   return !['completed', 'delivered', 'closed', 'cancelled'].includes(String(job.value.status || '').toLowerCase());
+});
+const canWithdrawApplication = computed(() => {
+  return isDriverDetailView.value && String(myApplication.value?.status || '').toLowerCase() === 'pending';
 });
 const showDriverRequestPanel = computed(() => {
   if (!job.value || currentRole.value !== "driver") return false;
@@ -979,6 +985,27 @@ async function confirmCancelJob() {
   }
 }
 
+async function handleWithdrawApplication() {
+  const application = myApplication.value;
+  if (!job.value?.id || !application?.id || !canWithdrawApplication.value || withdrawSubmitting.value) return;
+
+  withdrawSubmitting.value = true;
+  withdrawError.value = "";
+  try {
+    await withdrawJobApplication(job.value.id, application.id);
+    driverStore.removePendingApplication(application.id);
+    job.value = {
+      ...job.value,
+      my_application: { ...application, status: 'withdrawn', responded_at: new Date().toISOString() }
+    };
+  } catch (error) {
+    console.error("Failed to withdraw application", error);
+    withdrawError.value = error.response?.data?.message || "Unable to withdraw this application right now.";
+  } finally {
+    withdrawSubmitting.value = false;
+  }
+}
+
 async function handleCheckout() {
   if (!job.value?.id) return;
 
@@ -1156,9 +1183,12 @@ watch(
         :can-use-driver-mode="canUseDriverMode"
         :can-cancel-job="canCancelJob"
         :cancel-loading="cancelSubmitting"
+        :can-withdraw-application="canWithdrawApplication"
+        :withdraw-loading="withdrawSubmitting"
         @request-job="handleRequestJob"
         @start-driver-mode="driverModeOpen = true"
         @cancel-job="openCancelDialog"
+        @withdraw-application="handleWithdrawApplication"
       />
 
       <p
@@ -1166,6 +1196,13 @@ watch(
         class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100"
       >
         {{ jobRequestError }}
+      </p>
+
+      <p
+        v-if="withdrawError"
+        class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100"
+      >
+        {{ withdrawError }}
       </p>
 
       <section

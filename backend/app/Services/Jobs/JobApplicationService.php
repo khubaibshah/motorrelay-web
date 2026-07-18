@@ -103,6 +103,31 @@ class JobApplicationService
         return $application->fresh(['driver:id,name,email']);
     }
 
+    public function withdraw(Job $job, JobApplication $application, User $driver): JobApplication
+    {
+        if ((int) $application->job_id !== (int) $job->id || (int) $application->driver_id !== (int) $driver->id) {
+            abort(404);
+        }
+
+        if ($application->status !== 'pending') {
+            abort(422, 'Only pending applications can be withdrawn.');
+        }
+
+        $application->update([
+            'status' => 'withdrawn',
+            'responded_at' => now(),
+        ]);
+
+        $job->loadMissing('postedBy:id,name');
+        if ($job->postedBy) {
+            JobStatusChanged::dispatch($job->fresh(['postedBy:id,name']), 'driver_withdrew_application', [$job->postedBy->id], [
+                'driver' => ['id' => $driver->id, 'name' => $driver->name],
+            ]);
+        }
+
+        return $application->fresh();
+    }
+
     protected function ensureDailyApplicationLimit(User $driver, ?JobApplication $existingApplication): void
     {
         $planSlug = $driver->plan_slug ?? Str::slug((string) $driver->plan, '_');

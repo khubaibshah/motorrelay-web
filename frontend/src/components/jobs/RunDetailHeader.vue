@@ -41,10 +41,18 @@ defineProps({
   cancelLoading: {
     type: Boolean,
     default: false
+  },
+  canWithdrawApplication: {
+    type: Boolean,
+    default: false
+  },
+  withdrawLoading: {
+    type: Boolean,
+    default: false
   }
 });
 
-defineEmits(['request-job', 'start-driver-mode', 'cancel-job']);
+defineEmits(['request-job', 'start-driver-mode', 'cancel-job', 'withdraw-application']);
 </script>
 
 <template>
@@ -84,12 +92,24 @@ defineEmits(['request-job', 'start-driver-mode', 'cancel-job']);
           <span v-if="requestLoading">Sending request...</span>
           <span v-else>Request this run</span>
         </button>
-        <span
+        <div
           v-else-if="showDriverRequestPanel && myApplication"
-          class="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 sm:w-auto dark:bg-emerald-400 dark:text-slate-950 dark:ring-emerald-400"
+          class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
         >
-          {{ formatStatusLabel(myApplication.status, 'Request sent') }}
-        </span>
+          <span class="inline-flex min-h-10 items-center justify-center rounded-xl bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-400 dark:text-slate-950 dark:ring-emerald-400">
+            {{ formatStatusLabel(myApplication.status, 'Request sent') }}
+          </span>
+          <button
+            v-if="canWithdrawApplication"
+            type="button"
+            class="btn-secondary min-h-10 px-4 py-2 text-sm"
+            :disabled="withdrawLoading"
+            @click="$emit('withdraw-application')"
+          >
+            <span v-if="withdrawLoading">Withdrawing...</span>
+            <span v-else>Withdraw application</span>
+          </button>
+        </div>
         <button
           v-if="canUseDriverMode"
           type="button"

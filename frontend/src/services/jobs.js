@@ -43,6 +43,11 @@ export async function applyForJob(jobId, payload = {}) {
   return data;
 }
 
+export async function withdrawJobApplication(jobId, applicationId) {
+  const { data } = await api.delete(`/jobs/${jobId}/applications/${applicationId}`);
+  return data;
+}
+
 export async function fetchJobApplications(jobId) {
   const { data } = await api.get(`/jobs/${jobId}/applications`);
   return data;

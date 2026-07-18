@@ -123,7 +123,7 @@ async function loadJobs({ force = true } = {}) {
 
     if (isDriver.value) {
       const appliedIds = availableJobs.value
-        .filter((job) => job.my_application && job.my_application.status !== 'declined')
+        .filter((job) => job.my_application && !['declined', 'withdrawn'].includes(String(job.my_application.status || '').toLowerCase()))
         .map((job) => job.id);
       appliedJobIds.value = new Set(appliedIds);
     }

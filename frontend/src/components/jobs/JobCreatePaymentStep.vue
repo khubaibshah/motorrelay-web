@@ -59,6 +59,9 @@ function handlePriceBlur(event) {
       <p class="mt-1 text-sm text-slate-600">
         The dealer pays on creation. MotorRelay releases the driver payout after the inspection is approved.
       </p>
+      <div class="mt-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold leading-relaxed text-sky-800 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-emerald-100">
+        Remember to include any expected ULEZ, congestion, toll, parking, or vehicle-related charges in your dealer price. MotorRelay does not calculate these automatically.
+      </div>
     </header>
 
     <label class="block">

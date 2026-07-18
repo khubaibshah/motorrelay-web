@@ -389,29 +389,19 @@ class PostcodeLookupService
 
         $payload = $response->json() ?? [];
         $postalAddress = data_get($payload, 'result.address.postalAddress', []);
-        $validatedLabel = $this->formatValidatedAddress($postalAddress);
         $validatedPostcode = $this->extractPostcodeFromPostalAddress($postalAddress);
         $latitude = data_get($payload, 'result.geocode.location.latitude');
         $longitude = data_get($payload, 'result.geocode.location.longitude');
 
         return array_merge($address, array_filter([
-            'label' => $validatedLabel ?: $label,
+            // Preserve the selected Places label (including business names).
+            // Address Validation is used to enrich the record, not to replace
+            // the place the user explicitly selected in autocomplete.
+            'label' => $label,
             'postcode' => $validatedPostcode ?: ($address['postcode'] ?? null),
             'latitude' => is_numeric($latitude) ? (float) $latitude : ($address['latitude'] ?? null),
             'longitude' => is_numeric($longitude) ? (float) $longitude : ($address['longitude'] ?? null),
         ], static fn ($value) => $value !== null && $value !== ''));
-    }
-
-    protected function formatValidatedAddress(array $postalAddress): string
-    {
-        $lines = array_filter([
-            ...($postalAddress['addressLines'] ?? []),
-            $postalAddress['locality'] ?? null,
-            $postalAddress['administrativeArea'] ?? null,
-            $postalAddress['postalCode'] ?? null,
-        ]);
-
-        return implode(', ', array_values(array_unique($lines)));
     }
 
     protected function extractPostcodeFromPostalAddress(array $postalAddress): ?string
@@ -425,7 +415,7 @@ class PostcodeLookupService
     {
         return collect($groups)
             ->flatten(1)
-            ->unique('id')
+            ->unique(fn (array $place) => strtolower(trim((string) ($place['label'] ?? '')).'|'.trim((string) ($place['secondary'] ?? ''))))
             ->values()
             ->all();
     }

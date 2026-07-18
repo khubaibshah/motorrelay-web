@@ -66,6 +66,13 @@ class JobLifecycleTest extends TestCase
             && $event->event === 'application_accepted'
             && $event->recipientIds === [$driver->id]
         );
+
+        Event::assertDispatched(JobStatusChanged::class, fn (JobStatusChanged $event) =>
+            $event->job->id === $job->id
+            && $event->event === 'driver_assigned'
+            && $event->recipientIds === [$dealer->id]
+            && $event->meta['driver']['id'] === $driver->id
+        );
     }
 
     public function test_only_posting_dealer_can_view_job_applications(): void

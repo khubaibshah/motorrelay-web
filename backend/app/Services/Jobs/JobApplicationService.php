@@ -108,9 +108,23 @@ class JobApplicationService
         });
 
         if ($application->driver) {
-            JobStatusChanged::dispatch($job->fresh(['postedBy:id,name', 'assignedTo:id,name']), $application->status === JobApplication::STATUS_ACCEPTED ? 'application_accepted' : 'application_declined', [$application->driver->id], [
+            $updatedJob = $job->fresh(['postedBy:id,name', 'assignedTo:id,name']);
+            $event = $application->status === JobApplication::STATUS_ACCEPTED
+                ? 'application_accepted'
+                : 'application_declined';
+
+            JobStatusChanged::dispatch($updatedJob, $event, [$application->driver->id], [
                 'dealer' => ['id' => $dealer->id, 'name' => $dealer->name],
             ]);
+
+            // The dealer is also viewing this run while choosing a driver. Send
+            // a separate event so their run detail, applications step and chat
+            // access update immediately without pretending they applied.
+            if ($application->status === JobApplication::STATUS_ACCEPTED) {
+                JobStatusChanged::dispatch($updatedJob, 'driver_assigned', [$dealer->id], [
+                    'driver' => ['id' => $application->driver->id, 'name' => $application->driver->name],
+                ]);
+            }
         }
 
         return $application->fresh(['driver:id,name,email']);

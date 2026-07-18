@@ -219,6 +219,15 @@ function isDealerApplicationNotification(notification = {}) {
 
 function handleRealtimeJobEvent(event) {
   if (auth.role !== 'dealer' || !auth.token) return;
+  const eventName = String(event?.detail?.event || '').toLowerCase();
+  if (eventName === 'driver_assigned') {
+    // Remove the run from the dealer's pending applications immediately and
+    // let the assigned-runs view pick it up from the refreshed profile.
+    auth.fetchMe()
+      .then(() => dealerStore.syncFromProfile(auth.jobs?.posted ?? []))
+      .catch((error) => console.warn('Failed to refresh assigned dealer run', error));
+    return;
+  }
   if (!isDealerApplicationEvent(event?.detail)) return;
   handleDealerApplicationUpdate(event?.detail);
 }

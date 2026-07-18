@@ -81,6 +81,12 @@ class JobStatusNotification extends Notification
                 'action_label' => 'Open job',
                 'url' => $route,
             ],
+            'driver_assigned' => [
+                'title' => 'Driver assigned',
+                'body' => sprintf('%s has been assigned to %s.', $job->assignedTo?->name ?? 'A driver', $jobLabel),
+                'action_label' => 'Open job',
+                'url' => $route,
+            ],
             'application_declined' => [
                 'title' => 'Job request declined',
                 'body' => sprintf('Your request was declined for %s.', $jobLabel),

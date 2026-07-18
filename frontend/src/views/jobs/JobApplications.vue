@@ -4,8 +4,10 @@ import { RouterLink, useRoute } from 'vue-router';
 import BackPillButton from '@/components/BackPillButton.vue';
 import { fetchJob, fetchJobApplications, updateJobApplication } from '@/services/jobs';
 import { formatStatusLabel } from '@/utils/statusLabels';
+import { useJobsStore } from '@/stores/jobs';
 
 const route = useRoute();
+const jobsStore = useJobsStore();
 
 const job = ref(null);
 const applications = ref([]);
@@ -89,6 +91,7 @@ async function decideApplication(application, status) {
 
   try {
     await updateJobApplication(jobId.value, application.id, { status });
+    jobsStore.invalidateJob(jobId.value);
     await loadApplicationsPage();
   } catch (error) {
     console.error('Failed to update application', error);

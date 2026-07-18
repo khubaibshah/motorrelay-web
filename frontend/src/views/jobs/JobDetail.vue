@@ -1132,7 +1132,9 @@ onMounted(async () => {
     await auth.fetchMe().catch(() => null);
   }
   startLiveTrackingListener();
-  await loadJob({ force: false });
+  // Always revalidate after returning from applications so assignment and
+  // message permissions cannot be hidden by a cached pre-assignment record.
+  await loadJob({ force: true });
   if (route.query.payment === "success") {
     await handlePaymentSync(route.query.session_id || null);
   } else if (route.query.payment === "cancelled") {

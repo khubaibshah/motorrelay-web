@@ -39,6 +39,13 @@ class JobApplicationService
             ->where('driver_id', $driver->id)
             ->first();
 
+        // The mobile request action can be tapped more than once while the
+        // first response is still in flight. Keep a pending application
+        // idempotent so that one request creates one notification.
+        if ($existingApplication?->isPending()) {
+            return $existingApplication->fresh();
+        }
+
         $this->ensureDailyApplicationLimit($driver, $existingApplication);
 
         $application = JobApplication::updateOrCreate(

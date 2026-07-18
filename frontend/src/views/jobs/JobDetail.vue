@@ -479,7 +479,10 @@ const canReviewApplications = computed(() => {
   if (currentRole.value === "admin") return true;
   return job.value.posted_by_id === auth.user.id;
 });
-const showApplicationsAtTop = computed(() => canReviewApplications.value && !job.value?.assigned_to_id);
+const showApplicationsAtTop = computed(() => {
+  if (!canReviewApplications.value || job.value?.assigned_to_id) return false;
+  return String(job.value?.status || '').toLowerCase() === 'open';
+});
 
 const isDealerForJob = computed(() => {
   if (!job.value || !auth.user) return false;

@@ -37,6 +37,15 @@ function clearToastTimer(id) {
   }
 }
 
+function realtimeNotificationId(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  if (payload?.id || payload?.notification_id) return payload.id || payload.notification_id;
+
+  const event = data?.event || data?.type || 'notification';
+  const jobId = data?.job_id || 'global';
+  return `realtime:${event}:${jobId}`;
+}
+
 function dispatchRealtimeNotification(notification) {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('motorrelay:notification', { detail: notification }));
@@ -117,7 +126,7 @@ export const useNotificationsStore = defineStore('notifications', {
     },
     receiveRealtimeNotification(payload = {}) {
       const notification = {
-        id: payload.id || payload.notification_id || `${payload.type || 'notification'}-${Date.now()}`,
+        id: realtimeNotificationId(payload),
         type: payload.type || 'notification',
         title: payload.title || 'Notification',
         body: payload.body || '',

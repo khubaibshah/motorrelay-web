@@ -25,7 +25,8 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           <label class="block min-w-0">
             <span class="text-sm font-bold text-slate-700">Postcode</span>
             <input
-              v-model="form.pickup_postcode"
+              :value="form.pickup_label ? (addressLookup.pickup.query || form.pickup_postcode) : form.pickup_postcode"
+              @input="form.pickup_postcode = $event.target.value"
               type="text"
               required
               :readonly="Boolean(form.pickup_label)"
@@ -99,7 +100,8 @@ defineEmits(['lookup-addresses', 'select-address', 'change-address', 'use-postco
           <label class="block min-w-0">
             <span class="text-sm font-bold text-slate-700">Postcode</span>
             <input
-              v-model="form.dropoff_postcode"
+              :value="form.dropoff_label ? (addressLookup.dropoff.query || form.dropoff_postcode) : form.dropoff_postcode"
+              @input="form.dropoff_postcode = $event.target.value"
               type="text"
               required
               :readonly="Boolean(form.dropoff_label)"

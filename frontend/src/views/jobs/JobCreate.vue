@@ -60,6 +60,7 @@ const addressLookup = reactive({
   pickup: {
     loading: false,
     error: '',
+    query: '',
     postcode: '',
     addresses: [],
     selected: null
@@ -67,6 +68,7 @@ const addressLookup = reactive({
   dropoff: {
     loading: false,
     error: '',
+    query: '',
     postcode: '',
     addresses: [],
     selected: null
@@ -310,9 +312,11 @@ async function lookupAddresses(type) {
   const state = addressState(type);
   const postcodeField = `${type}_postcode`;
   const labelField = `${type}_label`;
-  const postcode = normalisePostcode(form[postcodeField]);
+  const enteredQuery = (form[postcodeField] || '').toString();
+  const postcode = normalisePostcode(enteredQuery);
 
   state.error = '';
+  state.query = enteredQuery;
   state.addresses = [];
   state.selected = null;
   form[labelField] = '';
@@ -326,7 +330,6 @@ async function lookupAddresses(type) {
     return;
   }
 
-  form[postcodeField] = postcode;
   state.loading = true;
 
   try {
@@ -385,6 +388,7 @@ async function selectAddress(type, selectedId) {
 function changeAddress(type) {
   const state = addressState(type);
   state.error = '';
+  state.query = '';
   state.addresses = [];
   state.selected = null;
   state.postcode = '';

@@ -69,19 +69,6 @@ function formatCurrency(value) {
   }
 }
 
-function paymentLabel(job) {
-  const status = String(job?.payment_status || '').replaceAll('_', ' ');
-  return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unpaid';
-}
-
-function paymentBadgeClass(job) {
-  const status = String(job?.payment_status || 'unpaid').toLowerCase();
-  if (status === 'paid') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400 dark:text-slate-950';
-  if (status === 'payout_released') return 'bg-slate-900 text-white dark:bg-white dark:text-slate-950';
-  if (status === 'checkout_pending') return 'bg-amber-100 text-amber-700 dark:bg-amber-300 dark:text-slate-950';
-  return 'bg-rose-100 text-rose-700 dark:bg-rose-300 dark:text-slate-950';
-}
-
 function statusBadgeClass(job) {
   const status = String(job?.status || '').toLowerCase();
   if (status === 'open') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400 dark:text-slate-950';
@@ -104,7 +91,12 @@ function vehicleLabel(job) {
 }
 
 function assignedDriverLabel(job) {
-  return job?.assigned_to?.name || job?.driver_name || 'No driver assigned';
+  const assignedDriver = job?.assigned_to || job?.assignedTo || job?.assigned_driver;
+
+  return assignedDriver?.name
+    || job?.driver_name
+    || job?.assigned_driver_name
+    || (job?.assigned_to_id ? 'Driver assigned' : 'No driver assigned');
 }
 
 function applicationCount(job) {
@@ -249,15 +241,12 @@ function resolveInvoiceLink(job) {
           <span class="badge" :class="statusBadgeClass(job)">
             {{ formatStatusLabel(job.status) }}
           </span>
-          <span class="badge" :class="paymentBadgeClass(job)">
-            {{ paymentLabel(job) }}
-          </span>
           <RouterLink
             :to="`/jobs/${job.id}/applications`"
             class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100"
             @click.stop
           >
-            {{ applicationCount(job) }} applications
+            {{ applicationCount(job) }} application{{ applicationCount(job) === 1 ? '' : 's' }}
           </RouterLink>
           <span class="min-w-0 truncate rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100">
             {{ assignedDriverLabel(job) }}

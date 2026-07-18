@@ -433,6 +433,13 @@ const runIssueRoute = computed(() => ({
     id: job.value?.id
   }
 }));
+const runChatRoute = computed(() => ({
+  name: 'messages',
+  query: {
+    job: String(job.value?.id || ''),
+    from: 'run'
+  }
+}));
 
 const statusDescription = computed(() => {
   if (!job.value) return "";
@@ -529,6 +536,12 @@ const canMarkDeliveredFromDetail = computed(() => {
 const canReportIncident = computed(() => {
   if (!isAssignedDriver.value) return false;
   return ['accepted', 'in_progress', 'collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
+});
+const canOpenJobChat = computed(() => {
+  if (!job.value?.assigned_to_id || !(isAssignedDriver.value || isDealerForJob.value)) return false;
+  return ['accepted', 'in_progress', 'collected', 'in_transit', 'delivered', 'completion_pending'].includes(
+    String(job.value?.status || '').toLowerCase()
+  );
 });
 const canSendRecovery = computed(() => currentRole.value === "admin" || isDealerForJob.value);
 const canConfirmRecoveryCompleted = computed(() => currentRole.value === "admin" || isAssignedDriver.value);
@@ -1253,8 +1266,10 @@ watch(
         :waze-href="runQuickWazeHref"
         :issue-to="runIssueRoute"
         :photos-to="runPhotosRoute"
+        :chat-to="runChatRoute"
         :show-issue="canReportIncident"
         :show-photos="canUploadInspection || hasInspectionPhotos || canReviewInspection"
+        :show-chat="canOpenJobChat"
       />
 
       <RunIncidentHistory

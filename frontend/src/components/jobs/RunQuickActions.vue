@@ -19,6 +19,10 @@ const props = defineProps({
     type: [String, Object],
     default: null
   },
+  chatTo: {
+    type: [String, Object],
+    default: null
+  },
   showIssue: {
     type: Boolean,
     default: true
@@ -26,6 +30,10 @@ const props = defineProps({
   showPhotos: {
     type: Boolean,
     default: true
+  },
+  showChat: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -55,6 +63,13 @@ const actions = computed(() => [
     to: props.photosTo,
     icon: 'photo',
     visible: props.showPhotos
+  },
+  {
+    id: 'chat',
+    label: 'Chat',
+    to: props.chatTo,
+    icon: 'chat',
+    visible: props.showChat
   }
 ].filter((action) => action.visible !== false && (action.href || action.to)));
 </script>
@@ -63,7 +78,7 @@ const actions = computed(() => [
   <nav
     v-if="actions.length"
     class="grid gap-1.5 rounded-[1.35rem] border border-slate-200 bg-white/90 p-1.5 shadow-sm dark:border-white/10 dark:bg-white/[0.06]"
-    :class="actions.length >= 4 ? 'grid-cols-4' : 'grid-cols-3'"
+    :class="actions.length >= 5 ? 'grid-cols-5' : actions.length >= 4 ? 'grid-cols-4' : 'grid-cols-3'"
     aria-label="Run quick actions"
   >
     <template
@@ -99,6 +114,10 @@ const actions = computed(() => [
           <svg v-if="action.icon === 'alert'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 4.3 2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
           </svg>
+          <svg v-else-if="action.icon === 'chat'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 5.75h14a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-7l-4.5 3v-3H5a2 2 0 0 1-2-2v-7.5a2 2 0 0 1 2-2Z" />
+            <path stroke-linecap="round" d="M8 11.5h.01M12 11.5h.01M16 11.5h.01" />
+          </svg>
           <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h3l2-2h6l2 2h3v12H4V7Z" />
             <circle cx="12" cy="13" r="3" />
@@ -106,6 +125,7 @@ const actions = computed(() => [
         </span>
         <span class="truncate">{{ action.label }}</span>
       </RouterLink>
+
     </template>
   </nav>
 </template>

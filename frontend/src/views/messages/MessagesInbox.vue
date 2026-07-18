@@ -28,6 +28,12 @@ const composer = reactive({
 });
 
 const selectedThread = computed(() => threads.value.find((thread) => thread.id === selectedThreadId.value) ?? null);
+const returnToRun = computed(() => {
+  const jobId = String(route.query.job || '').trim();
+  return route.query.from === 'run' && jobId
+    ? { name: 'job-detail', params: { id: jobId } }
+    : null;
+});
 const otherParticipants = computed(() =>
   (selectedThread.value?.participants ?? []).filter((participant) => participant.id !== auth.user?.id)
 );
@@ -400,8 +406,16 @@ function scrollMessagesToBottom() {
         <template v-else>
           <header class="shrink-0 border-b border-slate-200 px-3 pb-3 pt-3 dark:border-white/10 sm:px-0 sm:pt-0">
             <div class="flex items-center justify-between gap-3">
+              <RouterLink
+                v-if="returnToRun"
+                :to="returnToRun"
+                class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
+              >
+                <span aria-hidden="true">←</span>
+                Run
+              </RouterLink>
               <button
-                v-if="mobileView === 'thread'"
+                v-else-if="mobileView === 'thread'"
                 type="button"
                 class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
                 @click="backToThreadList"

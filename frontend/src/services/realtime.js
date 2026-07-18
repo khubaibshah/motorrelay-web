@@ -3,6 +3,7 @@ import Pusher from 'pusher-js';
 import api from './api';
 
 let echo = null;
+let connectionMonitoringBound = false;
 
 function authToken() {
   if (typeof window === 'undefined') return null;
@@ -12,6 +13,39 @@ function authToken() {
 function apiBroadcastAuthEndpoint() {
   const baseUrl = String(api.defaults.baseURL || '').replace(/\/$/, '');
   return `${baseUrl}/broadcasting/auth`;
+}
+
+function dispatchRealtimeStatus(detail) {
+  if (typeof window === 'undefined') return;
+
+  window.dispatchEvent(new CustomEvent('motorrelay:realtime-status', {
+    detail
+  }));
+}
+
+function bindConnectionMonitoring(client) {
+  const connection = client?.connector?.pusher?.connection;
+  if (!connection || connectionMonitoringBound) return;
+
+  connectionMonitoringBound = true;
+  connection.bind('state_change', (states) => {
+    dispatchRealtimeStatus({
+      status: states?.current || 'unknown',
+      previous: states?.previous || null
+    });
+  });
+  connection.bind('connected', () => {
+    dispatchRealtimeStatus({
+      status: 'connected',
+      connected_at: new Date().toISOString()
+    });
+  });
+  connection.bind('error', (error) => {
+    dispatchRealtimeStatus({
+      status: 'error',
+      error: error?.error?.message || error?.message || 'Reverb connection failed'
+    });
+  });
 }
 
 export function createEchoClient() {
@@ -47,6 +81,8 @@ export function createEchoClient() {
     }
   });
 
+  bindConnectionMonitoring(echo);
+
   return echo;
 }
 
@@ -54,4 +90,5 @@ export function disconnectEchoClient() {
   if (!echo) return;
   echo.disconnect();
   echo = null;
+  connectionMonitoringBound = false;
 }

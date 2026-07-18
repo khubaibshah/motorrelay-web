@@ -10,6 +10,7 @@ use App\Models\MessageThread;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class AdminPortalController extends Controller
@@ -234,6 +235,7 @@ class AdminPortalController extends Controller
         $pendingDriverVerifications = $applications->where('status', 'pending')->count();
         $pendingDealerReviews = 0;
         $pastDueMemberships = $invoices->where('status', 'past_due')->count();
+        $failedQueueJobs = DB::table('failed_jobs')->count();
 
         return [
             'widgets' => [
@@ -261,6 +263,11 @@ class AdminPortalController extends Controller
                     'label' => 'Past-due memberships',
                     'value' => $pastDueMemberships,
                     'description' => $pastDueMemberships ? 'Follow up with billing.' : 'All memberships current.',
+                ],
+                [
+                    'label' => 'Failed queue jobs',
+                    'value' => $failedQueueJobs,
+                    'description' => $failedQueueJobs ? 'Review failed jobs in the queue monitor.' : 'Queue is healthy.',
                 ],
             ],
             'issues' => [],

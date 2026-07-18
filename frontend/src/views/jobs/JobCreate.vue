@@ -273,7 +273,7 @@ const reviewSections = computed(() => [
     key: 'movement',
     label: 'Movement',
     lines: [
-      transportOptions.find((option) => option.value === form.transport_type)?.label || 'Drive-away',
+      transportOptions.find((option) => option.value === form.transport_type)?.label || 'Choose a transport type',
       `${formatShortDateTime(form.pickup_at)} → ${formatShortDateTime(form.delivery_at)}`
     ],
     step: 2

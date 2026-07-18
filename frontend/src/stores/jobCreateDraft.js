@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive, ref, watch } from 'vue';
 
 const STORAGE_KEY = 'mr_job_create_draft';
+const DRAFT_VERSION = 2;
 
 function createDefaultFormState() {
   return {
@@ -16,7 +17,7 @@ function createDefaultFormState() {
     dropoff_longitude: null,
     vehicle_make: '',
     price: '',
-    transport_type: 'drive_away',
+    transport_type: '',
     pickup_at: '',
     delivery_at: ''
   };
@@ -65,6 +66,7 @@ export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
 
   function snapshot() {
     return {
+      version: DRAFT_VERSION,
       currentStep: currentStep.value,
       reviewUnlocked: reviewUnlocked.value,
       form: {
@@ -106,6 +108,12 @@ export const useJobCreateDraftStore = defineStore('jobCreateDraft', () => {
 
       const draft = JSON.parse(raw);
       if (!hasDraftContent(draft)) return;
+
+      // Older drafts were created with Drive-away as an implicit default.
+      // Clear that legacy value so transport must be chosen explicitly.
+      if (draft.version !== DRAFT_VERSION && draft.form?.transport_type === 'drive_away') {
+        draft.form.transport_type = '';
+      }
 
       Object.assign(form, createDefaultFormState(), draft.form || {});
       currentStep.value = Math.min(

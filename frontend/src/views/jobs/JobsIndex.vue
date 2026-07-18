@@ -1009,7 +1009,7 @@ onMounted(async () => {
       @mark-delivered="handleMarkDelivered"
     />
 
-    <section v-if="isAdmin" class="section-card order-2 space-y-4">
+    <section v-if="isDriver || isAdmin" class="section-card order-2 space-y-4">
       <header class="flex items-center justify-between gap-3" v-if="isDriver">
         <h2 class="text-xl font-black tracking-tight text-slate-950">Available runs</h2>
         <span class="text-xs font-semibold text-slate-500">

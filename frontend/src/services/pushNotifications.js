@@ -17,6 +17,21 @@ function canUseNativePush() {
   return Capacitor.isNativePlatform() && ['ios', 'android'].includes(platform());
 }
 
+function deviceId() {
+  const key = `mr_push_device_id_${platform()}`;
+  if (typeof window === 'undefined') return `${platform()}-unknown`;
+
+  const existing = window.localStorage.getItem(key);
+  if (existing) return existing;
+
+  const randomId = typeof crypto?.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const value = `${platform()}-${randomId}`;
+  window.localStorage.setItem(key, value);
+  return value;
+}
+
 async function saveToken(token) {
   if (!token?.value) return;
 
@@ -26,8 +41,8 @@ async function saveToken(token) {
     platform: platform(),
     token: token.value,
     // Keep the device key stable across APNs token rotations so the backend
-    // can retire the previous token instead of sending duplicate pushes.
-    device_id: platform()
+    // can replace the token without creating another subscription.
+    device_id: deviceId()
   });
 }
 

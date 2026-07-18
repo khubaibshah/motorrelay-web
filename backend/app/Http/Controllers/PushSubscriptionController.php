@@ -32,11 +32,13 @@ class PushSubscriptionController extends Controller
                 ->delete();
         }
 
+        $identity = [
+            'platform' => $validated['platform'],
+            ! empty($validated['device_id']) ? 'device_id' : 'token' => $validated['device_id'] ?? $validated['token'],
+        ];
+
         $subscription = $request->user()->pushSubscriptions()->updateOrCreate(
-            [
-                'platform' => $validated['platform'],
-                'token' => $validated['token'],
-            ],
+            $identity,
             [
                 'device_id' => $validated['device_id'] ?? null,
                 'last_registered_at' => now(),

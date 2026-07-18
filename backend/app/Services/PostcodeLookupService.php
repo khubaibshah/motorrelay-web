@@ -96,13 +96,13 @@ class PostcodeLookupService
         $latitude = data_get($payload, 'geometry.location.lat');
         $longitude = data_get($payload, 'geometry.location.lng');
 
-        return [
+        return $this->validateAndEnrichAddress([
             'place_id' => (string) ($payload['place_id'] ?? $placeId),
             'postcode' => $postcode,
             'label' => (string) ($payload['formatted_address'] ?? ''),
             'latitude' => is_numeric($latitude) ? (float) $latitude : null,
             'longitude' => is_numeric($longitude) ? (float) $longitude : null,
-        ];
+        ], $apiKey);
     }
 
     public function coordinates(string $postcode): array
@@ -352,13 +352,73 @@ class PostcodeLookupService
         $latitude = data_get($payload, 'location.latitude');
         $longitude = data_get($payload, 'location.longitude');
 
-        return [
+        return $this->validateAndEnrichAddress([
             'place_id' => (string) ($payload['id'] ?? $placeName),
             'postcode' => $postcode,
             'label' => (string) ($payload['formattedAddress'] ?? ''),
             'latitude' => is_numeric($latitude) ? (float) $latitude : null,
             'longitude' => is_numeric($longitude) ? (float) $longitude : null,
-        ];
+        ], $apiKey);
+    }
+
+    /**
+     * Validate the selected address against Google's UK address dataset.
+     * Autocomplete remains responsible for suggestions; validation only runs
+     * after a user has selected an address and is intentionally non-blocking
+     * so a valid business or new-build address can still be saved.
+     */
+    protected function validateAndEnrichAddress(array $address, string $apiKey): array
+    {
+        $label = trim((string) ($address['label'] ?? ''));
+        if ($label === '') {
+            return $address;
+        }
+
+        $response = Http::acceptJson()
+            ->timeout(10)
+            ->post(rtrim((string) config('postcodes.address_validation_url'), '/').'?key='.urlencode($apiKey), [
+                'address' => [
+                    'regionCode' => 'GB',
+                    'addressLines' => [$label],
+                ],
+            ]);
+
+        if (! $response->successful()) {
+            return $address;
+        }
+
+        $payload = $response->json() ?? [];
+        $postalAddress = data_get($payload, 'result.address.postalAddress', []);
+        $validatedLabel = $this->formatValidatedAddress($postalAddress);
+        $validatedPostcode = $this->extractPostcodeFromPostalAddress($postalAddress);
+        $latitude = data_get($payload, 'result.geocode.location.latitude');
+        $longitude = data_get($payload, 'result.geocode.location.longitude');
+
+        return array_merge($address, array_filter([
+            'label' => $validatedLabel ?: $label,
+            'postcode' => $validatedPostcode ?: ($address['postcode'] ?? null),
+            'latitude' => is_numeric($latitude) ? (float) $latitude : ($address['latitude'] ?? null),
+            'longitude' => is_numeric($longitude) ? (float) $longitude : ($address['longitude'] ?? null),
+        ], static fn ($value) => $value !== null && $value !== ''));
+    }
+
+    protected function formatValidatedAddress(array $postalAddress): string
+    {
+        $lines = array_filter([
+            ...($postalAddress['addressLines'] ?? []),
+            $postalAddress['locality'] ?? null,
+            $postalAddress['administrativeArea'] ?? null,
+            $postalAddress['postalCode'] ?? null,
+        ]);
+
+        return implode(', ', array_values(array_unique($lines)));
+    }
+
+    protected function extractPostcodeFromPostalAddress(array $postalAddress): ?string
+    {
+        $postcode = trim((string) ($postalAddress['postalCode'] ?? ''));
+
+        return $postcode !== '' ? $this->normalisePostcode($postcode) : null;
     }
 
     protected function mergePlaceResults(array ...$groups): array

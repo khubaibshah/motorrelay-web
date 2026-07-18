@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useDriverStore } from '@/stores/driver';
@@ -63,6 +63,22 @@ async function loadOverview() {
   }
 }
 
+function handleRealtimeJobEvent(event) {
+  if (auth.role !== 'driver') return;
+
+  const eventName = String(event?.detail?.event || '').toLowerCase();
+  if (eventName !== 'application_accepted') return;
+
+  driverTab.value = 'active';
+
+  // Acceptance changes both lists: remove the pending application and add the
+  // assigned run to Active. Refresh this small overview payload immediately so
+  // the selected tab reflects the server state without a page reload.
+  driver.fetchOverview({ force: true }).catch((error) => {
+    console.error('Failed to refresh driver overview after acceptance', error);
+  });
+}
+
 const stats = computed(() => overview.value?.stats ?? {});
 const activeJobs = computed(() => overview.value?.active ?? []);
 const currentJob = computed(() => activeJobs.value[0] ?? null);
@@ -111,10 +127,20 @@ function currentJobAction(job) {
 }
 
 onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+  }
+
   if (!auth.user && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
   await loadOverview();
+});
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+  }
 });
 </script>
 

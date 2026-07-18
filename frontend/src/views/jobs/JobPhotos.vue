@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import BackPillButton from '@/components/BackPillButton.vue';
 import {
@@ -18,6 +18,7 @@ const job = ref(null);
 const loading = ref(false);
 const errorMessage = ref('');
 const photoPreviews = ref({});
+const localPreviews = ref([]);
 const previewLoading = ref(false);
 const selectedPhotoIndex = ref(0);
 const actionLoading = ref('');
@@ -38,6 +39,7 @@ const photos = computed(() => {
   return Array.isArray(payload) ? payload : [];
 });
 const selectedPhoto = computed(() => photos.value[selectedPhotoIndex.value] ?? null);
+const selectedPhotoCount = computed(() => photos.value.length + form.files.length);
 const completionStatus = computed(() => job.value?.completion_status ?? 'not_submitted');
 const isAssignedDriver = computed(() => Boolean(job.value && auth.user && job.value.assigned_to_id === auth.user.id));
 const isDealerForJob = computed(() => Boolean(job.value && auth.user && job.value.posted_by_id === auth.user.id));
@@ -103,8 +105,34 @@ async function loadPage() {
 
 function handleFiles(event) {
   form.error = '';
-  form.files = Array.from(event.target?.files ?? []);
+  const incoming = Array.from(event.target?.files ?? []).filter((file) => file.type?.startsWith('image/'));
+  const existingKeys = new Set(form.files.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+  form.files = [
+    ...form.files,
+    ...incoming.filter((file) => {
+      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      if (existingKeys.has(key)) return false;
+      existingKeys.add(key);
+      return true;
+    })
+  ].slice(0, 20);
+  syncLocalPreviews();
   event.target.value = '';
+}
+
+function syncLocalPreviews() {
+  localPreviews.value.forEach((preview) => URL.revokeObjectURL(preview.url));
+  localPreviews.value = form.files.map((file, index) => ({
+    id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+    name: file.name,
+    url: URL.createObjectURL(file),
+    shot: requiredShots[index] || `Photo ${index + 1}`
+  }));
+}
+
+function removeLocalFile(index) {
+  form.files = form.files.filter((_, fileIndex) => fileIndex !== index);
+  syncLocalPreviews();
 }
 
 async function submitPhotos() {
@@ -124,6 +152,7 @@ async function submitPhotos() {
     });
     form.notes = '';
     form.files = [];
+    syncLocalPreviews();
     await loadPage();
   } catch (error) {
     console.error('Failed to upload inspection photos', error);
@@ -164,6 +193,11 @@ async function requestChanges() {
 }
 
 onMounted(loadPage);
+
+onBeforeUnmount(() => {
+  Object.values(photoPreviews.value).forEach((url) => URL.revokeObjectURL(url));
+  localPreviews.value.forEach((preview) => URL.revokeObjectURL(preview.url));
+});
 </script>
 
 <template>
@@ -175,7 +209,7 @@ onMounted(loadPage);
       <div class="mt-1 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 class="text-2xl font-black text-slate-950 dark:text-white">{{ job?.title || `Run #${jobId}` }}</h1>
-          <p class="text-sm font-semibold text-slate-600 dark:text-emerald-100">{{ photos.length }} files uploaded</p>
+        <p class="text-sm font-semibold text-slate-600 dark:text-emerald-100">{{ photos.length }} uploaded{{ form.files.length ? ` · ${form.files.length} ready to send` : '' }}</p>
         </div>
         <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100">
           {{ completionStatus.replaceAll('_', ' ') }}
@@ -193,7 +227,7 @@ onMounted(loadPage);
           <h2 class="text-lg font-black text-slate-950 dark:text-white">Pre-inspection set</h2>
         </div>
         <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">
-          {{ form.files.length }}/{{ minimumPhotoCount }}
+          {{ selectedPhotoCount }}/{{ minimumPhotoCount }}
         </span>
       </div>
 
@@ -202,13 +236,25 @@ onMounted(loadPage);
           v-for="(shot, index) in requiredShots"
           :key="shot"
           class="rounded-xl px-2 py-2 text-xs font-black"
-          :class="form.files.length > index ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-slate-950' : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-emerald-100'"
+          :class="selectedPhotoCount > index ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-slate-950' : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-emerald-100'"
         >
-          {{ shot }}
+          <span class="block">{{ shot }}</span>
+          <span class="mt-0.5 block text-[0.65rem] font-bold opacity-80">{{ selectedPhotoCount > index ? 'Ready' : 'Needed' }}</span>
         </span>
       </div>
 
-      <input type="file" accept="image/*" multiple class="w-full text-sm" @change="handleFiles">
+      <label class="flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-4 py-4 text-center text-sm font-black text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-300/30 dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:bg-emerald-400/20">
+        <span>{{ form.files.length ? 'Add more photos' : 'Choose inspection photos' }}</span>
+        <input type="file" accept="image/*" multiple class="sr-only" @change="handleFiles">
+      </label>
+
+      <div v-if="localPreviews.length" class="grid grid-cols-3 gap-2">
+        <div v-for="(preview, index) in localPreviews" :key="preview.id" class="relative overflow-hidden rounded-2xl border border-emerald-200 bg-slate-100 dark:border-emerald-400/30 dark:bg-white/[0.06]">
+          <img :src="preview.url" :alt="preview.name" class="h-24 w-full object-cover">
+          <div class="absolute inset-x-0 bottom-0 bg-slate-950/70 px-2 py-1 text-[0.65rem] font-black text-white">{{ preview.shot }}</div>
+          <button type="button" class="absolute right-1 top-1 rounded-full bg-slate-950/75 px-2 py-1 text-xs font-black text-white" aria-label="Remove photo" @click="removeLocalFile(index)">×</button>
+        </div>
+      </div>
       <textarea
         v-model="form.notes"
         rows="2"
@@ -216,8 +262,8 @@ onMounted(loadPage);
         class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100"
       />
       <p v-if="form.error" class="text-sm font-bold text-amber-600">{{ form.error }}</p>
-      <button type="button" class="btn-primary w-full px-4 py-3 text-sm" :disabled="form.submitting" @click="submitPhotos">
-        {{ form.submitting ? 'Uploading...' : 'Upload photos' }}
+      <button type="button" class="btn-primary w-full px-4 py-3 text-sm" :disabled="form.submitting || form.files.length < minimumPhotoCount" @click="submitPhotos">
+        {{ form.submitting ? 'Uploading...' : `Upload ${form.files.length} photos` }}
       </button>
     </section>
 

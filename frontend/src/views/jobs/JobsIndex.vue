@@ -115,7 +115,7 @@ async function loadJobs({ force = true } = {}) {
     } else if (isDriver.value) {
       availableParams.marketplace = 'all';
     }
-    const payload = await jobsStore.fetchList(availableParams, { force });
+    const payload = await jobsStore.fetchList(availableParams, { force: force || isDriver.value });
     driverMarketplaceNearbyActive.value = Boolean(payload?.marketplace?.nearby_active);
     const rawJobs = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.jobs) ? payload.jobs : [];
     const openJobs = rawJobs.filter((job) => String(job.status || '').toLowerCase() === 'open');

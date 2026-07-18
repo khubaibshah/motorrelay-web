@@ -64,7 +64,7 @@ const emit = defineEmits(['close', 'confirm', 'update:note']);
         <button
           type="button"
           class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          :disabled="pending || (mode === 'cancel' && note.trim().length < 5)"
+          :disabled="pending"
           @click="emit('close')"
         >
           Close
@@ -72,7 +72,7 @@ const emit = defineEmits(['close', 'confirm', 'update:note']);
         <button
           type="button"
           class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-          :disabled="pending"
+          :disabled="pending || (mode === 'cancel' && note.trim().length < 5)"
           @click="emit('confirm')"
         >
           <span v-if="pending">Working...</span>

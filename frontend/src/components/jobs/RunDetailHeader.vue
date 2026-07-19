@@ -34,6 +34,10 @@ defineProps({
     type: Boolean,
     default: false
   },
+  canStartDriverMode: {
+    type: Boolean,
+    default: false
+  },
   canMarkCollected: {
     type: Boolean,
     default: false
@@ -135,7 +139,7 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
           </button>
         </div>
         <button
-          v-if="canUseDriverMode"
+          v-if="canStartDriverMode"
           type="button"
           class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
           @click="$emit('start-driver-mode')"

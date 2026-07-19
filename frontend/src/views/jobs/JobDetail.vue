@@ -402,6 +402,10 @@ const canUseDriverMode = computed(() => {
   if (!Capacitor.isNativePlatform()) return false;
   return canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value;
 });
+const canStartDriverMode = computed(() => {
+  if (!isAssignedDriver.value) return false;
+  return ['in_transit', 'collected'].includes(String(job.value?.status || '').toLowerCase());
+});
 
 const runPhotosRoute = computed(() => ({
   name: "job-photos",
@@ -1324,6 +1328,7 @@ watch(
         :show-driver-request-panel="showDriverRequestPanel"
         :my-application="myApplication"
         :can-use-driver-mode="canUseDriverMode"
+        :can-start-driver-mode="canStartDriverMode"
         :can-mark-collected="canMarkCollected"
         :can-mark-delivered="canMarkDeliveredFromDetail"
         :show-collection-action="showCollectionAction"

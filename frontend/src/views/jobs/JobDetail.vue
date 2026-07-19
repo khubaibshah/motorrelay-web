@@ -453,6 +453,12 @@ const statusDescription = computed(() => {
     return 'Inspection approved. The driver should collect the vehicle and mark it as collected.';
   }
 
+  if (hasDeliveryProof.value && ['accepted', 'in_progress'].includes(status) && completionStatus.value !== 'inspection_approved') {
+    return isDealerForJob.value
+      ? 'Inspection photos are ready for your review. Approve them or request clearer photos.'
+      : 'Inspection photos uploaded. Wait for the dealer to review and approve them before collection.';
+  }
+
   if (["pending", "accepted", "in_progress", "collected", "in_transit"].includes(status)) {
     if (assignedDriver.value) {
       return `This run is currently in progress with ${assignedDriver.value.name}.`;
@@ -514,6 +520,7 @@ const hasInspectionPhotos = computed(() => inspectionPhotos.value.length > 0);
 
 const canUploadInspection = computed(() => {
   if (!isAssignedDriver.value) return false;
+  if (hasDeliveryProof.value) return false;
   if (completionStatus.value === 'inspection_approved') return false;
   if (job.value?.finalized_invoice_id) return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
@@ -1311,7 +1318,8 @@ watch(
       />
 
       <RunCompletionSummary
-        v-if="showCompactCompletionPanel"
+        v-if="showCompactCompletionPanel || showFullCompletionPanel"
+        :heading="isCompletedJob ? 'Run completed' : 'Inspection ready to review'"
         :status-description="statusDescription"
         :completion-status-label="completionStatusLabel"
         :submitted-at="formatDateTime(job?.completion_submitted_at)"

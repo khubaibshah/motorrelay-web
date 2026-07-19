@@ -1,5 +1,9 @@
 <script setup>
 defineProps({
+  heading: {
+    type: String,
+    default: 'Run completed'
+  },
   statusDescription: {
     type: String,
     required: true
@@ -46,7 +50,7 @@ defineEmits(["download-proof"]);
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p class="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Completion</p>
-        <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Run completed</h2>
+        <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">{{ heading }}</h2>
         <p class="mt-1 text-sm text-slate-600 dark:text-emerald-100">{{ statusDescription }}</p>
       </div>
       <span class="badge bg-emerald-100 text-emerald-700 dark:bg-emerald-400 dark:text-slate-950">

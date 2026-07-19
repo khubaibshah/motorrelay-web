@@ -802,6 +802,24 @@ function handleRealtimeJobEvent(event) {
   const payload = event?.detail?.notification?.data || {};
   const assignedDriver = payload?.assigned_driver;
 
+  if (eventName === 'driver_applied' && canReviewApplications.value) {
+    const applicant = payload?.meta?.driver;
+    const applicantId = Number(applicant?.id || 0);
+
+    if (applicantId && !applications.value.some((application) => Number(application?.driver_id || application?.driver?.id) === applicantId)) {
+      applications.value = [
+        ...applications.value,
+        {
+          id: `realtime-${incomingJobId}-${applicantId}`,
+          driver_id: applicantId,
+          driver: applicant,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        }
+      ];
+    }
+  }
+
   // Apply the assignment optimistically from the realtime payload so the
   // driver's photo action appears immediately, then revalidate from the API.
   if (eventName === 'application_accepted' && assignedDriver?.id && job.value) {
@@ -810,6 +828,21 @@ function handleRealtimeJobEvent(event) {
       assigned_to_id: assignedDriver.id,
       assigned_to: assignedDriver,
       status: payload.job_status || 'in_progress'
+    };
+  }
+
+  if (eventName === 'inspection_approved' && job.value) {
+    job.value = {
+      ...job.value,
+      completion_status: payload.completion_status || 'inspection_approved'
+    };
+  }
+
+  if (eventName === 'driver_uploaded_inspection' && job.value && Number(payload.inspection_photo_count || 0) > 0) {
+    job.value = {
+      ...job.value,
+      completion_status: payload.completion_status || job.value.completion_status || 'not_submitted',
+      delivery_proof_path: job.value.delivery_proof_path || '__inspection_uploaded__'
     };
   }
 

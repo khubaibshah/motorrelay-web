@@ -48,6 +48,10 @@ class JobStatusNotification extends Notification
             'url' => $details['url'],
             'job_id' => $job->id,
             'job_status' => $job->status,
+            'completion_status' => $job->completion_status,
+            'inspection_photo_count' => $job->relationLoaded('inspectionPhotos')
+                ? $job->inspectionPhotos->count()
+                : ($job->delivery_proof_path ? 1 : 0),
             'job_title' => $job->title,
             'pickup_postcode' => $job->pickup_postcode,
             'dropoff_postcode' => $job->dropoff_postcode,

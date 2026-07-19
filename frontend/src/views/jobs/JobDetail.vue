@@ -799,21 +799,25 @@ function handleRealtimeJobEvent(event) {
     return;
   }
 
-  const eventName = String(event?.detail?.event || '').toLowerCase();
-  const payload = event?.detail?.notification?.data || {};
+  const notification = event?.detail?.notification || {};
+  const payload = notification?.data && typeof notification.data === 'object'
+    ? notification.data
+    : notification;
+  const eventName = String(event?.detail?.event || payload?.event || '').toLowerCase();
   const assignedDriver = payload?.assigned_driver;
 
   if (eventName === 'driver_applied' && canReviewApplications.value) {
     const applicant = payload?.meta?.driver;
     const applicantId = Number(applicant?.id || 0);
+    const existingRealtimeApplication = applications.value.find((application) => String(application?.id || '').startsWith(`realtime-${incomingJobId}-`));
 
-    if (applicantId && !applications.value.some((application) => Number(application?.driver_id || application?.driver?.id) === applicantId)) {
+    if (!existingRealtimeApplication && (!applicantId || !applications.value.some((application) => Number(application?.driver_id || application?.driver?.id) === applicantId))) {
       applications.value = [
         ...applications.value,
         {
-          id: `realtime-${incomingJobId}-${applicantId}`,
-          driver_id: applicantId,
-          driver: applicant,
+          id: `realtime-${incomingJobId}-${applicantId || 'pending'}`,
+          driver_id: applicantId || null,
+          driver: applicant || { name: 'New driver' },
           status: 'pending',
           created_at: new Date().toISOString()
         }

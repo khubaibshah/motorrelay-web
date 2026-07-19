@@ -358,6 +358,10 @@ const goLiveFormatted = computed(() => {
 
 
 const lastTrackedAt = computed(() => trackingState.lastUpdate ?? job.value?.last_tracked_at ?? null);
+const hasSharedTracking = computed(() => Boolean(
+  trackingState.shared
+  || (job.value?.last_tracked_at && job.value?.current_latitude !== null && job.value?.current_longitude !== null)
+));
 
 const lastTrackedDisplay = computed(() => (lastTrackedAt.value ? formatDateTime(lastTrackedAt.value) : ""));
 
@@ -498,7 +502,7 @@ const canMarkCollected = computed(() => {
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (!hasDeliveryProof.value) return false;
   if (completionStatus.value !== 'inspection_approved') return false;
-  if (!lastTrackedAt.value && !trackingState.shared) return false;
+  if (!hasSharedTracking.value) return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
 });
 const showCollectionAction = computed(() => {

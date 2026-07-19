@@ -31,7 +31,10 @@ class JobStatusNotification extends Notification
 
     public function toBroadcast(object $notifiable): BroadcastMessage
     {
-        return new BroadcastMessage($this->payload());
+        // Assignment/status updates drive the live run UI. Keep their
+        // broadcast independent from the worker queue so the recipient sees
+        // an acceptance immediately in production.
+        return (new BroadcastMessage($this->payload()))->onConnection('sync');
     }
 
     protected function payload(): array

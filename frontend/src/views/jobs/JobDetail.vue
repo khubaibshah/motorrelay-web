@@ -883,7 +883,10 @@ function handleRealtimeJobEvent(event) {
 
   // Apply the assignment optimistically from the realtime payload so the
   // driver's photo action appears immediately, then revalidate from the API.
-  if (eventName === 'application_accepted' && assignedDriver?.id && job.value) {
+  // Dealers receive the assignment event as `driver_assigned` while the
+  // driver receives `application_accepted`. Handle both event names here so
+  // the open dealer run updates immediately without waiting for a reload.
+  if (['application_accepted', 'driver_assigned'].includes(eventName) && assignedDriver?.id && job.value) {
     job.value = {
       ...job.value,
       assigned_to_id: assignedDriver.id,

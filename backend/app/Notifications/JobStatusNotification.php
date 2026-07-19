@@ -49,6 +49,11 @@ class JobStatusNotification extends Notification
             'job_id' => $job->id,
             'job_status' => $job->status,
             'job_title' => $job->title,
+            'pickup_postcode' => $job->pickup_postcode,
+            'dropoff_postcode' => $job->dropoff_postcode,
+            'pickup_label' => $job->pickup_label,
+            'dropoff_label' => $job->dropoff_label,
+            'price' => $job->price,
             'assigned_driver' => $job->assignedTo ? [
                 'id' => $job->assignedTo->id,
                 'name' => $job->assignedTo->name,

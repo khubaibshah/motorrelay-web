@@ -268,11 +268,17 @@ async function handleDealerApplicationUpdate(detail = {}) {
   const jobId = notificationJobId(detail);
 
   if (jobId) {
+    const payload = detail?.notification?.data ?? detail;
     const fallbackTitle = notificationJobTitle(detail);
     upsertDealerApplicationJob({
       id: jobId,
-      title: fallbackTitle || `Run #${jobId}`,
-      status: detail?.notification?.data?.job_status ?? detail?.job_status ?? 'open',
+      title: payload?.job_title || fallbackTitle || `Run #${jobId}`,
+      status: payload?.job_status ?? detail?.job_status ?? 'open',
+      pickup_postcode: payload?.pickup_postcode ?? detail?.pickup_postcode,
+      dropoff_postcode: payload?.dropoff_postcode ?? detail?.dropoff_postcode,
+      pickup_label: payload?.pickup_label ?? detail?.pickup_label,
+      dropoff_label: payload?.dropoff_label ?? detail?.dropoff_label,
+      price: payload?.price ?? detail?.price,
       pending_applications_count: 1,
       applications_count: 1
     });

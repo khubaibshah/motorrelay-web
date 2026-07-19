@@ -514,7 +514,6 @@ const hasInspectionPhotos = computed(() => inspectionPhotos.value.length > 0);
 
 const canUploadInspection = computed(() => {
   if (!isAssignedDriver.value) return false;
-  if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (completionStatus.value === 'inspection_approved') return false;
   if (job.value?.finalized_invoice_id) return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
@@ -788,6 +787,21 @@ function handleRealtimeJobEvent(event) {
 
   if (!incomingJobId || !currentJobId || incomingJobId !== currentJobId) {
     return;
+  }
+
+  const eventName = String(event?.detail?.event || '').toLowerCase();
+  const payload = event?.detail?.notification?.data || {};
+  const assignedDriver = payload?.assigned_driver;
+
+  // Apply the assignment optimistically from the realtime payload so the
+  // driver's photo action appears immediately, then revalidate from the API.
+  if (eventName === 'application_accepted' && assignedDriver?.id && job.value) {
+    job.value = {
+      ...job.value,
+      assigned_to_id: assignedDriver.id,
+      assigned_to: assignedDriver,
+      status: payload.job_status || 'in_progress'
+    };
   }
 
   scheduleRealtimeJobReload();

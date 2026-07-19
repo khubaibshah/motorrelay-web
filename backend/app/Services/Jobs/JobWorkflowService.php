@@ -60,8 +60,6 @@ class JobWorkflowService
             abort(422, 'This job has already been finalized.');
         }
 
-        $this->ensureDealerPaymentHeld($job);
-
         if (! in_array(strtolower((string) $job->status), ['accepted', 'in_progress'], true)) {
             abort(422, 'Inspection photos should be uploaded before collection starts.');
         }

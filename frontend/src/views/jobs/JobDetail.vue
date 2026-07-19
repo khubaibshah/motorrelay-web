@@ -658,6 +658,21 @@ const {
     shareLocation: shareLiveLocation
   }
 });
+const runProgressCurrentLabel = computed(() => {
+  const status = String(job.value?.status || '').toLowerCase();
+  const hasUploadedPhotos = hasDeliveryProof.value;
+  const inspectionApproved = completionStatus.value === 'inspection_approved';
+
+  if (isAssignedDriver.value && hasUploadedPhotos && !inspectionApproved && ['accepted', 'in_progress'].includes(status)) {
+    return 'Waiting for pre-inspection photo review';
+  }
+
+  if (isDealerForJob.value && hasUploadedPhotos && !inspectionApproved && ['accepted', 'in_progress'].includes(status)) {
+    return 'Review pre-inspection photos';
+  }
+
+  return currentWorkflowStep.value?.label || 'Complete';
+});
 const invoiceFinalized = computed(() => Boolean(job.value?.finalized_invoice_id));
 const jobInvoiceLink = computed(() => ({
   name: 'invoices',
@@ -1296,7 +1311,7 @@ watch(
       <RunRouteSummary :job="job" compact />
 
       <RunCompactProgress
-        :current-label="currentWorkflowStep?.label || 'Complete'"
+        :current-label="runProgressCurrentLabel"
         :progress-percent="workflowProgressPercent"
         :completed-count="completedWorkflowCount"
         :total-count="workflowSteps.length"

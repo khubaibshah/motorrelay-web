@@ -500,7 +500,6 @@ const canSubmitCompletion = computed(() => {
 });
 const canMarkCollected = computed(() => {
   if (!isAssignedDriver.value) return false;
-  if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (!hasDeliveryProof.value) return false;
   if (completionStatus.value !== 'inspection_approved') return false;
   if (!hasSharedTracking.value) return false;
@@ -553,8 +552,6 @@ const {
 });
 const driverNextActionText = computed(() => {
   if (!isAssignedDriver.value) return '';
-  if (paymentStatus.value === 'unpaid') return 'Waiting for the dealer to confirm this run is ready to start.';
-  if (paymentStatus.value === 'checkout_pending') return 'Waiting for the dealer to finish confirming this run.';
   if (canUploadInspection.value) return 'Upload inspection photos before you collect the vehicle.';
   if (hasDeliveryProof.value && completionStatus.value !== 'inspection_approved' && ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase())) {
     return 'Inspection photos are uploaded. Wait for the dealer to approve them before collection.';

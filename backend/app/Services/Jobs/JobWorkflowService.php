@@ -23,8 +23,6 @@ class JobWorkflowService
 
     public function markCollected(Job $job): Job
     {
-        $this->ensureDealerPaymentHeld($job);
-
         if (! $job->delivery_proof_path) {
             abort(422, 'Upload the pre-delivery inspection photos before marking this run as collected.');
         }

@@ -31,6 +31,7 @@ import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
 import InspectionReviewAttention from "@/components/jobs/InspectionReviewAttention.vue";
 import DriverCollectionAttention from "@/components/jobs/DriverCollectionAttention.vue";
+import DealerLiveTrackingCard from "@/components/jobs/DealerLiveTrackingCard.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
@@ -365,6 +366,22 @@ const hasSharedTracking = computed(() => Boolean(
 ));
 
 const lastTrackedDisplay = computed(() => (lastTrackedAt.value ? formatDateTime(lastTrackedAt.value) : ""));
+const driverLiveLocation = computed(() => {
+  const latitude = Number(job.value?.current_latitude);
+  const longitude = Number(job.value?.current_longitude);
+
+  if (!lastTrackedAt.value || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return { lat: latitude, lng: longitude };
+});
+const dealerLiveMapSrc = computed(() => {
+  if (!driverLiveLocation.value) return "";
+
+  const { lat, lng } = driverLiveLocation.value;
+  return `https://maps.google.com/maps?q=${lat},${lng}&z=14&output=embed`;
+});
 
 const activeTrackingStatuses = new Set(["in_progress", "collected", "in_transit", "accepted"]);
 const endedTrackingStatuses = new Set(["delivered", "completion_pending", "completed", "closed", "cancelled"]);
@@ -677,7 +694,14 @@ const {
   myApplication
 });
 const showCompactCompletionPanel = computed(() => shouldShowCompletionPanel.value && isCompletedJob.value);
-const showFullCompletionPanel = computed(() => shouldShowCompletionPanel.value && !showCompactCompletionPanel.value && !isAssignedDriver.value);
+const showFullCompletionPanel = computed(() => (
+  shouldShowCompletionPanel.value
+  && !showCompactCompletionPanel.value
+  && !isAssignedDriver.value
+  // Once a dealer approves the inspection, the review card is no longer an
+  // actionable state. Run progress and live tracking become the source of truth.
+  && !(isDealerForJob.value && completionStatus.value === 'inspection_approved')
+));
 const {
   canManagePayment,
   canReleasePayout,
@@ -1332,6 +1356,13 @@ watch(
         :photos-uploaded="hasDeliveryProof"
         :location-shared="Boolean(lastTrackedAt || trackingState.shared)"
         :status-label="formatStatusLabel(job.status)"
+      />
+
+      <DealerLiveTrackingCard
+        v-if="isDealerForJob && driverLiveLocation"
+        :location="driverLiveLocation"
+        :map-src="dealerLiveMapSrc"
+        :updated-label="`Last update ${lastTrackedDisplay}`"
       />
 
       <InspectionReviewAttention

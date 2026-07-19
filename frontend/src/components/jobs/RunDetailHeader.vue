@@ -42,6 +42,14 @@ defineProps({
     type: Boolean,
     default: false
   },
+  canShareTracking: {
+    type: Boolean,
+    default: false
+  },
+  trackingLoading: {
+    type: Boolean,
+    default: false
+  },
   collectedLoading: {
     type: Boolean,
     default: false
@@ -64,7 +72,7 @@ defineProps({
   }
 });
 
-defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'cancel-job', 'withdraw-application']);
+defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'share-location', 'cancel-job', 'withdraw-application']);
 </script>
 
 <template>
@@ -134,11 +142,12 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'cancel-job',
           v-if="showCollectionAction || canMarkCollected"
           type="button"
           class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-          :disabled="collectedLoading || !canMarkCollected"
-          @click="canMarkCollected && $emit('mark-collected')"
+          :disabled="collectedLoading || trackingLoading || (!canMarkCollected && !canShareTracking)"
+          @click="canMarkCollected ? $emit('mark-collected') : $emit('share-location')"
         >
           <span v-if="collectedLoading">Updating...</span>
-          <span v-else-if="!canMarkCollected">Share live location first</span>
+          <span v-else-if="trackingLoading">Sharing location...</span>
+          <span v-else-if="!canMarkCollected">Share live location</span>
           <span v-else>Mark vehicle collected</span>
         </button>
         <button

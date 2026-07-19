@@ -10,7 +10,6 @@ import {
   markJobCollected,
   markJobDelivered,
   applyForJob,
-  requestJobLocationUpdate,
   cancelJob,
   withdrawJobApplication
 } from "@/services/jobs";
@@ -19,7 +18,6 @@ import { createEchoClient } from "@/services/realtime";
 import { useAuthStore } from "@/stores/auth";
 import { useDriverStore } from "@/stores/driver";
 import { useJobsStore } from "@/stores/jobs";
-import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import BackPillButton from "@/components/BackPillButton.vue";
@@ -27,7 +25,6 @@ import DriverChatModal from "@/components/jobs/DriverChatModal.vue";
 import DriverModeOverlay from "@/components/jobs/DriverModeOverlay.vue";
 import InspectionGalleryOverlay from "@/components/jobs/InspectionGalleryOverlay.vue";
 import JobIncidentModal from "@/components/jobs/JobIncidentModal.vue";
-import NavigationAppModal from "@/components/jobs/NavigationAppModal.vue";
 import RecoveryConfirmationModal from "@/components/jobs/RecoveryConfirmationModal.vue";
 import JobActionConfirmDialog from "@/components/jobs/JobActionConfirmDialog.vue";
 import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
@@ -37,7 +34,6 @@ import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
 import RunQuickActions from "@/components/jobs/RunQuickActions.vue";
-import RunTrackingCard from "@/components/jobs/RunTrackingCard.vue";
 import { useRunPayments } from "@/composables/jobs/useRunPayments";
 import { useRunWorkflow } from "@/composables/jobs/useRunWorkflow";
 import { useDriverModeState } from "@/composables/jobs/useDriverModeState";
@@ -97,7 +93,6 @@ const trackingState = reactive({
   locationServicesOff: false,
   lastUpdate: null
 });
-const navigationModalOpen = ref(false);
 const checkoutLoading = ref(false);
 const payoutReleaseLoading = ref(false);
 const paymentError = ref("");
@@ -291,34 +286,6 @@ async function shareLiveLocation() {
   }
 }
 
-async function requestLocationUpdate() {
-  if (!job.value?.id || !canRequestTracking.value) return;
-
-  trackingState.requesting = true;
-  trackingState.requestError = "";
-  trackingState.requestNotice = "";
-
-  try {
-    const payload = await requestJobLocationUpdate(job.value.id);
-    trackingState.requestNotice = payload?.message || "Location update requested. The driver has been notified.";
-  } catch (error) {
-    console.error("Failed to request location update", error);
-    trackingState.requestError = error?.response?.data?.message || "Unable to request a location update right now.";
-  } finally {
-    trackingState.requesting = false;
-  }
-}
-
-async function openLocationSettings() {
-  trackingState.error = "";
-
-  try {
-    await AppLauncher.openUrl({ url: "app-settings:" });
-  } catch (error) {
-    console.error("Failed to open app settings", error);
-    window.location.href = "app-settings:";
-  }
-}
 
 function createLocationPermissionError() {
   const error = new Error("Location permission is blocked.");
@@ -356,10 +323,6 @@ function isLocationPermissionBlockedError(error) {
 function isLocationServicesDisabledError(error) {
   const message = String(error?.message || error?.errorMessage || "").toLowerCase();
   return error?.code === "OS-PLUG-GLOC-0007" || message.includes("location services are not enabled");
-}
-
-function closeNavigationModal() {
-  navigationModalOpen.value = false;
 }
 
 function resetCompletionForm() {
@@ -412,11 +375,6 @@ const canShareTracking = computed(() => {
   if (!job.value || !auth.user) return false;
   return job.value.assigned_to_id === auth.user.id && isTrackingActive.value;
 });
-const canRequestTracking = computed(() => {
-  if (!job.value || !auth.user) return false;
-  return (currentRole.value === "admin" || isDealerForJob.value) && isTrackingActive.value;
-});
-const shouldShowTrackingCard = computed(() => canShareTracking.value || canRequestTracking.value || hasTrackingEnded.value || Boolean(lastTrackedAt.value));
 const canUseDriverMode = computed(() => {
   if (!Capacitor.isNativePlatform()) return false;
   return canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value;
@@ -540,7 +498,7 @@ const canMarkCollected = computed(() => {
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (!hasDeliveryProof.value) return false;
   if (completionStatus.value !== 'inspection_approved') return false;
-  if (!lastTrackedAt.value) return false;
+  if (!lastTrackedAt.value && !trackingState.shared) return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
 });
 const showCollectionAction = computed(() => {
@@ -1274,6 +1232,8 @@ watch(
         :can-use-driver-mode="canUseDriverMode"
         :can-mark-collected="canMarkCollected"
         :show-collection-action="showCollectionAction"
+        :can-share-tracking="canShareTracking"
+        :tracking-loading="trackingState.sending"
         :collected-loading="driverActionLoading === 'collected'"
         :can-cancel-job="canCancelJob"
         :cancel-loading="cancelSubmitting"
@@ -1281,6 +1241,7 @@ watch(
         :withdraw-loading="withdrawSubmitting"
         @request-job="handleRequestJob"
         @start-driver-mode="driverModeOpen = true"
+        @share-location="shareLiveLocation"
         @mark-collected="handleDriverCollected"
         @cancel-job="openCancelDialog"
         @withdraw-application="handleWithdrawApplication"
@@ -1402,21 +1363,6 @@ watch(
         </p>
       </section>
 
-      <RunTrackingCard
-        v-if="shouldShowTrackingCard && isDriverDetailView"
-        :has-tracking-ended="hasTrackingEnded"
-        :can-share-tracking="canShareTracking"
-        :can-request-tracking="canRequestTracking"
-        :tracking-state="trackingState"
-        :last-tracked-display="lastTrackedDisplay"
-        @share-location="shareLiveLocation"
-        @request-location="requestLocationUpdate"
-        @open-navigation="navigationModalOpen = true"
-        @open-settings="openLocationSettings"
-      />
-
-
-
 
     </div>
 
@@ -1499,13 +1445,6 @@ watch(
       :recovery-completing-id="recoveryCompletingId"
       @close="closeRecoveryConfirmation"
       @confirm="confirmRecoveryAction"
-    />
-
-    <NavigationAppModal
-      :open="navigationModalOpen"
-      :destination="navigationDestination"
-      :links="navigationLinks"
-      @close="closeNavigationModal"
     />
 
     <JobActionConfirmDialog

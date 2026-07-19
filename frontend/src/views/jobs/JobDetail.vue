@@ -898,6 +898,13 @@ function handleRealtimeJobEvent(event) {
       driverStore.fetchOverview({ force: true }).catch((error) => {
         console.error('Failed to refresh driver overview after acceptance', error);
       });
+
+      // Revalidate the open run immediately after the dealer accepts it. The
+      // optimistic state above keeps the UI responsive while this request
+      // replaces it with the authoritative server response.
+      loadJob({ force: true }).catch((error) => {
+        console.error('Failed to reload accepted driver run', error);
+      });
     }
   }
 
@@ -916,7 +923,9 @@ function handleRealtimeJobEvent(event) {
     };
   }
 
-  scheduleRealtimeJobReload();
+  if (!(eventName === 'application_accepted' && currentRole.value === 'driver')) {
+    scheduleRealtimeJobReload();
+  }
 }
 
 function applyLiveLocationPayload(payload = {}) {

@@ -32,6 +32,7 @@ import RecoveryConfirmationModal from "@/components/jobs/RecoveryConfirmationMod
 import JobActionConfirmDialog from "@/components/jobs/JobActionConfirmDialog.vue";
 import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
+import InspectionReviewAttention from "@/components/jobs/InspectionReviewAttention.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
@@ -605,6 +606,17 @@ const canReviewInspection = computed(() => {
   if (job.value?.finalized_invoice_id) return false;
   return ['not_submitted', 'rejected', 'inspection_approved'].includes(String(completionStatus.value || '').toLowerCase());
 });
+const inspectionReviewRoute = computed(() => ({
+  name: 'job-photos',
+  params: { id: job.value?.id },
+  query: { from: 'run' }
+}));
+const showInspectionReviewAttention = computed(() => (
+  isDealerForJob.value
+  && hasDeliveryProof.value
+  && completionStatus.value !== 'inspection_approved'
+  && canReviewInspection.value
+));
 
 const {
   driverModeDestinationLabel,
@@ -1291,6 +1303,11 @@ watch(
         :photos-uploaded="hasDeliveryProof"
         :location-shared="Boolean(lastTrackedAt || trackingState.shared)"
         :status-label="formatStatusLabel(job.status)"
+      />
+
+      <InspectionReviewAttention
+        v-if="showInspectionReviewAttention"
+        :to="inspectionReviewRoute"
       />
 
       <RunQuickActions

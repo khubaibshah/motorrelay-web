@@ -28,13 +28,15 @@ const emit = defineEmits(['close', 'confirm', 'update:note']);
 <template>
   <div
     v-if="open"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+    class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 p-4"
   >
     <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
       <h3 class="text-lg font-semibold text-slate-900">
         {{
           mode === 'deliver'
             ? 'Mark run as delivered'
+            : mode === 'collect'
+            ? 'Mark vehicle as collected'
             : mode === 'invoice'
             ? 'Send invoice'
             : 'Cancel run'

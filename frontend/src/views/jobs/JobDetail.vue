@@ -83,6 +83,7 @@ const cancelSubmitting = ref(false);
 const cancelError = ref("");
 const withdrawSubmitting = ref(false);
 const withdrawError = ref("");
+const actionConfirmMode = ref("");
 
 const trackingState = reactive({
   sending: false,
@@ -531,6 +532,35 @@ const canMarkDeliveredFromDetail = computed(() => {
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   return ['collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
 });
+const actionConfirmOpen = computed(() => Boolean(actionConfirmMode.value));
+const actionConfirmPending = computed(() => Boolean(driverActionLoading.value));
+const actionConfirmMessage = computed(() => actionConfirmMode.value === "deliver"
+  ? "Are you sure you want to mark this vehicle as delivered? Confirm only after it has reached the drop-off address."
+  : "Are you sure you want to mark this vehicle as collected? Confirm only after you have received the vehicle from the pickup location.");
+
+function openActionConfirmation(mode) {
+  if (mode === "collect" && !canMarkCollected.value) return;
+  if (mode === "deliver" && !canMarkDeliveredFromDetail.value) return;
+  actionConfirmMode.value = mode;
+}
+
+function closeActionConfirmation() {
+  if (actionConfirmPending.value) return;
+  actionConfirmMode.value = "";
+}
+
+async function confirmAction() {
+  const mode = actionConfirmMode.value;
+  if (!mode || actionConfirmPending.value) return;
+
+  actionConfirmMode.value = "";
+  if (mode === "collect") {
+    await handleDriverCollected();
+    return;
+  }
+
+  await handleDriverDelivered();
+}
 const canReportIncident = computed(() => {
   if (!isAssignedDriver.value) return false;
   return ['accepted', 'in_progress', 'collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
@@ -634,8 +664,8 @@ const {
   driverActionLoading,
   completionSubmitting,
   handlers: {
-    markCollected: handleDriverCollected,
-    markDelivered: handleDriverDelivered,
+    markCollected: () => openActionConfirmation("collect"),
+    markDelivered: () => openActionConfirmation("deliver"),
     submitCompletion: handleCompletionSubmit,
     shareLocation: shareLiveLocation
   }
@@ -1294,10 +1324,11 @@ watch(
         :my-application="myApplication"
         :can-use-driver-mode="canUseDriverMode"
         :can-mark-collected="canMarkCollected"
+        :can-mark-delivered="canMarkDeliveredFromDetail"
         :show-collection-action="showCollectionAction"
         :can-share-tracking="canShareTracking"
         :tracking-loading="trackingState.sending"
-        :collected-loading="driverActionLoading === 'collected'"
+        :collected-loading="['collected', 'delivered'].includes(driverActionLoading)"
         :can-cancel-job="canCancelJob"
         :cancel-loading="cancelSubmitting"
         :can-withdraw-application="canWithdrawApplication"
@@ -1305,7 +1336,8 @@ watch(
         @request-job="handleRequestJob"
         @start-driver-mode="driverModeOpen = true"
         @share-location="shareLiveLocation"
-        @mark-collected="handleDriverCollected"
+        @mark-collected="openActionConfirmation('collect')"
+        @mark-delivered="openActionConfirmation('deliver')"
         @cancel-job="openCancelDialog"
         @withdraw-application="handleWithdrawApplication"
       />
@@ -1522,6 +1554,15 @@ watch(
       :recovery-completing-id="recoveryCompletingId"
       @close="closeRecoveryConfirmation"
       @confirm="confirmRecoveryAction"
+    />
+
+    <JobActionConfirmDialog
+      :open="actionConfirmOpen"
+      :mode="actionConfirmMode"
+      :message="actionConfirmMessage"
+      :pending="actionConfirmPending"
+      @close="closeActionConfirmation"
+      @confirm="confirmAction"
     />
 
     <JobActionConfirmDialog

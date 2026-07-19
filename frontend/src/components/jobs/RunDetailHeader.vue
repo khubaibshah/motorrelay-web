@@ -38,6 +38,10 @@ defineProps({
     type: Boolean,
     default: false
   },
+  canMarkDelivered: {
+    type: Boolean,
+    default: false
+  },
   showCollectionAction: {
     type: Boolean,
     default: false
@@ -72,7 +76,7 @@ defineProps({
   }
 });
 
-defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'share-location', 'cancel-job', 'withdraw-application']);
+defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-delivered', 'share-location', 'cancel-job', 'withdraw-application']);
 </script>
 
 <template>
@@ -98,7 +102,7 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'share-locati
     </div>
 
     <div
-      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canCancelJob"
+      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canMarkDelivered || canCancelJob"
       class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
     >
       <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
@@ -139,14 +143,15 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'share-locati
           Start driver mode
         </button>
         <button
-          v-if="showCollectionAction || canMarkCollected"
+          v-if="showCollectionAction || canMarkCollected || canMarkDelivered"
           type="button"
           class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-          :disabled="collectedLoading || trackingLoading || (!canMarkCollected && !canShareTracking)"
-          @click="canMarkCollected ? $emit('mark-collected') : $emit('share-location')"
+          :disabled="collectedLoading || trackingLoading || (!canMarkCollected && !canMarkDelivered && !canShareTracking)"
+          @click="canMarkDelivered ? $emit('mark-delivered') : (canMarkCollected ? $emit('mark-collected') : $emit('share-location'))"
         >
           <span v-if="collectedLoading">Updating...</span>
           <span v-else-if="trackingLoading">Sharing location...</span>
+          <span v-else-if="canMarkDelivered">Mark vehicle delivered</span>
           <span v-else-if="!canMarkCollected">Share live location</span>
           <span v-else>Mark vehicle collected</span>
         </button>

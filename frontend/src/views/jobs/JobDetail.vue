@@ -30,6 +30,7 @@ import JobActionConfirmDialog from "@/components/jobs/JobActionConfirmDialog.vue
 import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
 import InspectionReviewAttention from "@/components/jobs/InspectionReviewAttention.vue";
+import DriverCollectionAttention from "@/components/jobs/DriverCollectionAttention.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
 import RunRouteSummary from "@/components/jobs/RunRouteSummary.vue";
@@ -1335,6 +1336,13 @@ watch(
       <InspectionReviewAttention
         v-if="showInspectionReviewAttention"
         :to="inspectionReviewRoute"
+      />
+
+      <DriverCollectionAttention
+        v-if="isAssignedDriver && completionStatus === 'inspection_approved' && ['accepted', 'in_progress'].includes(String(job.status || '').toLowerCase())"
+        :tracking-shared="hasSharedTracking"
+        :sharing="trackingState.sending"
+        @share-location="shareLiveLocation"
       />
 
       <RunQuickActions

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, reactive } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, reactive } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
@@ -164,6 +164,22 @@ async function loadJobs({ force = true } = {}) {
   } finally {
     completedLoading.value = false;
   }
+}
+
+function handleRealtimeJobEvent(event) {
+  if (auth.role !== 'driver') return;
+
+  const eventName = String(event?.detail?.event || '').toLowerCase();
+  if (eventName !== 'application_accepted') return;
+
+  // Refresh both the Pinia overview and the visible run lists immediately so
+  // an accepted application moves out of pending and into active runs.
+  driver.fetchOverview({ force: true }).catch((error) => {
+    console.error('Failed to refresh driver overview after acceptance', error);
+  });
+  loadJobs({ force: true }).catch((error) => {
+    console.error('Failed to refresh driver runs after acceptance', error);
+  });
 }
 
 async function handleApply(job) {
@@ -889,6 +905,10 @@ function formatDriverDistance(job) {
 }
 
 onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+  }
+
   if ((!auth.user || auth.role === 'dealer') && auth.token) {
     await auth.fetchMe().catch(() => null);
   }
@@ -900,6 +920,12 @@ onMounted(async () => {
   }
 
   await loadJobs({ force: false });
+});
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('motorrelay:job-event', handleRealtimeJobEvent);
+  }
 });
 </script>
 

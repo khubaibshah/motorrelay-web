@@ -893,6 +893,12 @@ function handleRealtimeJobEvent(event) {
       assigned_to: assignedDriver,
       status: payload.job_status || 'in_progress'
     };
+
+    if (currentRole.value === 'driver') {
+      driverStore.fetchOverview({ force: true }).catch((error) => {
+        console.error('Failed to refresh driver overview after acceptance', error);
+      });
+    }
   }
 
   if (eventName === 'inspection_approved' && job.value) {

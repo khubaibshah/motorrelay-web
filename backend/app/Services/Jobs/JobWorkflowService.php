@@ -44,6 +44,14 @@ class JobWorkflowService
 
     public function markDelivered(Job $job): Job
     {
+        if (! in_array(strtolower((string) $job->status), ['collected', 'in_transit'], true)) {
+            abort(422, 'Mark the vehicle as collected before marking this run as delivered.');
+        }
+
+        if (! $job->last_tracked_at || $job->current_latitude === null || $job->current_longitude === null) {
+            abort(422, 'Share live location before marking the vehicle as delivered.');
+        }
+
         $this->ensureDealerPaymentHeld($job);
 
         $job->update(['status' => 'delivered']);

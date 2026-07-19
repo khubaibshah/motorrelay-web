@@ -530,6 +530,7 @@ const showCollectionAction = computed(() => {
 const canMarkDeliveredFromDetail = computed(() => {
   if (!isAssignedDriver.value) return false;
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
+  if (!hasSharedTracking.value) return false;
   return ['collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
 });
 const actionConfirmOpen = computed(() => Boolean(actionConfirmMode.value));

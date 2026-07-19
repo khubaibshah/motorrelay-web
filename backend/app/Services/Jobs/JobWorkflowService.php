@@ -33,7 +33,11 @@ class JobWorkflowService
             abort(422, 'The dealer must approve the inspection photos before collection.');
         }
 
-        $job->update(['status' => 'collected']);
+        if (! $job->last_tracked_at || $job->current_latitude === null || $job->current_longitude === null) {
+            abort(422, 'Share live location before marking the vehicle as collected.');
+        }
+
+        $job->update(['status' => 'in_transit']);
 
         $this->notifyDealer($job->fresh(), 'driver_marked_collected');
 

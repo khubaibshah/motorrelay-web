@@ -540,6 +540,11 @@ const canMarkCollected = computed(() => {
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (!hasDeliveryProof.value) return false;
   if (completionStatus.value !== 'inspection_approved') return false;
+  if (!lastTrackedAt.value) return false;
+  return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
+});
+const showCollectionAction = computed(() => {
+  if (!isAssignedDriver.value || !hasDeliveryProof.value || completionStatus.value !== 'inspection_approved') return false;
   return ['accepted', 'in_progress'].includes(String(job.value?.status || '').toLowerCase());
 });
 const canMarkDeliveredFromDetail = computed(() => {
@@ -669,6 +674,14 @@ const runProgressCurrentLabel = computed(() => {
 
   if (isDealerForJob.value && hasUploadedPhotos && !inspectionApproved && ['accepted', 'in_progress'].includes(status)) {
     return 'Review pre-inspection photos';
+  }
+
+  if (['accepted', 'in_progress'].includes(status) && inspectionApproved) {
+    return isDealerForJob.value ? 'Waiting for driver to collect vehicle' : 'Ready to collect vehicle';
+  }
+
+  if (['collected', 'in_transit'].includes(status)) {
+    return 'Vehicle in transit';
   }
 
   return currentWorkflowStep.value?.label || 'Complete';
@@ -1260,6 +1273,7 @@ watch(
         :my-application="myApplication"
         :can-use-driver-mode="canUseDriverMode"
         :can-mark-collected="canMarkCollected"
+        :show-collection-action="showCollectionAction"
         :collected-loading="driverActionLoading === 'collected'"
         :can-cancel-job="canCancelJob"
         :cancel-loading="cancelSubmitting"

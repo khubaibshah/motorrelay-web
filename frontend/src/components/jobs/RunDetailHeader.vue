@@ -38,6 +38,10 @@ defineProps({
     type: Boolean,
     default: false
   },
+  showCollectionAction: {
+    type: Boolean,
+    default: false
+  },
   collectedLoading: {
     type: Boolean,
     default: false
@@ -86,7 +90,7 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'cancel-job',
     </div>
 
     <div
-      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || canMarkCollected || canCancelJob"
+      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canCancelJob"
       class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
     >
       <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
@@ -127,13 +131,14 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'cancel-job',
           Start driver mode
         </button>
         <button
-          v-if="canMarkCollected"
+          v-if="showCollectionAction || canMarkCollected"
           type="button"
           class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
-          :disabled="collectedLoading"
-          @click="$emit('mark-collected')"
+          :disabled="collectedLoading || !canMarkCollected"
+          @click="canMarkCollected && $emit('mark-collected')"
         >
           <span v-if="collectedLoading">Updating...</span>
+          <span v-else-if="!canMarkCollected">Share live location first</span>
           <span v-else>Mark vehicle collected</span>
         </button>
         <button

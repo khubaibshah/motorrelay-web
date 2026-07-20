@@ -21,6 +21,7 @@ let copiedTimer = null;
 
 const showPickupPostcode = computed(() => props.job.pickup_label && props.job.pickup_label !== props.job.pickup_postcode);
 const showDropoffPostcode = computed(() => props.job.dropoff_label && props.job.dropoff_label !== props.job.dropoff_postcode);
+const exactLocationsAvailable = computed(() => Boolean(props.job.pickup_label && props.job.dropoff_label));
 
 const distanceLabel = computed(() => (props.job.distance_mi ? `${props.job.distance_mi} mi` : '--'));
 const pickupScheduleLabel = computed(() => formatSchedule(props.job.pickup_ready_at));
@@ -109,6 +110,7 @@ async function copyLocation(type) {
         <div class="flex items-center justify-between gap-2">
           <h2 class="text-[0.65rem] font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Pickup</h2>
           <button
+            v-if="exactLocationsAvailable"
             type="button"
             class="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
             aria-label="Copy pickup location"
@@ -145,6 +147,7 @@ async function copyLocation(type) {
         <div class="flex items-center justify-between gap-2">
           <h2 class="text-[0.65rem] font-black uppercase tracking-wide text-slate-500 dark:text-emerald-100">Drop-off</h2>
           <button
+            v-if="exactLocationsAvailable"
             type="button"
             class="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
             aria-label="Copy drop-off location"

@@ -79,10 +79,14 @@ class JobService
             ->paginate((int) ($filters['per_page'] ?? 15));
 
         if ($user?->isDriver()) {
-            $jobs->getCollection()->transform(function (Job $jobItem) {
+            $jobs->getCollection()->transform(function (Job $jobItem) use ($user) {
                 $application = $jobItem->applications->first();
                 $jobItem->setRelation('my_application', $application);
                 $jobItem->unsetRelation('applications');
+
+                if ($jobItem->assigned_to_id !== $user->id) {
+                    $this->redactUnassignedDriverJob($jobItem);
+                }
 
                 return $jobItem;
             });
@@ -200,6 +204,10 @@ class JobService
             $this->loadPrivateJobRelations($job);
         }
 
+        if ($user?->isDriver() && $job->assigned_to_id !== $user->id) {
+            $this->redactUnassignedDriverJob($job);
+        }
+
         $this->recordJobView($job);
 
         return $job;
@@ -312,6 +320,53 @@ class JobService
                     });
                 });
         }
+    }
+
+    /**
+     * Keep customer and exact-address data private until a driver is assigned.
+     * Coordinates are also removed so clients cannot reconstruct the address.
+     */
+    protected function redactUnassignedDriverJob(Job $job): void
+    {
+        $job->setAttribute('pickup_area', $this->locationArea($job->pickup_label, $job->pickup_postcode));
+        $job->setAttribute('dropoff_area', $this->locationArea($job->dropoff_label, $job->dropoff_postcode));
+
+        foreach ([
+            'pickup_label', 'pickup_postcode', 'pickup_latitude', 'pickup_longitude',
+            'dropoff_label', 'dropoff_postcode', 'dropoff_latitude', 'dropoff_longitude',
+            'pickup_notes', 'dropoff_notes', 'notes', 'auction_reference',
+            'auction_assessment_report_path', 'auction_assessment_report_disk', 'auction_assessment_report_name',
+            'company',
+        ] as $attribute) {
+            $job->setAttribute($attribute, null);
+        }
+
+        $job->setRelation('postedBy', null);
+    }
+
+    protected function locationArea(?string $label, ?string $postcode): string
+    {
+        $label = trim((string) $label);
+        $postcode = trim((string) $postcode);
+        $label = trim((string) (explode('—', $label, 2)[0] ?? $label));
+        $parts = array_values(array_filter(array_map('trim', preg_split('/,/', $label) ?: [])));
+        $postcodePattern = '/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i';
+
+        foreach ($parts as $part) {
+            if (preg_match($postcodePattern, $part)) {
+                $area = trim(preg_replace($postcodePattern, '', $part) ?? '');
+                $area = trim($area, " -–—");
+                if ($area !== '') {
+                    return $area;
+                }
+            }
+        }
+
+        $fallback = collect(array_reverse($parts))
+            ->first(fn ($part) => ! preg_match('/\b(?:UK|United Kingdom)\b/i', $part)) ?: $postcode;
+        $fallback = trim(preg_replace('/\b(?:UK|United Kingdom)\b/i', '', (string) $fallback) ?? '');
+
+        return trim($fallback, " -–—") ?: ($postcode !== '' ? $this->outwardPostcode($postcode) : 'Location withheld');
     }
 
     protected function applyNearbyMarketplaceFilter($query, array $filters): array

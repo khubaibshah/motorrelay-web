@@ -634,6 +634,8 @@ const filteredDealerJobs = computed(() => {
 
     const haystack = [
       job?.title,
+      job?.pickup_area,
+      job?.dropoff_area,
       job?.pickup_postcode,
       job?.dropoff_postcode,
       job?.pickup_label,
@@ -1068,7 +1070,7 @@ onBeforeUnmount(() => {
                 {{ job.company || 'Customer' }} - {{ job.vehicle_make || 'Vehicle' }}
               </p>
               <p class="text-xs text-slate-500">
-                {{ job.pickup_postcode || '--' }} to {{ job.dropoff_postcode || '--' }}
+                {{ job.pickup_area || job.pickup_postcode || '--' }} to {{ job.dropoff_area || job.dropoff_postcode || '--' }}
               </p>
               <p class="text-xs text-slate-500">
                 Transport: {{ formatTransportType(job.transport_type) }}

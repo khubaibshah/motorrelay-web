@@ -12,8 +12,8 @@ const props = defineProps({
   }
 });
 
-const pickupTitle = computed(() => props.job.pickup_label || props.job.pickup_postcode || 'Pickup location');
-const dropoffTitle = computed(() => props.job.dropoff_label || props.job.dropoff_postcode || 'Drop-off location');
+const pickupTitle = computed(() => props.job.pickup_label || props.job.pickup_area || props.job.pickup_postcode || 'Pickup location');
+const dropoffTitle = computed(() => props.job.dropoff_label || props.job.dropoff_area || props.job.dropoff_postcode || 'Drop-off location');
 const pickupCopyText = computed(() => locationCopyText(props.job.pickup_label, props.job.pickup_postcode));
 const dropoffCopyText = computed(() => locationCopyText(props.job.dropoff_label, props.job.dropoff_postcode));
 const copiedMessage = ref('');

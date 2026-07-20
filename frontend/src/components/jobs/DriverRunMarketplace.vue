@@ -280,7 +280,7 @@ function formatRunTime(job) {
                 {{ job.vehicle_make || job.title || 'Vehicle run' }}
               </span>
               <span class="mt-0.5 block truncate text-xs font-bold text-slate-600 dark:text-emerald-100">
-                {{ job.pickup_postcode || job.pickup_label || '--' }} → {{ job.dropoff_postcode || job.dropoff_label || '--' }}
+                {{ job.pickup_area || job.pickup_postcode || job.pickup_label || '--' }} → {{ job.dropoff_area || job.dropoff_postcode || job.dropoff_label || '--' }}
               </span>
               <span class="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-300">
                 <span v-if="formatRunDate(job)">▦ {{ formatRunDate(job) }}<template v-if="formatRunTime(job)"> · {{ formatRunTime(job) }}</template></span>
@@ -439,7 +439,7 @@ function formatRunTime(job) {
         <div class="flex items-start justify-between gap-3">
           <button type="button" class="min-w-0 flex-1 text-left" @click="emit('open-job', job)">
             <p class="truncate text-base font-black text-slate-950 dark:text-white">
-              {{ job.pickup_postcode || job.pickup_label || '--' }} to {{ job.dropoff_postcode || job.dropoff_label || '--' }}
+              {{ job.pickup_area || job.pickup_postcode || job.pickup_label || '--' }} to {{ job.dropoff_area || job.dropoff_postcode || job.dropoff_label || '--' }}
             </p>
             <p class="mt-1 truncate text-xs font-semibold text-slate-600 dark:text-emerald-100">
               {{ job.vehicle_make || 'Vehicle' }} · {{ formatTransportType(job.transport_type) }}

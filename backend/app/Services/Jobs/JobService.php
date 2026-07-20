@@ -133,6 +133,10 @@ class JobService
             'vehicle_type' => $vehicle['vehicle_type'],
             'price' => $jobPrice,
             'transport_type' => $data['transport_type'],
+            'listing_type' => $data['listing_type'] ?? 'private',
+            'auction_reference' => ($data['listing_type'] ?? 'private') === 'auction'
+                ? ($data['auction_reference'] ?? null)
+                : null,
             'pickup_ready_at' => $pickupReadyAt,
             'delivery_due_at' => $deliveryDueAt,
             'goes_live_at' => null,
@@ -383,6 +387,10 @@ class JobService
     protected function normaliseUpdatePayload(Job $job, array $data): array
     {
         $updates = $data;
+
+        if (($updates['listing_type'] ?? null) === 'private') {
+            $updates['auction_reference'] = null;
+        }
 
         if (array_key_exists('title', $updates)) {
             $vehicle = $this->vehicles->lookup($updates['title']);

@@ -52,6 +52,8 @@ const validationState = reactive({
   dropoff_postcode: false,
   dropoff_label: false,
   transport_type: false,
+  listing_type: false,
+  auction_reference: false,
   pickup_at: false,
   delivery_at: false,
   price: false,
@@ -276,6 +278,9 @@ const reviewSections = computed(() => [
     label: 'Movement',
     lines: [
       transportOptions.find((option) => option.value === form.transport_type)?.label || 'Choose a transport type',
+      form.listing_type === 'auction'
+        ? `Auction job · Reference ${form.auction_reference || 'Required'}`
+        : form.listing_type === 'private' ? 'Private job' : 'Choose a job type',
       `${formatShortDateTime(form.pickup_at)} → ${formatShortDateTime(form.delivery_at)}`
     ],
     step: 2
@@ -613,6 +618,12 @@ async function validateCurrentStep() {
       if (!form.transport_type) {
         setValidationError('transport_type', 'Please choose a transport type.');
       }
+      if (!form.listing_type) {
+        setValidationError('listing_type', 'Please choose whether this is a private or auction job.');
+      }
+      if (form.listing_type === 'auction' && !form.auction_reference.trim()) {
+        setValidationError('auction_reference', 'Please enter the auction reference.');
+      }
       if (!form.pickup_at) {
         setValidationError('pickup_at', 'Please choose a pickup date and time.');
       }
@@ -622,6 +633,8 @@ async function validateCurrentStep() {
 
       if (
         validationState.transport_type ||
+        validationState.listing_type ||
+        validationState.auction_reference ||
         validationState.pickup_at ||
         validationState.delivery_at
       ) {
@@ -760,7 +773,9 @@ async function submit() {
         dropoff_latitude: form.dropoff_latitude,
         dropoff_longitude: form.dropoff_longitude,
         price: Number(normalisePrice(form.price) || 0),
-        transport_type: form.transport_type,
+      transport_type: form.transport_type,
+      listing_type: form.listing_type,
+      auction_reference: form.listing_type === 'auction' ? form.auction_reference.trim() : null,
         pickup_ready_at: buildDateTime(form.pickup_at),
         delivery_due_at: buildDateTime(form.delivery_at),
       };
@@ -853,6 +868,8 @@ async function loadJobForEditing() {
       vehicle_make: job.vehicle_make || '',
       price: job.price != null ? String(job.price) : '',
       transport_type: job.transport_type || 'drive_away',
+      listing_type: job.listing_type || 'private',
+      auction_reference: job.auction_reference || '',
       pickup_at: pickup,
       delivery_at: dropoff,
     });

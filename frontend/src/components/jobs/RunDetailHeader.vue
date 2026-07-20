@@ -94,6 +94,12 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
         <p class="mt-0.5 text-xs font-semibold text-slate-600 dark:text-emerald-100">
           {{ job.company || 'Customer' }} · {{ job.vehicle_make || 'Vehicle' }}
         </p>
+        <p
+          v-if="job.listing_type === 'auction' && job.auction_reference"
+          class="mt-1 text-xs font-black text-emerald-700 dark:text-emerald-300"
+        >
+          Auction reference: {{ job.auction_reference }}
+        </p>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1.5">
         <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-800 dark:bg-white/10 dark:text-emerald-100">

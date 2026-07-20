@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive, ref, watch } from 'vue';
 
 const STORAGE_KEY = 'mr_job_create_draft';
-const DRAFT_VERSION = 2;
+const DRAFT_VERSION = 3;
 
 function createDefaultFormState() {
   return {
@@ -18,6 +18,8 @@ function createDefaultFormState() {
     vehicle_make: '',
     price: '',
     transport_type: '',
+    listing_type: '',
+    auction_reference: '',
     pickup_at: '',
     delivery_at: ''
   };
@@ -42,6 +44,8 @@ function hasDraftContent(draft) {
       draft.form?.pickup_at ||
       draft.form?.delivery_at ||
       draft.form?.transport_type === 'trailer' ||
+      draft.form?.listing_type ||
+      draft.form?.auction_reference ||
       draft.verifiedVehicle?.registration ||
       draft.reviewUnlocked
   );

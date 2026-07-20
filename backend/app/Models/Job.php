@@ -37,6 +37,8 @@ class Job extends Model
         'vehicle_make',
         'vehicle_type',
         'transport_type',
+        'listing_type',
+        'auction_reference',
         'notes',
         'posted_by_id',
         'assigned_to_id',

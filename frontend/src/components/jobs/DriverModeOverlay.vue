@@ -132,6 +132,12 @@ function openInspectionPicker() {
             <p class="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Driver mode</p>
             <h2 class="mt-1 truncate text-3xl font-black leading-none">{{ job.title || `Run #${job.id}` }}</h2>
             <p class="mt-2 truncate text-sm font-bold text-emerald-100/80">{{ routeLabel }}</p>
+            <p
+              v-if="job.listing_type === 'auction' && job.auction_reference"
+              class="mt-1 text-xs font-black text-emerald-300"
+            >
+              Auction reference: {{ job.auction_reference }}
+            </p>
           </div>
           <button
             type="button"

@@ -24,10 +24,6 @@ defineProps({
 
 defineEmits(['select-transport', 'back', 'next']);
 
-const listingTypeOptions = [
-  { value: 'private', label: 'Private job', helper: 'A direct private vehicle movement.' },
-  { value: 'auction', label: 'Auction job', helper: 'Requires the auction collection reference.' }
-];
 </script>
 
 <template>
@@ -59,43 +55,6 @@ const listingTypeOptions = [
           <span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-emerald-100">{{ option.helper }}</span>
         </button>
       </div>
-    </div>
-
-    <div class="space-y-2">
-      <div>
-        <p class="text-sm font-bold text-slate-700">Job type</p>
-        <p class="mt-1 text-xs text-slate-500">Auction references help the driver collect the correct vehicle.</p>
-      </div>
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <button
-          v-for="option in listingTypeOptions"
-          :key="option.value"
-          type="button"
-          :class="[
-            'min-w-0 rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md',
-            form.listing_type === option.value
-              ? 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200 dark:border-emerald-400/50 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/30'
-              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200 dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100 dark:hover:border-emerald-400/50'
-          ]"
-          @click="form.listing_type = option.value"
-        >
-          <span class="block font-black">{{ option.label }}</span>
-          <span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-emerald-100">{{ option.helper }}</span>
-        </button>
-      </div>
-      <p v-if="validationState.listing_type" class="text-xs font-bold text-rose-600">Choose a job type.</p>
-      <label v-if="form.listing_type === 'auction'" class="block">
-        <span class="text-xs font-black uppercase tracking-wide text-slate-500">Auction reference</span>
-        <input
-          v-model="form.auction_reference"
-          type="text"
-          maxlength="100"
-          placeholder="e.g. ABC-12345"
-          class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-slate-950 dark:text-white"
-          :class="validationState.auction_reference ? 'border-rose-400 ring-2 ring-rose-200' : ''"
-        />
-        <span v-if="validationState.auction_reference" class="mt-1 block text-xs font-bold text-rose-600">Enter the auction reference for collection.</span>
-      </label>
     </div>
 
     <div class="grid gap-3 md:grid-cols-2">

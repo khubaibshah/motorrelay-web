@@ -6,6 +6,7 @@ import { createJobCheckout } from '@/services/payments';
 import { useAuthStore } from '@/stores/auth';
 import { useJobCreateDraftStore } from '@/stores/jobCreateDraft';
 import JobCreateVehicleStep from '@/components/jobs/JobCreateVehicleStep.vue';
+import JobCreateTypeStep from '@/components/jobs/JobCreateTypeStep.vue';
 import JobCreateRouteStep from '@/components/jobs/JobCreateRouteStep.vue';
 import JobCreateMovementStep from '@/components/jobs/JobCreateMovementStep.vue';
 import JobCreatePaymentStep from '@/components/jobs/JobCreatePaymentStep.vue';
@@ -90,7 +91,7 @@ const transportOptions = [
   }
 ];
 
-const wizardStepKeys = ['vehicle', 'route', 'movement', 'payment', 'review'];
+const wizardStepKeys = ['vehicle', 'type', 'route', 'movement', 'payment', 'review'];
 
 function normaliseStepKey(value) {
   return (value || '').toString().trim().toLowerCase();
@@ -139,6 +140,7 @@ function syncWizardStepQuery(stepIndex, mode = 'push') {
 
 const wizardSteps = [
   { key: 'vehicle', label: 'Vehicle' },
+  { key: 'type', label: 'Job type' },
   { key: 'route', label: 'Route' },
   { key: 'movement', label: 'Movement' },
   { key: 'payment', label: 'Payment' },
@@ -271,7 +273,7 @@ const reviewSections = computed(() => [
       `${form.pickup_label || form.pickup_postcode || '--'} → ${form.dropoff_label || form.dropoff_postcode || '--'}`,
       routeDistanceMiles.value ? `${routeDistanceMiles.value} miles` : 'Distance will calculate when exact addresses are selected'
     ],
-    step: 1
+    step: 2
   },
   {
     key: 'movement',
@@ -283,7 +285,7 @@ const reviewSections = computed(() => [
         : form.listing_type === 'private' ? 'Private job' : 'Choose a job type',
       `${formatShortDateTime(form.pickup_at)} → ${formatShortDateTime(form.delivery_at)}`
     ],
-    step: 2
+    step: 3
   },
   {
     key: 'payment',
@@ -293,7 +295,7 @@ const reviewSections = computed(() => [
       `Dealer pays ${formatMoney(jobPrice.value)}`,
       suggestedJobPrice.value ? `Suggested price ${formatMoney(suggestedJobPrice.value)}` : ''
     ].filter(Boolean),
-    step: 3
+    step: 4
   }
 ]);
 
@@ -601,6 +603,18 @@ async function validateCurrentStep() {
   }
 
   if (currentStep.value === 1) {
+    if (!form.listing_type) {
+      setValidationError('listing_type', 'Please choose whether this is a private or auction job.');
+    }
+    if (form.listing_type === 'auction' && !form.auction_reference.trim()) {
+      setValidationError('auction_reference', 'Please enter the auction reference.');
+    }
+    if (validationState.listing_type || validationState.auction_reference) {
+      throw new Error('Please complete the highlighted fields before continuing.');
+    }
+  }
+
+  if (currentStep.value === 2) {
     if (!form.pickup_label) {
       setValidationError('pickup_postcode', 'Please complete the pickup postcode.');
       setValidationError('pickup_label', 'Please choose the exact pickup address.');
@@ -614,15 +628,9 @@ async function validateCurrentStep() {
     }
   }
 
-    if (currentStep.value === 2) {
+    if (currentStep.value === 3) {
       if (!form.transport_type) {
         setValidationError('transport_type', 'Please choose a transport type.');
-      }
-      if (!form.listing_type) {
-        setValidationError('listing_type', 'Please choose whether this is a private or auction job.');
-      }
-      if (form.listing_type === 'auction' && !form.auction_reference.trim()) {
-        setValidationError('auction_reference', 'Please enter the auction reference.');
       }
       if (!form.pickup_at) {
         setValidationError('pickup_at', 'Please choose a pickup date and time.');
@@ -633,8 +641,6 @@ async function validateCurrentStep() {
 
       if (
         validationState.transport_type ||
-        validationState.listing_type ||
-        validationState.auction_reference ||
         validationState.pickup_at ||
         validationState.delivery_at
       ) {
@@ -644,7 +650,7 @@ async function validateCurrentStep() {
       validateMovementTimings();
     }
 
-  if (currentStep.value === 3) {
+  if (currentStep.value === 4) {
     if (!form.price || Number(normalisePrice(form.price)) <= 0) {
       setValidationError('price', 'Please enter a dealer charge.');
       throw new Error('Please complete the highlighted field before continuing.');
@@ -1006,8 +1012,16 @@ watch(
             @next="goNext"
           />
 
-          <JobCreateRouteStep
+          <JobCreateTypeStep
             v-else-if="currentStep === 1"
+            :form="form"
+            :validation-state="validationState"
+            @back="goBack"
+            @next="goNext"
+          />
+
+          <JobCreateRouteStep
+            v-else-if="currentStep === 2"
             :form="form"
             :address-lookup="addressLookup"
             :validation-state="validationState"
@@ -1020,7 +1034,7 @@ watch(
           />
 
           <JobCreateMovementStep
-            v-else-if="currentStep === 2"
+            v-else-if="currentStep === 3"
             :form="form"
             :transport-options="transportOptions"
             :validation-state="validationState"
@@ -1030,7 +1044,7 @@ watch(
           />
 
           <JobCreatePaymentStep
-            v-else-if="currentStep === 3"
+            v-else-if="currentStep === 4"
             :form="form"
             :validation-state="validationState"
             :job-price="jobPrice"

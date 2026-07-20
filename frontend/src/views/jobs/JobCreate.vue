@@ -701,6 +701,8 @@ function buildRequestData(payload) {
     return payload;
   }
 
+  // Laravel receives uploaded files reliably through multipart form data. Keep
+  // normal private jobs as JSON so they do not incur multipart handling.
   const data = new FormData();
   Object.entries(payload).forEach(([key, value]) => {
     if (value !== null && value !== undefined) {

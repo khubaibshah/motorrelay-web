@@ -84,6 +84,8 @@ class JobService
                 $jobItem->setRelation('my_application', $application);
                 $jobItem->unsetRelation('applications');
 
+                // Applicants can decide whether to apply, but exact customer locations
+                // are only returned after the dealer assigns the run to them.
                 if ($jobItem->assigned_to_id !== $user->id) {
                     $this->redactUnassignedDriverJob($jobItem);
                 }
@@ -266,6 +268,8 @@ class JobService
     protected function storeAuctionAssessmentReport(Job $job, UploadedFile $file): void
     {
         $disk = config('invoices.auction_assessment_disk');
+        // Replace an older report when a dealer edits the auction job. Files stay
+        // private and are served through the authorised API endpoint below.
         $this->deleteAuctionAssessmentReport($job);
         $filename = Str::uuid()->toString().'.'.($file->extension() ?: 'bin');
         $path = $this->s3->uploadFile($file, "jobs/{$job->id}/auction-assessment", $filename, $disk, 'private');
@@ -344,6 +348,10 @@ class JobService
         $job->setRelation('postedBy', null);
     }
 
+    /**
+     * Extract a useful town/city label from Google's formatted address without
+     * exposing the full street address or postcode to an unassigned driver.
+     */
     protected function locationArea(?string $label, ?string $postcode): string
     {
         $label = trim((string) $label);

@@ -696,6 +696,22 @@ function clearAssessmentReport() {
   validationState.auction_assessment_report = false;
 }
 
+function buildRequestData(payload) {
+  if (!assessmentReportFile.value) {
+    return payload;
+  }
+
+  const data = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== null && value !== undefined) {
+      data.append(key, String(value));
+    }
+  });
+  data.append('auction_assessment_report', assessmentReportFile.value);
+
+  return data;
+}
+
 async function goNext() {
   try {
     await validateCurrentStep();
@@ -815,16 +831,7 @@ async function submit() {
         delivery_due_at: buildDateTime(form.delivery_at),
       };
 
-      const requestData = assessmentReportFile.value
-        ? (() => {
-            const data = new FormData();
-            Object.entries(payload).forEach(([key, value]) => {
-              if (value !== null && value !== undefined) data.append(key, String(value));
-            });
-            data.append('auction_assessment_report', assessmentReportFile.value);
-            return data;
-          })()
-        : payload;
+      const requestData = buildRequestData(payload);
 
     if (isEdit.value) {
       if (requestData instanceof FormData) {

@@ -215,11 +215,12 @@ class JobService
 
         $report = $data['auction_assessment_report'] ?? null;
         unset($data['auction_assessment_report']);
+        $reportChanged = $report instanceof UploadedFile;
 
         $updates = $this->normaliseUpdatePayload($job, $data);
         $job->update($updates);
 
-        if ($report instanceof UploadedFile && ($job->listing_type ?? 'private') === 'auction') {
+        if ($reportChanged && ($job->listing_type ?? 'private') === 'auction') {
             $this->storeAuctionAssessmentReport($job, $report);
         } elseif (($updates['listing_type'] ?? null) === 'private') {
             $this->deleteAuctionAssessmentReport($job);
@@ -230,7 +231,11 @@ class JobService
             ]);
         }
 
-        $this->notifyInterestedDrivers($job, array_keys($updates));
+        $changedFields = array_keys($updates);
+        if ($reportChanged) {
+            $changedFields[] = 'auction_assessment_report';
+        }
+        $this->notifyInterestedDrivers($job, array_values(array_unique($changedFields)));
 
         return $job->fresh();
     }

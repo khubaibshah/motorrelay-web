@@ -11,7 +11,8 @@ import {
   markJobDelivered,
   applyForJob,
   cancelJob,
-  withdrawJobApplication
+  withdrawJobApplication,
+  downloadAuctionAssessmentReport
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { createEchoClient } from "@/services/realtime";
@@ -72,6 +73,7 @@ const completionForm = reactive({
 const completionError = ref("");
 const completionSubmitting = ref(false);
 const proofDownloading = ref(false);
+const assessmentReportDownloading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
 const driverModeOpen = ref(false);
@@ -1258,6 +1260,30 @@ async function handleDownloadProof() {
   }
 }
 
+async function handleDownloadAssessmentReport() {
+  if (!job.value?.auction_assessment_report_path) return;
+
+  assessmentReportDownloading.value = true;
+  try {
+    const response = await downloadAuctionAssessmentReport(job.value.id);
+    const contentType = response.headers?.["content-type"] || "application/octet-stream";
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = job.value.auction_assessment_report_name || `job-${job.value.id}-assessment-report`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Failed to download assessment report", error);
+    alert("We could not download the vehicle assessment report.");
+  } finally {
+    assessmentReportDownloading.value = false;
+  }
+}
+
 onMounted(async () => {
   if (typeof window !== 'undefined') {
     window.addEventListener('motorrelay:job-event', handleRealtimeJobEvent);
@@ -1357,6 +1383,8 @@ watch(
         :cancel-loading="cancelSubmitting"
         :can-withdraw-application="canWithdrawApplication"
         :withdraw-loading="withdrawSubmitting"
+        :assessment-report-available="Boolean(job.auction_assessment_report_path)"
+        :assessment-report-downloading="assessmentReportDownloading"
         @request-job="handleRequestJob"
         @start-driver-mode="driverModeOpen = true"
         @share-location="shareLiveLocation"
@@ -1364,6 +1392,7 @@ watch(
         @mark-delivered="openActionConfirmation('deliver')"
         @cancel-job="openCancelDialog"
         @withdraw-application="handleWithdrawApplication"
+        @download-assessment-report="handleDownloadAssessmentReport"
       />
 
       <p

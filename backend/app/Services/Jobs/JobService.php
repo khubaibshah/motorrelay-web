@@ -7,14 +7,18 @@ use App\Models\Job;
 use App\Models\JobApplication;
 use App\Models\JobDailyMetric;
 use App\Models\User;
+use App\Services\AwsS3Service;
 use App\Services\VehicleLookupService;
 use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class JobService
 {
     public function __construct(
         protected VehicleLookupService $vehicles,
+        protected AwsS3Service $s3,
     ) {}
 
     public function highlights()
@@ -116,7 +120,7 @@ class JobService
             $jobPrice = $this->suggestedPrice($distanceMiles, $data['transport_type']);
         }
 
-        return Job::create([
+        $job = Job::create([
             'status' => 'open',
             'posted_by_id' => $dealer->id,
             'title' => $vehicle['registration'],
@@ -142,6 +146,12 @@ class JobService
             'delivery_due_at' => $deliveryDueAt,
             'goes_live_at' => null,
         ]);
+
+        if (($data['listing_type'] ?? 'private') === 'auction' && ($data['auction_assessment_report'] ?? null) instanceof UploadedFile) {
+            $this->storeAuctionAssessmentReport($job, $data['auction_assessment_report']);
+        }
+
+        return $job->fresh();
     }
 
     public function showForUser(Job $job, ?User $user): Job
@@ -203,16 +213,68 @@ class JobService
 
         $this->ensureDeliveryIsAfterPickup($data);
 
+        $report = $data['auction_assessment_report'] ?? null;
+        unset($data['auction_assessment_report']);
+
         $updates = $this->normaliseUpdatePayload($job, $data);
         $job->update($updates);
+
+        if ($report instanceof UploadedFile && ($job->listing_type ?? 'private') === 'auction') {
+            $this->storeAuctionAssessmentReport($job, $report);
+        } elseif (($updates['listing_type'] ?? null) === 'private') {
+            $this->deleteAuctionAssessmentReport($job);
+            $job->update([
+                'auction_assessment_report_path' => null,
+                'auction_assessment_report_disk' => null,
+                'auction_assessment_report_name' => null,
+            ]);
+        }
 
         $this->notifyInterestedDrivers($job, array_keys($updates));
 
         return $job->fresh();
     }
 
+    public function auctionAssessmentReport(Job $job): array
+    {
+        if (! $job->auction_assessment_report_path) {
+            abort(404, 'No auction assessment report uploaded.');
+        }
+
+        $disk = $job->auction_assessment_report_disk ?: config('invoices.auction_assessment_disk');
+        $storage = Storage::disk($disk);
+        if (! $storage->exists($job->auction_assessment_report_path)) {
+            abort(404, 'Assessment report not found.');
+        }
+
+        return [$storage, $job->auction_assessment_report_path, $job->auction_assessment_report_name];
+    }
+
+    protected function storeAuctionAssessmentReport(Job $job, UploadedFile $file): void
+    {
+        $disk = config('invoices.auction_assessment_disk');
+        $this->deleteAuctionAssessmentReport($job);
+        $filename = Str::uuid()->toString().'.'.($file->extension() ?: 'bin');
+        $path = $this->s3->uploadFile($file, "jobs/{$job->id}/auction-assessment", $filename, $disk, 'private');
+
+        $job->update([
+            'auction_assessment_report_path' => $path,
+            'auction_assessment_report_disk' => $disk,
+            'auction_assessment_report_name' => $file->getClientOriginalName() ?: 'vehicle-assessment-report',
+        ]);
+    }
+
+    protected function deleteAuctionAssessmentReport(Job $job): void
+    {
+        if ($job->auction_assessment_report_path) {
+            Storage::disk($job->auction_assessment_report_disk ?: config('invoices.auction_assessment_disk'))
+                ->delete($job->auction_assessment_report_path);
+        }
+    }
+
     public function delete(Job $job): void
     {
+        $this->deleteAuctionAssessmentReport($job);
         $job->delete();
     }
 

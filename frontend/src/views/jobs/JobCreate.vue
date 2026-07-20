@@ -27,6 +27,8 @@ const jobDraft = useJobCreateDraftStore();
 const form = jobDraft.form;
 
 const submitting = ref(false);
+const assessmentReportFile = ref(null);
+const existingAssessmentReportName = ref('');
 const errorMessage = ref('');
 const validationMessage = ref('');
 const loading = ref(false);
@@ -55,6 +57,7 @@ const validationState = reactive({
   transport_type: false,
   listing_type: false,
   auction_reference: false,
+  auction_assessment_report: false,
   pickup_at: false,
   delivery_at: false,
   price: false,
@@ -537,6 +540,17 @@ watch(
 );
 
 watch(
+  () => form.listing_type,
+  (next) => {
+    if (next !== 'auction') {
+      assessmentReportFile.value = null;
+      existingAssessmentReportName.value = '';
+      validationState.auction_assessment_report = false;
+    }
+  }
+);
+
+watch(
   () => [form.pickup_postcode, form.pickup_label],
   ([pickupPostcode, pickupLabel]) => {
     if (pickupPostcode) {
@@ -609,7 +623,10 @@ async function validateCurrentStep() {
     if (form.listing_type === 'auction' && !form.auction_reference.trim()) {
       setValidationError('auction_reference', 'Please enter the auction reference.');
     }
-    if (validationState.listing_type || validationState.auction_reference) {
+    if (form.listing_type === 'auction' && !assessmentReportFile.value && !existingAssessmentReportName.value) {
+      setValidationError('auction_assessment_report', 'Please attach the vehicle assessment report.');
+    }
+    if (validationState.listing_type || validationState.auction_reference || validationState.auction_assessment_report) {
       throw new Error('Please complete the highlighted fields before continuing.');
     }
   }
@@ -666,6 +683,17 @@ async function handleWizardSubmit() {
   }
 
   await goNext();
+}
+
+function selectAssessmentReport(file) {
+  assessmentReportFile.value = file;
+  validationState.auction_assessment_report = false;
+}
+
+function clearAssessmentReport() {
+  assessmentReportFile.value = null;
+  existingAssessmentReportName.value = '';
+  validationState.auction_assessment_report = false;
 }
 
 async function goNext() {
@@ -787,13 +815,29 @@ async function submit() {
         delivery_due_at: buildDateTime(form.delivery_at),
       };
 
+      const requestData = assessmentReportFile.value
+        ? (() => {
+            const data = new FormData();
+            Object.entries(payload).forEach(([key, value]) => {
+              if (value !== null && value !== undefined) data.append(key, String(value));
+            });
+            data.append('auction_assessment_report', assessmentReportFile.value);
+            return data;
+          })()
+        : payload;
+
     if (isEdit.value) {
-      await api.patch(`/jobs/${jobId.value}`, payload);
+      if (requestData instanceof FormData) {
+        requestData.append('_method', 'PATCH');
+        await api.post(`/jobs/${jobId.value}`, requestData);
+      } else {
+        await api.patch(`/jobs/${jobId.value}`, requestData);
+      }
       await auth.fetchMe().catch(() => null);
       jobDraft.clearDraft();
       router.push({ name: 'job-detail', params: { id: jobId.value } });
     } else {
-      const { data: createdJob } = await api.post('/jobs', payload);
+      const { data: createdJob } = await api.post('/jobs', requestData);
       await auth.fetchMe().catch(() => null);
       const checkout = await createJobCheckout(createdJob.id);
       if (!checkout?.url) {
@@ -820,6 +864,8 @@ function resetForm() {
   clearValidationState();
   hydrateSelectedAddress('pickup', '', '');
   hydrateSelectedAddress('dropoff', '', '');
+  assessmentReportFile.value = null;
+  existingAssessmentReportName.value = '';
 }
 
 function openStartOverModal() {
@@ -881,6 +927,8 @@ async function loadJobForEditing() {
       pickup_at: pickup,
       delivery_at: dropoff,
     });
+    existingAssessmentReportName.value = job.auction_assessment_report_name || '';
+    assessmentReportFile.value = null;
     verifiedVehicle.value = {
       registration: normaliseRegistration(job.title || ''),
       display_name: job.vehicle_make || '',
@@ -1018,6 +1066,10 @@ watch(
             v-else-if="currentStep === 1"
             :form="form"
             :validation-state="validationState"
+            :assessment-report-file="assessmentReportFile"
+            :existing-assessment-report-name="existingAssessmentReportName"
+            @select-assessment-report="selectAssessmentReport"
+            @clear-assessment-report="clearAssessmentReport"
             @back="goBack"
             @next="goNext"
           />

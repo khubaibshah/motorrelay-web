@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Job;
 use App\Models\JobInspectionPhoto;
 use App\Services\Jobs\JobApplicationService;
+use App\Services\Jobs\JobService;
 use App\Services\Jobs\JobWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class JobWorkflowController extends Controller
     public function __construct(
         protected JobApplicationService $applications,
         protected JobWorkflowService $workflow,
+        protected JobService $jobs,
     ) {}
 
     public function accept(Request $request, Job $job): JsonResponse
@@ -163,6 +165,14 @@ class JobWorkflowController extends Controller
         $filename = sprintf('job-%d-inspection.%s', $job->id, $extension);
 
         return $storage->response($job->delivery_proof_path, $filename, [], 'inline');
+    }
+
+    public function auctionAssessmentReport(Request $request, Job $job)
+    {
+        $this->authorizeProofViewer($request, $job);
+        [$storage, $path, $originalName] = $this->jobs->auctionAssessmentReport($job);
+
+        return $storage->response($path, $originalName ?: sprintf('job-%d-auction-assessment', $job->id), [], 'inline');
     }
 
     public function inspectionPhoto(Request $request, Job $job, JobInspectionPhoto $photo)

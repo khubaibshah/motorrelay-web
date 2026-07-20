@@ -77,10 +77,18 @@ defineProps({
   withdrawLoading: {
     type: Boolean,
     default: false
+  },
+  assessmentReportAvailable: {
+    type: Boolean,
+    default: false
+  },
+  assessmentReportDownloading: {
+    type: Boolean,
+    default: false
   }
 });
 
-defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-delivered', 'share-location', 'cancel-job', 'withdraw-application']);
+defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-delivered', 'share-location', 'cancel-job', 'withdraw-application', 'download-assessment-report']);
 </script>
 
 <template>
@@ -103,6 +111,16 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
         <p v-if="job.notes" class="mt-1 line-clamp-2 text-xs text-slate-600 dark:text-emerald-100">
           Vehicle information: {{ job.notes }}
         </p>
+        <button
+          v-if="assessmentReportAvailable"
+          type="button"
+          class="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
+          :disabled="assessmentReportDownloading"
+          @click="$emit('download-assessment-report')"
+        >
+          <span aria-hidden="true">📎</span>
+          {{ assessmentReportDownloading ? 'Opening report...' : 'View assessment report' }}
+        </button>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1.5">
         <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-800 dark:bg-white/10 dark:text-emerald-100">

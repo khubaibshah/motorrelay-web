@@ -158,6 +158,13 @@ export async function downloadDeliveryProof(jobId) {
   return response;
 }
 
+export async function downloadAuctionAssessmentReport(jobId) {
+  const response = await api.get(`/jobs/${jobId}/auction-assessment-report`, {
+    responseType: 'blob'
+  });
+  return response;
+}
+
 export async function downloadInspectionPhoto(jobId, photoId) {
   const response = await api.get(`/jobs/${jobId}/inspection-photos/${photoId}`, {
     responseType: 'blob'

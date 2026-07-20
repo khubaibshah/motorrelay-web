@@ -9,4 +9,5 @@ return [
     'receipt_max_size_kb' => (int) env('EXPENSE_RECEIPT_MAX_KB', 5120),
     'proof_disk' => env('DELIVERY_PROOF_STORAGE_DISK', 'receipts'),
     'proof_max_size_kb' => (int) env('DELIVERY_PROOF_MAX_KB', 8192),
+    'auction_assessment_disk' => env('AUCTION_ASSESSMENT_STORAGE_DISK', env('FILESYSTEM_DISK', 'local')),
 ];

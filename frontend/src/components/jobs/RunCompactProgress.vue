@@ -27,6 +27,10 @@ defineProps({
   statusLabel: {
     type: String,
     default: ''
+  },
+  steps: {
+    type: Array,
+    default: () => []
   }
 });
 </script>
@@ -52,6 +56,20 @@ defineProps({
         :style="{ width: `${Math.min(Math.max(progressPercent, 0), 100)}%` }"
       />
     </div>
+
+    <ol v-if="steps.length" class="grid gap-1.5 sm:grid-cols-2">
+      <li
+        v-for="(step, index) in steps"
+        :key="`${index}-${step.label}`"
+        class="flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2"
+        :class="step.complete ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400 dark:text-slate-950' : 'bg-slate-50 text-slate-600 dark:bg-white/[0.06] dark:text-emerald-100'"
+      >
+        <span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[0.65rem] font-black" :class="step.complete ? 'bg-emerald-600 text-white dark:bg-slate-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-emerald-100'">
+          {{ step.complete ? '✓' : index + 1 }}
+        </span>
+        <span class="min-w-0 truncate text-xs font-black">{{ step.label }}</span>
+      </li>
+    </ol>
 
     <div class="grid grid-cols-2 gap-1.5">
       <div class="rounded-xl px-2.5 py-2" :class="photosUploaded ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400 dark:text-slate-950' : 'bg-slate-50 text-slate-500 dark:bg-white/[0.06] dark:text-emerald-100'">

@@ -1434,10 +1434,12 @@ watch(
       <RunRouteSummary :job="job" compact />
 
       <RunCompactProgress
+        v-if="showRunProgress"
         :current-label="runProgressCurrentLabel"
         :progress-percent="workflowProgressPercent"
         :completed-count="completedWorkflowCount"
         :total-count="workflowSteps.length"
+        :steps="workflowSteps"
         :photos-uploaded="hasDeliveryProof"
         :location-shared="Boolean(lastTrackedAt || trackingState.shared)"
         :status-label="formatStatusLabel(job.status)"

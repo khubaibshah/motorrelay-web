@@ -54,6 +54,7 @@ class JobController extends Controller
             'transport_type' => ['required', Rule::in(['drive_away', 'trailer'])],
             'listing_type' => ['required', Rule::in(['private', 'auction'])],
             'auction_reference' => [Rule::requiredIf(fn () => $request->input('listing_type') === 'auction'), 'nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:2000'],
             'pickup_ready_at' => ['nullable', 'date'],
             'delivery_due_at' => ['nullable', 'date'],
         ]);
@@ -88,6 +89,7 @@ class JobController extends Controller
             'transport_type' => ['sometimes', Rule::in(['drive_away', 'trailer'])],
             'listing_type' => ['sometimes', Rule::in(['private', 'auction'])],
             'auction_reference' => [Rule::requiredIf(fn () => $request->input('listing_type') === 'auction'), 'nullable', 'string', 'max:100'],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'pickup_ready_at' => ['sometimes', 'nullable', 'date'],
             'delivery_due_at' => ['sometimes', 'nullable', 'date'],
         ]);

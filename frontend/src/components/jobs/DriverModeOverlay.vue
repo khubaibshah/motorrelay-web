@@ -138,6 +138,9 @@ function openInspectionPicker() {
             >
               Auction reference: {{ job.auction_reference }}
             </p>
+            <p v-if="job.notes" class="mt-1 line-clamp-2 text-xs text-emerald-100/80">
+              Vehicle information: {{ job.notes }}
+            </p>
           </div>
           <button
             type="button"

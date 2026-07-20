@@ -137,6 +137,7 @@ class JobService
             'auction_reference' => ($data['listing_type'] ?? 'private') === 'auction'
                 ? ($data['auction_reference'] ?? null)
                 : null,
+            'notes' => $data['notes'] ?? null,
             'pickup_ready_at' => $pickupReadyAt,
             'delivery_due_at' => $deliveryDueAt,
             'goes_live_at' => null,

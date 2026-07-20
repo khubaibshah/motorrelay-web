@@ -779,9 +779,10 @@ async function submit() {
         dropoff_latitude: form.dropoff_latitude,
         dropoff_longitude: form.dropoff_longitude,
         price: Number(normalisePrice(form.price) || 0),
-      transport_type: form.transport_type,
-      listing_type: form.listing_type,
-      auction_reference: form.listing_type === 'auction' ? form.auction_reference.trim() : null,
+        transport_type: form.transport_type,
+        listing_type: form.listing_type,
+        auction_reference: form.listing_type === 'auction' ? form.auction_reference.trim() : null,
+        notes: form.notes.trim() || null,
         pickup_ready_at: buildDateTime(form.pickup_at),
         delivery_due_at: buildDateTime(form.delivery_at),
       };
@@ -876,6 +877,7 @@ async function loadJobForEditing() {
       transport_type: job.transport_type || 'drive_away',
       listing_type: job.listing_type || 'private',
       auction_reference: job.auction_reference || '',
+      notes: job.notes || '',
       pickup_at: pickup,
       delivery_at: dropoff,
     });

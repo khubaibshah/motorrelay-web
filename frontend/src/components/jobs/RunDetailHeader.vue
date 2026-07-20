@@ -100,6 +100,9 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
         >
           Auction reference: {{ job.auction_reference }}
         </p>
+        <p v-if="job.notes" class="mt-1 line-clamp-2 text-xs text-slate-600 dark:text-emerald-100">
+          Vehicle information: {{ job.notes }}
+        </p>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1.5">
         <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-800 dark:bg-white/10 dark:text-emerald-100">

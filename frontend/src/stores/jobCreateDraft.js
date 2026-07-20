@@ -20,6 +20,7 @@ function createDefaultFormState() {
     transport_type: '',
     listing_type: '',
     auction_reference: '',
+    notes: '',
     pickup_at: '',
     delivery_at: ''
   };
@@ -46,6 +47,7 @@ function hasDraftContent(draft) {
       draft.form?.transport_type === 'trailer' ||
       draft.form?.listing_type ||
       draft.form?.auction_reference ||
+      draft.form?.notes ||
       draft.verifiedVehicle?.registration ||
       draft.reviewUnlocked
   );

@@ -53,6 +53,18 @@ const listingTypeOptions = [
       <span v-if="validationState.auction_reference" class="mt-1 block text-xs font-bold text-rose-600">Enter the auction reference for collection.</span>
     </label>
 
+    <label class="block">
+      <span class="text-xs font-black uppercase tracking-wide text-slate-500">Vehicle information for the driver</span>
+      <textarea
+        v-model="props.form.notes"
+        rows="4"
+        maxlength="2000"
+        placeholder="Add an assessment summary, collection instructions, faults, keys, or anything important for the driver."
+        class="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 dark:border-white/10 dark:bg-slate-950 dark:text-white"
+      ></textarea>
+      <span class="mt-1 block text-xs text-slate-500">Optional, but useful for assessment notes or special collection information.</span>
+    </label>
+
     <div class="flex items-center justify-between gap-3">
       <button type="button" class="btn-secondary px-5" @click="emit('back')">Back</button>
       <button type="button" class="btn-primary px-5 py-3" @click="emit('next')">Next</button>

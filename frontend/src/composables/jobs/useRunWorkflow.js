@@ -23,7 +23,9 @@ export function useRunWorkflow({
     const status = String(job.value.status || '').toLowerCase();
     const isAssigned = Boolean(job.value.assigned_to_id);
     const paymentComplete = ['paid', 'payout_released'].includes(paymentStatus.value);
-    const deliveryComplete = deliveredStatuses.has(status) || completionStatus.value !== 'not_submitted';
+    // Inspection approval is a separate gate. It must not mark the vehicle as
+    // delivered; delivery is complete only after the workflow status changes.
+    const deliveryComplete = deliveredStatuses.has(status);
     const proofComplete = hasDeliveryProof.value || ['submitted', 'approved'].includes(completionStatus.value);
     const approvalComplete = invoiceFinalized.value || completionStatus.value === 'approved';
     const payoutComplete = paymentStatus.value === 'payout_released';

@@ -37,12 +37,12 @@ defineProps({
 
 <template>
   <section class="tile space-y-2 p-3">
-    <div class="flex items-start justify-between gap-3">
+    <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
       <div class="min-w-0">
         <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Run progress</p>
-        <h2 class="mt-0.5 truncate text-base font-black text-slate-950 dark:text-white">{{ currentLabel }}</h2>
+        <h2 class="mt-0.5 whitespace-normal break-words text-base font-black leading-snug text-slate-950 dark:text-white">{{ currentLabel }}</h2>
       </div>
-      <div class="shrink-0 text-right">
+      <div class="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end sm:gap-0 sm:text-right">
         <p class="text-xs font-black text-slate-500 dark:text-emerald-100">{{ completedCount }} / {{ totalCount || 1 }}</p>
         <p v-if="statusLabel" class="mt-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100">
           {{ statusLabel }}

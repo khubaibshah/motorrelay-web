@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Events\InvoiceCreated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class InvoiceFinalizer

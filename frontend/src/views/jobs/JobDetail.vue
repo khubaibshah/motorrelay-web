@@ -548,7 +548,7 @@ const canMarkDeliveredFromDetail = computed(() => {
 const canApproveAndReleaseDelivery = computed(() => {
   if (!isDealerForJob.value || !job.value?.assigned_to_id) return false;
   if (!['paid'].includes(paymentStatus.value)) return false;
-  if (!['not_submitted', 'submitted', 'approved'].includes(completionStatus.value)) return false;
+  if (!['not_submitted', 'inspection_approved', 'submitted', 'approved'].includes(completionStatus.value)) return false;
   if (!['delivered', 'completion_pending', 'completed'].includes(String(job.value?.status || '').toLowerCase())) return false;
   return !job.value?.stripe_transfer_id;
 });
@@ -1513,6 +1513,7 @@ watch(
         :location="driverLiveLocation"
         :map-src="dealerLiveMapSrc"
         :updated-label="`Last update ${lastTrackedDisplay}`"
+        :tracking-active="isTrackingActive"
       />
 
       <InspectionReviewAttention

@@ -11,6 +11,10 @@ const props = defineProps({
   updatedLabel: {
     type: String,
     required: true
+  },
+  trackingActive: {
+    type: Boolean,
+    default: true
   }
 });
 </script>
@@ -20,12 +24,19 @@ const props = defineProps({
     <div class="flex items-center justify-between gap-3 px-4 py-3">
       <div>
         <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
-          Live tracking
+          {{ trackingActive ? 'Live tracking' : 'Tracking history' }}
         </p>
-        <h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-white">Driver location</h2>
+        <h2 class="mt-0.5 text-base font-black text-slate-950 dark:text-white">
+          {{ trackingActive ? 'Driver location' : 'Last known driver location' }}
+        </h2>
       </div>
-      <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-300 dark:text-slate-950">
-        Live
+      <span
+        class="rounded-full px-3 py-1 text-xs font-black"
+        :class="trackingActive
+          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-300 dark:text-slate-950'
+          : 'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-emerald-100'"
+      >
+        {{ trackingActive ? 'Live' : 'Ended' }}
       </span>
     </div>
 
@@ -41,7 +52,7 @@ const props = defineProps({
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs font-bold text-slate-600 dark:text-emerald-100">
-      <span>{{ updatedLabel }}</span>
+      <span>{{ updatedLabel }}<span v-if="!trackingActive"> · Tracking ended after delivery</span></span>
       <a
         :href="`https://www.google.com/maps/search/?api=1&query=${props.location?.lat},${props.location?.lng}`"
         target="_blank"

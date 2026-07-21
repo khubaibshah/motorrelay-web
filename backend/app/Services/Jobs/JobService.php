@@ -300,6 +300,12 @@ class JobService
         if ($scope === 'available') {
             $query->where('status', 'open')->whereNull('assigned_to_id');
 
+            // Drivers can only discover runs that have been funded by the
+            // dealer. The dealer's own unpaid runs remain visible to them.
+            if ($user?->isDriver()) {
+                $query->where('payment_status', 'paid');
+            }
+
             return;
         }
 

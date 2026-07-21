@@ -640,9 +640,15 @@ const canRequestJob = computed(() => {
 const canCancelJob = computed(() => {
   if (!job.value || !(isDealerForJob.value || currentRole.value === "admin")) return false;
   if (['completed', 'delivered', 'closed', 'cancelled'].includes(String(job.value.status || '').toLowerCase())) return false;
-  if (isDealerForJob.value && job.value.assigned_to_id && job.value.completion_status === 'inspection_approved') return false;
+  if (isDealerForJob.value && job.value.assigned_to_id && cancellationEndedByWorkflow.value) return false;
   if (!isDealerForJob.value || !job.value.assigned_to_id || !job.value.assigned_at) return true;
   return cancellationSecondsRemaining.value > 0;
+});
+const cancellationEndedByWorkflow = computed(() => {
+  const completion = String(job.value?.completion_status || '').toLowerCase();
+  const status = String(job.value?.status || '').toLowerCase();
+  return ['inspection_approved', 'submitted', 'approved'].includes(completion)
+    || ['collected', 'in_transit', 'delivered', 'completion_pending', 'completed', 'closed'].includes(status);
 });
 const cancellationSecondsRemaining = computed(() => {
   if (!isDealerForJob.value || !job.value?.assigned_to_id || !job.value?.assigned_at) return null;
@@ -651,7 +657,11 @@ const cancellationSecondsRemaining = computed(() => {
 });
 const cancellationWindowLabel = computed(() => {
   if (!isDealerForJob.value || !job.value?.assigned_to_id || cancellationSecondsRemaining.value === null) return '';
-  if (job.value.completion_status === 'inspection_approved') return 'Cancellation unavailable after photo approval';
+  if (cancellationEndedByWorkflow.value) {
+    return ['inspection_approved', 'submitted', 'approved'].includes(String(job.value.completion_status || '').toLowerCase())
+      ? 'Cancellation unavailable after photo approval'
+      : '';
+  }
   if (cancellationSecondsRemaining.value <= 0) return 'Cancellation window expired';
   const minutes = Math.floor(cancellationSecondsRemaining.value / 60);
   const seconds = cancellationSecondsRemaining.value % 60;

@@ -202,8 +202,9 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
         </button>
         <span
           v-if="cancelWindowLabel"
-          class="text-center text-[0.68rem] font-black text-amber-700 dark:text-amber-200 sm:max-w-40 sm:text-left"
+          class="inline-flex items-center justify-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-[0.68rem] font-black text-amber-800 shadow-sm sm:ml-2 sm:max-w-none sm:text-right dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-200"
         >
+          <span aria-hidden="true" class="text-sm leading-none">◷</span>
           {{ cancelWindowLabel }}
         </span>
       </div>

@@ -219,6 +219,16 @@ class JobWorkflowService
     {
         // Approval and payout are one dealer action. If invoice approval already
         // succeeded but Stripe failed, a retry only releases the pending payout.
+        if ($job->completion_status !== 'submitted' && strtolower((string) $job->status) === 'delivered') {
+            // Delivery itself is the driver's completion confirmation. Keep the
+            // legacy completion field in sync so invoice finalisation can run.
+            $job->update([
+                'completion_status' => 'submitted',
+                'completion_submitted_at' => $job->completion_submitted_at ?? now(),
+            ]);
+            $job->refresh();
+        }
+
         if ($job->completion_status === 'submitted') {
             $this->approveCompletion($job, $dealer);
             $job->refresh();

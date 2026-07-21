@@ -9,7 +9,9 @@ use App\Services\Jobs\JobService;
 use App\Services\Jobs\JobWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class JobWorkflowController extends Controller
 {
@@ -115,7 +117,25 @@ class JobWorkflowController extends Controller
     {
         $user = $this->authorizePostingDealer($request, $job, 'Only the posting dealer can approve delivery and release payout.');
 
-        return response()->json($this->workflow->approveCompletionAndReleasePayout($job, $user));
+        try {
+            return response()->json($this->workflow->approveCompletionAndReleasePayout($job, $user));
+        } catch (Throwable $exception) {
+            // Keep the user-facing response safe while preserving enough state
+            // in Laravel's log to diagnose payout and invoice failures quickly.
+            Log::error('Delivery approval and payout release failed.', [
+                'job_id' => $job->id,
+                'user_id' => $user->id,
+                'job_status' => $job->status,
+                'payment_status' => $job->payment_status,
+                'completion_status' => $job->completion_status,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            throw $exception;
+        }
     }
 
     public function rejectCompletion(Request $request, Job $job): JsonResponse

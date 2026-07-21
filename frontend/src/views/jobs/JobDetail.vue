@@ -1125,17 +1125,18 @@ async function handleDriverDelivered() {
 
   driverActionLoading.value = "delivered";
   driverActionError.value = "";
+  // Stop the polling as soon as the driver confirms delivery. If the request
+  // fails, tracking is resumed so the run is not left without updates.
+  stopLiveTrackingUpdates();
 
   try {
     await markJobDelivered(job.value.id);
-    // Delivery is the terminal point for driver tracking. Stop the local
-    // polling immediately instead of waiting for the next 25-second tick.
-    stopLiveTrackingUpdates();
     trackingState.shared = false;
     await loadJob();
   } catch (error) {
     console.error("Failed to mark job delivered", error);
     driverActionError.value = error.response?.data?.message || "Unable to mark this job as delivered.";
+    startLiveTrackingUpdates();
   } finally {
     driverActionLoading.value = "";
   }

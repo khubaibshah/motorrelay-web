@@ -1345,6 +1345,31 @@ watch(
       </p>
 
       <section
+        v-if="isDealerForJob && paymentStatus === 'checkout_pending'"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50/70 p-3 dark:border-sky-400/30 dark:bg-sky-400/10"
+      >
+        <div>
+          <p class="text-xs font-black uppercase tracking-wide text-sky-700 dark:text-sky-200">Payment pending</p>
+          <p class="mt-1 text-sm text-slate-700 dark:text-slate-200">Confirm the Stripe payment before drivers can see this run.</p>
+        </div>
+        <button
+          type="button"
+          class="btn-secondary px-4 py-2 text-sm"
+          :disabled="checkoutLoading"
+          @click="handlePaymentSync()"
+        >
+          {{ checkoutLoading ? 'Checking payment...' : 'Refresh payment status' }}
+        </button>
+      </section>
+
+      <p
+        v-if="isDealerForJob && paymentError"
+        class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-100"
+      >
+        {{ paymentError }}
+      </p>
+
+      <section
         v-if="shouldShowGoLiveBanner"
         class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
       >

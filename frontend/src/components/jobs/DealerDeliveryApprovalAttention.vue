@@ -3,6 +3,14 @@ defineProps({
   loading: {
     type: Boolean,
     default: false
+  },
+  error: {
+    type: String,
+    default: ''
+  },
+  notice: {
+    type: String,
+    default: ''
   }
 });
 
@@ -28,5 +36,11 @@ defineEmits(['approve-and-release']);
         {{ loading ? 'Processing...' : 'Approve & release payout' }}
       </button>
     </div>
+    <p v-if="error" class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+      {{ error }}
+    </p>
+    <p v-if="notice" class="mt-3 rounded-xl border border-emerald-200 bg-emerald-100/70 p-3 text-xs font-bold text-emerald-800 dark:border-emerald-300/30 dark:bg-emerald-400/10 dark:text-emerald-100">
+      {{ notice }}
+    </p>
   </section>
 </template>

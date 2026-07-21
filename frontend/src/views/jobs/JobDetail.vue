@@ -1377,6 +1377,8 @@ watch(
       <DealerDeliveryApprovalAttention
         v-if="canApproveAndReleaseDelivery"
         :loading="deliveryApprovalLoading"
+        :error="paymentError"
+        :notice="paymentNotice"
         @approve-and-release="handleApproveAndReleaseDelivery"
       />
 

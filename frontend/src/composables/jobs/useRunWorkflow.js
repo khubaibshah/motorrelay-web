@@ -107,6 +107,11 @@ export function useRunWorkflow({
         complete: proofComplete
       },
       {
+        label: 'Vehicle collected',
+        help: 'The driver confirms collection after the inspection is approved.',
+        complete: ['collected', 'in_transit', 'delivered', 'completion_pending', 'completed', 'closed'].includes(status)
+      },
+      {
         label: 'Vehicle delivered',
         help: 'The assigned driver marks the vehicle as delivered.',
         complete: deliveryComplete

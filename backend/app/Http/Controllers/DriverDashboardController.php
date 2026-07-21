@@ -23,15 +23,17 @@ class DriverDashboardController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        $activeStatuses = ['in_progress', 'accepted', 'collected', 'in_transit', 'pending', 'completion_pending'];
+        // Delivered/completed runs remain in Active until the driver payout is
+        // released. Only released payouts belong in Recently completed.
+        $activeStatuses = ['in_progress', 'accepted', 'collected', 'in_transit', 'pending', 'completion_pending', 'delivered', 'completed'];
         $completedStatuses = ['completed', 'delivered', 'closed'];
 
         $activeJobs = $assignedJobs
-            ->filter(fn ($job) => in_array(strtolower((string) $job->status), $activeStatuses, true))
+            ->filter(fn ($job) => in_array(strtolower((string) $job->status), $activeStatuses, true) && ! $job->payout_released_at)
             ->values();
 
         $completedJobs = $assignedJobs
-            ->filter(fn ($job) => in_array(strtolower((string) $job->status), $completedStatuses, true))
+            ->filter(fn ($job) => in_array(strtolower((string) $job->status), $completedStatuses, true) && (bool) $job->payout_released_at)
             ->sortByDesc('created_at')
             ->values();
 

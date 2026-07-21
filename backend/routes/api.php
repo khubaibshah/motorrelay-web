@@ -83,6 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/inspection/request-changes', [JobWorkflowController::class, 'requestInspectionChanges']);
     Route::post('/jobs/{job}/complete', [JobWorkflowController::class, 'complete']);
     Route::post('/jobs/{job}/completion/approve', [JobWorkflowController::class, 'approveCompletion']);
+    Route::post('/jobs/{job}/completion/approve-and-release-payout', [JobWorkflowController::class, 'approveCompletionAndReleasePayout']);
     Route::post('/jobs/{job}/completion/reject', [JobWorkflowController::class, 'rejectCompletion']);
     Route::post('/jobs/{job}/dealer-complete', [JobWorkflowController::class, 'dealerComplete']);
     Route::post('/jobs/{job}/location-update', [JobTrackingController::class, 'store']);

@@ -146,6 +146,11 @@ export async function approveJobCompletion(jobId) {
   return data;
 }
 
+export async function approveJobCompletionAndReleasePayout(jobId) {
+  const { data } = await api.post(`/jobs/${jobId}/completion/approve-and-release-payout`);
+  return data;
+}
+
 export async function rejectJobCompletion(jobId, payload = {}) {
   const { data } = await api.post(`/jobs/${jobId}/completion/reject`, payload);
   return data;

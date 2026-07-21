@@ -10,6 +10,7 @@ use App\Models\JobInspectionPhoto;
 use App\Models\User;
 use App\Services\AwsS3Service;
 use App\Services\Invoices\InvoiceFinalizer;
+use App\Services\Payments\StripePaymentService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -21,6 +22,7 @@ class JobWorkflowService
     public function __construct(
         protected AwsS3Service $s3,
         protected InvoiceFinalizer $invoiceFinalizer,
+        protected StripePaymentService $payments,
     ) {}
 
     public function markCollected(Job $job): Job
@@ -210,6 +212,26 @@ class JobWorkflowService
         return [
             'message' => 'Job completion approved and invoice generated.',
             'invoice' => $this->summariseInvoice($invoice),
+        ];
+    }
+
+    public function approveCompletionAndReleasePayout(Job $job, User $dealer): array
+    {
+        // Approval and payout are one dealer action. If invoice approval already
+        // succeeded but Stripe failed, a retry only releases the pending payout.
+        if ($job->completion_status === 'submitted') {
+            $this->approveCompletion($job, $dealer);
+            $job->refresh();
+        } elseif ($job->completion_status !== 'approved') {
+            abort(422, 'The driver must submit completion before approval and payout.');
+        }
+
+        $payout = $this->payments->releasePayout($job->fresh());
+
+        return [
+            'message' => 'Delivery approved and driver payout released.',
+            'job' => $payout['job'],
+            'invoice' => $this->summariseInvoice($job->fresh()->finalizedInvoice),
         ];
     }
 

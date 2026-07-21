@@ -12,7 +12,8 @@ import {
   applyForJob,
   cancelJob,
   withdrawJobApplication,
-  downloadAuctionAssessmentReport
+  downloadAuctionAssessmentReport,
+  approveJobCompletionAndReleasePayout
 } from "@/services/jobs";
 import { createJobCheckout, releaseDriverPayout, syncJobPayment } from "@/services/payments";
 import { createEchoClient } from "@/services/realtime";
@@ -33,6 +34,7 @@ import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
 import InspectionReviewAttention from "@/components/jobs/InspectionReviewAttention.vue";
 import DriverCollectionAttention from "@/components/jobs/DriverCollectionAttention.vue";
 import DriverInspectionAttention from "@/components/jobs/DriverInspectionAttention.vue";
+import DealerDeliveryApprovalAttention from "@/components/jobs/DealerDeliveryApprovalAttention.vue";
 import DealerLiveTrackingCard from "@/components/jobs/DealerLiveTrackingCard.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
@@ -103,6 +105,7 @@ const trackingState = reactive({
 });
 const checkoutLoading = ref(false);
 const payoutReleaseLoading = ref(false);
+const deliveryApprovalLoading = ref(false);
 const paymentError = ref("");
 const paymentNotice = ref("");
 const realtimeReloadTimer = ref(null);
@@ -541,6 +544,13 @@ const canMarkDeliveredFromDetail = computed(() => {
   if (!['paid', 'payout_released'].includes(paymentStatus.value)) return false;
   if (!hasSharedTracking.value) return false;
   return ['collected', 'in_transit'].includes(String(job.value?.status || '').toLowerCase());
+});
+const canApproveAndReleaseDelivery = computed(() => {
+  if (!isDealerForJob.value || !job.value?.assigned_to_id) return false;
+  if (!['paid'].includes(paymentStatus.value)) return false;
+  if (!['submitted', 'approved'].includes(completionStatus.value)) return false;
+  if (!['delivered', 'completion_pending', 'completed'].includes(String(job.value?.status || '').toLowerCase())) return false;
+  return !job.value?.stripe_transfer_id;
 });
 const actionConfirmOpen = computed(() => Boolean(actionConfirmMode.value));
 const actionConfirmPending = computed(() => Boolean(driverActionLoading.value));
@@ -1257,6 +1267,23 @@ async function handleReleasePayout() {
   }
 }
 
+async function handleApproveAndReleaseDelivery() {
+  if (!job.value?.id || !canApproveAndReleaseDelivery.value || deliveryApprovalLoading.value) return;
+
+  deliveryApprovalLoading.value = true;
+  paymentError.value = "";
+  try {
+    const payload = await approveJobCompletionAndReleasePayout(job.value.id);
+    job.value = payload?.job ?? job.value;
+    paymentNotice.value = "Delivery approved and driver payout released.";
+  } catch (error) {
+    console.error("Failed to approve delivery and release payout", error);
+    paymentError.value = error.response?.data?.message || error.message || "Could not approve delivery and release payout.";
+  } finally {
+    deliveryApprovalLoading.value = false;
+  }
+}
+
 async function handleDownloadProof() {
   if (!job.value) return;
 
@@ -1491,6 +1518,12 @@ watch(
       <InspectionReviewAttention
         v-if="showInspectionReviewAttention"
         :to="inspectionReviewRoute"
+      />
+
+      <DealerDeliveryApprovalAttention
+        v-if="canApproveAndReleaseDelivery"
+        :loading="deliveryApprovalLoading"
+        @approve-and-release="handleApproveAndReleaseDelivery"
       />
 
       <DriverInspectionAttention

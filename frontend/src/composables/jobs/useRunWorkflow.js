@@ -15,7 +15,10 @@ export function useRunWorkflow({
   assignedDriver,
   myApplication
 }) {
-  const isCompletedJob = computed(() => ['completed', 'closed'].includes(String(job.value?.status || '').toLowerCase()));
+  const isCompletedJob = computed(() => {
+    const status = String(job.value?.status || '').toLowerCase();
+    return status === 'closed' || (status === 'completed' && paymentStatus.value === 'payout_released');
+  });
 
   const workflowSteps = computed(() => {
     if (!job.value) return [];
@@ -27,7 +30,6 @@ export function useRunWorkflow({
     // delivered; delivery is complete only after the workflow status changes.
     const deliveryComplete = deliveredStatuses.has(status);
     const proofComplete = hasDeliveryProof.value || ['submitted', 'approved'].includes(completionStatus.value);
-    const approvalComplete = invoiceFinalized.value || completionStatus.value === 'approved';
     const payoutComplete = paymentStatus.value === 'payout_released';
 
     if (isAssignedDriver.value) {
@@ -53,13 +55,8 @@ export function useRunWorkflow({
           complete: deliveryComplete
         },
         {
-          label: 'Dealer approval',
-          help: 'The dealer checks your inspection photos and approves completion.',
-          complete: approvalComplete
-        },
-        {
-          label: 'Payout released',
-          help: 'MotorRelay releases your payout after approval.',
+          label: 'Dealer approval & payout released',
+          help: 'The dealer approves delivery and releases your payout in one action.',
           complete: payoutComplete
         }
       ];
@@ -117,13 +114,8 @@ export function useRunWorkflow({
         complete: deliveryComplete
       },
       {
-        label: 'Approved and invoiced',
-        help: 'The dealer approves completion and the invoice becomes available.',
-        complete: approvalComplete
-      },
-      {
-        label: 'Driver paid out',
-        help: 'MotorRelay releases the driver payout after approval.',
+        label: 'Delivery approved & payout released',
+        help: 'The dealer approves delivery and releases the driver payout in one action.',
         complete: payoutComplete
       }
     ];

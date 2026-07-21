@@ -111,6 +111,13 @@ class JobWorkflowController extends Controller
         return response()->json($this->workflow->approveCompletion($job, $user));
     }
 
+    public function approveCompletionAndReleasePayout(Request $request, Job $job): JsonResponse
+    {
+        $user = $this->authorizePostingDealer($request, $job, 'Only the posting dealer can approve delivery and release payout.');
+
+        return response()->json($this->workflow->approveCompletionAndReleasePayout($job, $user));
+    }
+
     public function rejectCompletion(Request $request, Job $job): JsonResponse
     {
         $this->authorizePostingDealer($request, $job, 'Only the posting dealer can reject completion.');

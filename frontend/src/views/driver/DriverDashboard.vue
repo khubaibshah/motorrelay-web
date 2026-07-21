@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useDriverStore } from '@/stores/driver';
 import { formatStatusLabel } from '@/utils/statusLabels';
+import DriverPayoutConnectCard from '@/components/profile/DriverPayoutConnectCard.vue';
 
 const auth = useAuthStore();
 const driver = useDriverStore();
@@ -161,6 +162,8 @@ onBeforeUnmount(() => {
     </p>
 
     <template v-else>
+      <DriverPayoutConnectCard />
+
       <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-5 dark:border-white/10 dark:bg-slate-950">
         <header class="space-y-4">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

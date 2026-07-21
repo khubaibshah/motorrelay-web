@@ -53,7 +53,8 @@ const realtime = useRealtimeStore(pinia);
 theme.initialize();
 realtime.initialize();
 const initialization = auth.initialize();
-const publicRoutes = new Set(['login', 'signup']);
+// Recovery pages must remain accessible without an active session.
+const publicRoutes = new Set(['login', 'signup', 'forgot-password', 'reset-password']);
 
 router.beforeEach(async (to, from, next) => {
   await initialization;

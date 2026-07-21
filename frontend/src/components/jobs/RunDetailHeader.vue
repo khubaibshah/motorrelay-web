@@ -18,6 +18,10 @@ defineProps({
     type: Boolean,
     default: false
   },
+  payoutSetupRequired: {
+    type: Boolean,
+    default: false
+  },
   requestLoading: {
     type: Boolean,
     default: false
@@ -137,18 +141,19 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
     </div>
 
     <div
-      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canMarkDelivered || canCancelJob || cancelWindowLabel"
+      v-if="canRequestJob || payoutSetupRequired || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canMarkDelivered || canCancelJob || cancelWindowLabel"
       class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
     >
       <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
         <button
-          v-if="canRequestJob"
+          v-if="canRequestJob || payoutSetupRequired"
           type="button"
           class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
           :disabled="requestLoading"
           @click="$emit('request-job')"
         >
           <span v-if="requestLoading">Sending request...</span>
+          <span v-else-if="payoutSetupRequired">Connect payouts to request</span>
           <span v-else>Request this run</span>
         </button>
         <div

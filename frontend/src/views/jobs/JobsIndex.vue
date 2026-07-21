@@ -185,6 +185,11 @@ function handleRealtimeJobEvent(event) {
 async function handleApply(job) {
   if (appliedJobIds.value.has(job.id) || applyingJobId.value === job.id) return;
 
+  if (!auth.user?.stripe_account_id || !auth.user?.stripe_payouts_enabled) {
+    await router.push({ name: 'profile' });
+    return;
+  }
+
   applyingJobId.value = job.id;
   try {
     const response = await applyForJob(job.id);

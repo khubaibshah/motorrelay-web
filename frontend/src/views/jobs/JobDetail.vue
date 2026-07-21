@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import {
   fetchJobApplications,
   submitJobCompletion,
@@ -48,6 +48,7 @@ import { useLiveTracking } from "@/composables/jobs/useLiveTracking";
 import { formatStatusLabel } from "@/utils/statusLabels";
 
 const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
 const driverStore = useDriverStore();
 const jobsStore = useJobsStore();
@@ -637,6 +638,8 @@ const canRequestJob = computed(() => {
   if (String(job.value.status || "").toLowerCase() !== "open") return false;
   return !myApplication.value || ['declined', 'withdrawn'].includes(String(myApplication.value.status || '').toLowerCase());
 });
+const driverPayoutReady = computed(() => Boolean(auth.user?.stripe_account_id && auth.user?.stripe_payouts_enabled));
+const payoutSetupRequired = computed(() => canRequestJob.value && !driverPayoutReady.value);
 const canCancelJob = computed(() => {
   if (!job.value || !(isDealerForJob.value || currentRole.value === "admin")) return false;
   if (['completed', 'delivered', 'closed', 'cancelled'].includes(String(job.value.status || '').toLowerCase())) return false;
@@ -1007,6 +1010,11 @@ async function handleDriverDelivered() {
 async function handleRequestJob() {
   if (!job.value?.id || !canRequestJob.value || jobRequestLoading.value) return;
 
+  if (!driverPayoutReady.value) {
+    await router.push({ name: 'profile' });
+    return;
+  }
+
   jobRequestLoading.value = true;
   jobRequestError.value = "";
 
@@ -1288,11 +1296,12 @@ watch(
       <BackPillButton v-if="returnToMessages" label="Chat" :to="returnToMessages" />
       <BackPillButton v-else label="Runs" to="/jobs" />
 
-      <RunDetailHeader
+        <RunDetailHeader
         :job="job"
         :display-amount="priceFormatter.format(headerDisplayAmount)"
         :is-driver-view="isDriverDetailView"
-        :can-request-job="canRequestJob"
+          :can-request-job="canRequestJob"
+          :payout-setup-required="payoutSetupRequired"
         :request-loading="jobRequestLoading"
         :show-driver-request-panel="showDriverRequestPanel"
         :my-application="myApplication"

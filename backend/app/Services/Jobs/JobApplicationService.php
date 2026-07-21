@@ -30,6 +30,10 @@ class JobApplicationService
 
     public function apply(Job $job, User $driver, ?string $message = null): JobApplication
     {
+        if ($driver->isDriver() && (! $driver->stripe_account_id || ! $driver->stripe_payouts_enabled)) {
+            abort(422, 'Connect and complete your Stripe payout account before requesting a run.');
+        }
+
         if ($job->assigned_to_id) {
             abort(422, 'Job has already been assigned.');
         }

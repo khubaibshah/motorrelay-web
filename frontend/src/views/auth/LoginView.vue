@@ -15,6 +15,7 @@ const form = reactive({
 
 const submitting = ref(false);
 const errorMessage = ref('');
+const successMessage = ref('');
 
 async function redirectAfterLogin() {
   const redirectTarget =
@@ -47,6 +48,10 @@ async function submit() {
 }
 
 onMounted(() => {
+  if (route.query.reset === 'success') {
+    successMessage.value = 'Your password has been reset. You can now sign in.';
+  }
+
   if (auth.isAuthenticated) {
     redirectAfterLogin().catch((error) => {
       console.error('Login redirect failed', error);
@@ -143,8 +148,17 @@ watch(
         />
       </div>
 
+      <div class="flex justify-end">
+        <RouterLink to="/forgot-password" class="text-sm font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200">
+          Forgot password?
+        </RouterLink>
+      </div>
+
       <p v-if="errorMessage" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
         {{ errorMessage }}
+      </p>
+      <p v-if="successMessage" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-300/30 dark:bg-emerald-400/10 dark:text-emerald-100">
+        {{ successMessage }}
       </p>
 
       <button

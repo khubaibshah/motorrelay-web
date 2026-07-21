@@ -26,6 +26,16 @@ const routes = [
     }
   },
   {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('../views/auth/ForgotPasswordView.vue'),
+  },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('../views/auth/ResetPasswordView.vue'),
+  },
+  {
     path: '/jobs/new',
     name: 'job-new',
     component: () => import('../views/jobs/JobCreate.vue'),

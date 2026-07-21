@@ -6,12 +6,60 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password as PasswordBroker;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        // Always return the same response so account existence is not exposed.
+        PasswordBroker::sendResetLink(['email' => $validated['email']]);
+
+        return response()->json([
+            'message' => 'If an account exists for that email, we have sent password reset instructions.',
+        ]);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email', 'max:255'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $status = PasswordBroker::reset(
+            $validated,
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                // Revoke existing sessions when the password changes.
+                $user->tokens()->delete();
+            }
+        );
+
+        if ($status !== PasswordBroker::PASSWORD_RESET) {
+            return response()->json([
+                'message' => __($status),
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Your password has been reset. You can now sign in.',
+        ]);
+    }
+
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -123,7 +171,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user' => $user,
-            'plan' => $user->plan
+            'plan' => $user->plan,
         ], 201);
     }
 
@@ -136,9 +184,9 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json([
-                'message' => 'Invalid credentials.'
+                'message' => 'Invalid credentials.',
             ], 422);
         }
 
@@ -149,7 +197,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user' => $user,
-            'plan' => $user->plan
+            'plan' => $user->plan,
         ]);
     }
 
@@ -159,7 +207,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
-            'plan' => $user?->plan
+            'plan' => $user?->plan,
         ]);
     }
 

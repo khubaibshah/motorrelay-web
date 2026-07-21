@@ -32,6 +32,7 @@ import RunCompactProgress from "@/components/jobs/RunCompactProgress.vue";
 import RunCompletionSummary from "@/components/jobs/RunCompletionSummary.vue";
 import InspectionReviewAttention from "@/components/jobs/InspectionReviewAttention.vue";
 import DriverCollectionAttention from "@/components/jobs/DriverCollectionAttention.vue";
+import DriverInspectionAttention from "@/components/jobs/DriverInspectionAttention.vue";
 import DealerLiveTrackingCard from "@/components/jobs/DealerLiveTrackingCard.vue";
 import RunDetailHeader from "@/components/jobs/RunDetailHeader.vue";
 import RunIncidentHistory from "@/components/jobs/RunIncidentHistory.vue";
@@ -632,6 +633,11 @@ const inspectionReviewRoute = computed(() => ({
   params: { id: job.value?.id },
   query: { from: 'run' }
 }));
+const inspectionUploadRoute = computed(() => ({
+  name: 'job-photos',
+  params: { id: job.value?.id },
+  query: { from: 'run' }
+}));
 const showInspectionReviewAttention = computed(() => (
   isDealerForJob.value
   && hasDeliveryProof.value
@@ -772,6 +778,7 @@ const canRequestJob = computed(() => {
 const canCancelJob = computed(() => {
   if (!job.value || !(isDealerForJob.value || currentRole.value === "admin")) return false;
   if (['completed', 'delivered', 'closed', 'cancelled'].includes(String(job.value.status || '').toLowerCase())) return false;
+  if (isDealerForJob.value && job.value.assigned_to_id && job.value.completion_status === 'inspection_approved') return false;
   if (!isDealerForJob.value || !job.value.assigned_to_id || !job.value.assigned_at) return true;
   return cancellationSecondsRemaining.value > 0;
 });
@@ -782,6 +789,7 @@ const cancellationSecondsRemaining = computed(() => {
 });
 const cancellationWindowLabel = computed(() => {
   if (!isDealerForJob.value || !job.value?.assigned_to_id || cancellationSecondsRemaining.value === null) return '';
+  if (job.value.completion_status === 'inspection_approved') return 'Cancellation unavailable after photo approval';
   if (cancellationSecondsRemaining.value <= 0) return 'Cancellation window expired';
   const minutes = Math.floor(cancellationSecondsRemaining.value / 60);
   const seconds = cancellationSecondsRemaining.value % 60;
@@ -1483,6 +1491,11 @@ watch(
       <InspectionReviewAttention
         v-if="showInspectionReviewAttention"
         :to="inspectionReviewRoute"
+      />
+
+      <DriverInspectionAttention
+        v-if="isAssignedDriver && canUploadInspection"
+        :to="inspectionUploadRoute"
       />
 
       <DriverCollectionAttention

@@ -324,6 +324,9 @@ class JobWorkflowService
         $assigned = $job->assignedTo;
 
         // The cancellation window is enforced here on the server; the client countdown is display-only.
+        if (! $user->isAdmin() && $assigned && $job->completion_status === 'inspection_approved') {
+            abort(422, 'This run cannot be cancelled after the inspection photos are approved.');
+        }
         if (! $user->isAdmin() && $assigned && $job->assigned_at && $job->assigned_at->copy()->addMinutes(self::DEALER_ASSIGNMENT_CANCEL_WINDOW_MINUTES)->isPast()) {
             abort(422, 'The 30-minute cancellation window after driver assignment has expired.');
         }

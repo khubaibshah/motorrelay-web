@@ -256,6 +256,14 @@ onBeforeUnmount(() => {
         </span>
       </div>
 
+      <aside class="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-300/30 dark:bg-sky-400/10 dark:text-sky-100" role="note">
+        <p class="font-black">Photo quality reminder</p>
+        <p class="mt-1 font-semibold">
+          Take every photo in a well-lit environment where the vehicle and its condition are clearly visible.
+          If the dealer cannot review an image properly, they may ask you to take it again.
+        </p>
+      </aside>
+
       <div class="grid grid-cols-3 gap-2">
         <span
           v-for="(shot, index) in requiredShots"

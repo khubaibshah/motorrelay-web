@@ -90,6 +90,7 @@ class JobApplicationService
             if ($status === JobApplication::STATUS_ACCEPTED) {
                 $job->update([
                     'assigned_to_id' => $application->driver_id,
+                    'assigned_at' => now(),
                     'status' => 'in_progress',
                 ]);
 

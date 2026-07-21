@@ -83,6 +83,8 @@ const cancelDialogOpen = ref(false);
 const cancelDialogNote = ref("");
 const cancelSubmitting = ref(false);
 const cancelError = ref("");
+const cancellationClock = ref(Date.now());
+let cancellationClockInterval = null;
 const withdrawSubmitting = ref(false);
 const withdrawError = ref("");
 const actionConfirmMode = ref("");
@@ -769,7 +771,21 @@ const canRequestJob = computed(() => {
 });
 const canCancelJob = computed(() => {
   if (!job.value || !(isDealerForJob.value || currentRole.value === "admin")) return false;
-  return !['completed', 'delivered', 'closed', 'cancelled'].includes(String(job.value.status || '').toLowerCase());
+  if (['completed', 'delivered', 'closed', 'cancelled'].includes(String(job.value.status || '').toLowerCase())) return false;
+  if (!isDealerForJob.value || !job.value.assigned_to_id || !job.value.assigned_at) return true;
+  return cancellationSecondsRemaining.value > 0;
+});
+const cancellationSecondsRemaining = computed(() => {
+  if (!isDealerForJob.value || !job.value?.assigned_to_id || !job.value?.assigned_at) return null;
+  const deadline = new Date(job.value.assigned_at).getTime() + (30 * 60 * 1000);
+  return Math.max(0, Math.ceil((deadline - cancellationClock.value) / 1000));
+});
+const cancellationWindowLabel = computed(() => {
+  if (!isDealerForJob.value || !job.value?.assigned_to_id || cancellationSecondsRemaining.value === null) return '';
+  if (cancellationSecondsRemaining.value <= 0) return 'Cancellation window expired';
+  const minutes = Math.floor(cancellationSecondsRemaining.value / 60);
+  const seconds = cancellationSecondsRemaining.value % 60;
+  return `Dealer cancellation window: ${minutes}:${String(seconds).padStart(2, '0')} remaining`;
 });
 const canWithdrawApplication = computed(() => {
   return isDriverDetailView.value && String(myApplication.value?.status || '').toLowerCase() === 'pending';
@@ -1094,6 +1110,10 @@ async function handleDriverDelivered() {
 
   try {
     await markJobDelivered(job.value.id);
+    // Delivery is the terminal point for driver tracking. Stop the local
+    // polling immediately instead of waiting for the next 25-second tick.
+    stopLiveTrackingUpdates();
+    trackingState.shared = false;
     await loadJob();
   } catch (error) {
     console.error("Failed to mark job delivered", error);
@@ -1285,6 +1305,9 @@ async function handleDownloadAssessmentReport() {
 }
 
 onMounted(async () => {
+  cancellationClockInterval = window.setInterval(() => {
+    cancellationClock.value = Date.now();
+  }, 1000);
   if (typeof window !== 'undefined') {
     window.addEventListener('motorrelay:job-event', handleRealtimeJobEvent);
   }
@@ -1305,6 +1328,10 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  if (cancellationClockInterval) {
+    window.clearInterval(cancellationClockInterval);
+    cancellationClockInterval = null;
+  }
   if (typeof window !== 'undefined') {
     window.removeEventListener('motorrelay:job-event', handleRealtimeJobEvent);
     if (realtimeReloadTimer.value) {
@@ -1381,6 +1408,7 @@ watch(
         :collected-loading="['collected', 'delivered'].includes(driverActionLoading)"
         :can-cancel-job="canCancelJob"
         :cancel-loading="cancelSubmitting"
+        :cancel-window-label="cancellationWindowLabel"
         :can-withdraw-application="canWithdrawApplication"
         :withdraw-loading="withdrawSubmitting"
         :assessment-report-available="Boolean(job.auction_assessment_report_path)"

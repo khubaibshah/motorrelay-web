@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
 
 class JobWorkflowService
 {
+    private const DEALER_ASSIGNMENT_CANCEL_WINDOW_MINUTES = 30;
+
     public function __construct(
         protected AwsS3Service $s3,
         protected InvoiceFinalizer $invoiceFinalizer,
@@ -54,6 +56,9 @@ class JobWorkflowService
 
         $this->ensureDealerPaymentHeld($job);
 
+        // A delivered run is no longer an active tracking session. The last
+        // coordinates remain available for the dealer, while the tracking
+        // endpoint rejects any further updates for this job status.
         $job->update(['status' => 'delivered']);
 
         $this->notifyDealer($job->fresh(), 'driver_marked_delivered');
@@ -97,7 +102,7 @@ class JobWorkflowService
     public function cancel(Job $job, User $user, ?string $reason = null): Job
     {
         if ($user->isAdmin() || $job->posted_by_id === $user->id) {
-            return $this->cancelByDealer($job, $reason);
+            return $this->cancelByDealer($job, $user, $reason);
         }
 
         if ($job->assigned_to_id !== $user->id) {
@@ -314,9 +319,14 @@ class JobWorkflowService
         ];
     }
 
-    protected function cancelByDealer(Job $job, ?string $reason): Job
+    protected function cancelByDealer(Job $job, User $user, ?string $reason): Job
     {
         $assigned = $job->assignedTo;
+
+        // The cancellation window is enforced here on the server; the client countdown is display-only.
+        if (! $user->isAdmin() && $assigned && $job->assigned_at && $job->assigned_at->copy()->addMinutes(self::DEALER_ASSIGNMENT_CANCEL_WINDOW_MINUTES)->isPast()) {
+            abort(422, 'The 30-minute cancellation window after driver assignment has expired.');
+        }
 
         $job->update([
             'status' => 'cancelled',

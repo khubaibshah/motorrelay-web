@@ -45,6 +45,7 @@ class Job extends Model
         'notes',
         'posted_by_id',
         'assigned_to_id',
+        'assigned_at',
         'platform_fee_amount',
         'driver_payout_amount',
         'platform_fee_reference',
@@ -86,6 +87,7 @@ class Job extends Model
         'paid_at' => 'datetime',
         'payout_released_at' => 'datetime',
         'last_tracked_at' => 'datetime',
+        'assigned_at' => 'datetime',
     ];
 
     public function postedBy(): BelongsTo

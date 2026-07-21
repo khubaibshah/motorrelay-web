@@ -70,6 +70,10 @@ defineProps({
     type: Boolean,
     default: false
   },
+  cancelWindowLabel: {
+    type: String,
+    default: ''
+  },
   canWithdrawApplication: {
     type: Boolean,
     default: false
@@ -133,7 +137,7 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
     </div>
 
     <div
-      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canMarkDelivered || canCancelJob"
+      v-if="canRequestJob || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canMarkDelivered || canCancelJob || cancelWindowLabel"
       class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
     >
       <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
@@ -196,6 +200,12 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
           <span v-if="cancelLoading">Cancelling...</span>
           <span v-else>Cancel run</span>
         </button>
+        <span
+          v-if="cancelWindowLabel"
+          class="text-center text-[0.68rem] font-black text-amber-700 dark:text-amber-200 sm:max-w-40 sm:text-left"
+        >
+          {{ cancelWindowLabel }}
+        </span>
       </div>
     </div>
   </header>

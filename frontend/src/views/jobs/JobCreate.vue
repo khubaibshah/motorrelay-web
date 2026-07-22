@@ -884,8 +884,11 @@ async function submit() {
         await api.patch(`/jobs/${jobId.value}`, requestData);
       }
       await auth.fetchMe().catch(() => null);
+      // Navigate before clearing the wizard draft. Clearing it resets the
+      // current step, which otherwise races the redirect through the step
+      // query watcher and can leave the user on the edit screen.
+      await router.push({ name: 'job-detail', params: { id: jobId.value } });
       jobDraft.clearDraft();
-      router.push({ name: 'job-detail', params: { id: jobId.value } });
     } else {
       const { data: createdJob } = await api.post('/jobs', requestData);
       await auth.fetchMe().catch(() => null);

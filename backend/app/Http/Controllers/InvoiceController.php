@@ -8,6 +8,7 @@ use App\Services\Invoices\InvoiceFinalizer;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class InvoiceController extends Controller
@@ -96,20 +97,39 @@ class InvoiceController extends Controller
         $user = $request->user();
         $this->assertCanView($user, $invoice);
 
-        if (!$invoice->pdf_path) {
-            abort(404, 'PDF not available for this invoice.');
-        }
-
         $disk = $invoice->pdf_disk ?? config('invoices.invoice_disk');
         $storage = Storage::disk($disk);
 
-        if (!$storage->exists($invoice->pdf_path)) {
+        if (!$invoice->pdf_path || !$storage->exists($invoice->pdf_path)) {
+            try {
+                $this->invoiceFinalizer->ensurePdf($invoice);
+                $invoice->refresh();
+                $disk = $invoice->pdf_disk ?? config('invoices.invoice_disk');
+                $storage = Storage::disk($disk);
+            } catch (\Throwable $exception) {
+                Log::error('Invoice PDF regeneration failed', [
+                    'invoice_id' => $invoice->id,
+                    'job_id' => $invoice->job_id,
+                    'disk' => $disk,
+                    'path' => $invoice->pdf_path,
+                    'exception' => $exception,
+                ]);
+                abort(404, 'Invoice PDF could not be generated.');
+            }
+        }
+
+        if (!$invoice->pdf_path || !$storage->exists($invoice->pdf_path)) {
             abort(404, 'Stored PDF could not be found.');
         }
 
         $filename = sprintf('%s.pdf', $invoice->number ?? 'invoice');
+        $contents = $storage->get($invoice->pdf_path);
 
-        return $storage->response($invoice->pdf_path, $filename, [], 'inline');
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length' => (string) strlen($contents),
+        ]);
     }
 
     public function verify(Request $request, Invoice $invoice): JsonResponse

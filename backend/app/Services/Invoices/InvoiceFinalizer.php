@@ -92,6 +92,37 @@ class InvoiceFinalizer
         });
     }
 
+    /** Rebuild a finalized PDF if its stored file was lost during a deployment. */
+    public function ensurePdf(Invoice $invoice): string
+    {
+        if ($invoice->status !== 'finalized') {
+            abort(422, 'Only finalized invoices can have a PDF generated.');
+        }
+
+        $invoice->loadMissing(['job.postedBy', 'job.assignedTo', 'items']);
+        $disk = $invoice->pdf_disk ?: config('invoices.invoice_disk');
+        $path = $invoice->pdf_path ?: sprintf(
+            'jobs/%d/invoices/%s-%s.pdf',
+            $invoice->job_id,
+            Str::slug($invoice->number),
+            $invoice->id
+        );
+
+        $pdf = $this->pdfGenerator->render($invoice, $invoice->job, $invoice->items);
+        Storage::disk($disk)->put($path, $pdf);
+
+        if (!$invoice->pdf_path || !$invoice->pdf_disk || !$invoice->pdf_hash) {
+            DB::table('invoices')->where('id', $invoice->id)->update([
+                'pdf_path' => $path,
+                'pdf_disk' => $disk,
+                'pdf_hash' => hash('sha256', $pdf),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return $path;
+    }
+
     protected function buildLineItems(Job $job): Collection
     {
         $items = Collection::make();

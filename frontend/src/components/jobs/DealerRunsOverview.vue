@@ -205,18 +205,18 @@ function resolveInvoiceLink(job) {
         <button
           type="button"
           class="rounded-xl px-3 py-2 text-xs font-black transition"
-          :class="runsTab === 'needs-driver' ? 'bg-slate-950 text-white dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-emerald-100 dark:hover:bg-white/10'"
-          @click="runsTab = 'needs-driver'"
-        >
-          Needs driver ({{ needsDriverJobs.length }})
-        </button>
-        <button
-          type="button"
-          class="rounded-xl px-3 py-2 text-xs font-black transition"
           :class="runsTab === 'assigned' ? 'bg-slate-950 text-white dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-emerald-100 dark:hover:bg-white/10'"
           @click="runsTab = 'assigned'"
         >
           Assigned ({{ assignedJobs.length }})
+        </button>
+        <button
+          type="button"
+          class="rounded-xl px-3 py-2 text-xs font-black transition"
+          :class="runsTab === 'needs-driver' ? 'bg-slate-950 text-white dark:bg-emerald-400 dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-emerald-100 dark:hover:bg-white/10'"
+          @click="runsTab = 'needs-driver'"
+        >
+          Needs driver ({{ needsDriverJobs.length }})
         </button>
       </div>
     </div>

@@ -49,7 +49,31 @@ class RouteDistanceService
             $meters = collect($response->json('routes.0.legs', []))
                 ->sum(fn (array $leg): int => (int) data_get($leg, 'distance.value', 0));
 
-            return $meters > 0 ? round($meters / 1609.344, 1) : null;
+            if ($meters <= 0) {
+                return null;
+            }
+
+            $miles = round($meters / 1609.344, 1);
+            $straightLineMiles = $this->straightLineMiles(
+                (float) $pickupLatitude,
+                (float) $pickupLongitude,
+                (float) $dropoffLatitude,
+                (float) $dropoffLongitude,
+            );
+
+            // Reject obviously malformed provider responses (for example a
+            // bad place coordinate producing thousands of miles in the UK).
+            // Callers then use the validated straight-line fallback.
+            if ($straightLineMiles !== null && $miles > max($straightLineMiles * 3, $straightLineMiles + 50)) {
+                Log::warning('Driving route distance looked unreasonable', [
+                    'route_miles' => $miles,
+                    'straight_line_miles' => $straightLineMiles,
+                ]);
+
+                return null;
+            }
+
+            return $miles;
         } catch (\Throwable $exception) {
             Log::warning('Driving route distance request failed', [
                 'message' => $exception->getMessage(),
@@ -68,5 +92,18 @@ class RouteDistanceService
     protected function coordinate(mixed $latitude, mixed $longitude): string
     {
         return sprintf('%.7F,%.7F', (float) $latitude, (float) $longitude);
+    }
+
+    protected function straightLineMiles(float $pickupLatitude, float $pickupLongitude, float $dropoffLatitude, float $dropoffLongitude): ?float
+    {
+        $earthRadiusMiles = 3958.7613;
+        $pickupLat = deg2rad($pickupLatitude);
+        $dropoffLat = deg2rad($dropoffLatitude);
+        $latDelta = $dropoffLat - $pickupLat;
+        $lngDelta = deg2rad($dropoffLongitude - $pickupLongitude);
+        $a = sin($latDelta / 2) ** 2
+            + cos($pickupLat) * cos($dropoffLat) * sin($lngDelta / 2) ** 2;
+
+        return round(2 * $earthRadiusMiles * atan2(sqrt($a), sqrt(1 - $a)), 1);
     }
 }

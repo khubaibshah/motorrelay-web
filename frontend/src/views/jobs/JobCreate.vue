@@ -1,6 +1,6 @@
 ﻿<script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import { createJobCheckout } from '@/services/payments';
 import { useAuthStore } from '@/stores/auth';
@@ -34,6 +34,10 @@ const validationMessage = ref('');
 const loading = ref(false);
 const loadError = ref('');
 const showStartOverModal = ref(false);
+const showAbandonModal = ref(false);
+const pendingNavigation = ref(null);
+const allowNavigation = ref(false);
+const editInitialSnapshot = ref('');
 const vehicleLookupLoading = ref(false);
 const vehicleLookupError = ref('');
 const verifiedVehicle = computed({
@@ -166,6 +170,45 @@ const jobId = computed(() => {
 });
 
 const isEdit = computed(() => Boolean(jobId.value));
+const editHasUnsavedChanges = computed(() => {
+  if (!isEdit.value || !editInitialSnapshot.value) return false;
+
+  return editInitialSnapshot.value !== JSON.stringify({
+    form: { ...form },
+    verifiedVehicle: verifiedVehicle.value,
+  });
+});
+
+function captureEditSnapshot() {
+  return JSON.stringify({
+    form: { ...form },
+    verifiedVehicle: verifiedVehicle.value,
+  });
+}
+
+onBeforeRouteLeave((to) => {
+  if (allowNavigation.value || !editHasUnsavedChanges.value) return true;
+
+  pendingNavigation.value = to;
+  showAbandonModal.value = true;
+  return false;
+});
+
+function cancelAbandonNavigation() {
+  pendingNavigation.value = null;
+  showAbandonModal.value = false;
+}
+
+async function confirmAbandonNavigation() {
+  const target = pendingNavigation.value;
+  showAbandonModal.value = false;
+  pendingNavigation.value = null;
+  if (!target) return;
+
+  allowNavigation.value = true;
+  jobDraft.clearDraft();
+  await router.push(target);
+}
 
 const jobPrice = computed(() => Number(normalisePrice(form.price) || 0));
 const platformCommissionRate = 0.1;
@@ -989,8 +1032,15 @@ async function loadJobForEditing() {
     };
     hydrateSelectedAddress('pickup', form.pickup_label, form.pickup_postcode);
     hydrateSelectedAddress('dropoff', form.dropoff_label, form.dropoff_postcode);
+    // Hydration resets the address picker UI, so restore the saved map
+    // coordinates used for distance and suggested-price calculations.
+    form.pickup_latitude = job.pickup_latitude ?? null;
+    form.pickup_longitude = job.pickup_longitude ?? null;
+    form.dropoff_latitude = job.dropoff_latitude ?? null;
+    form.dropoff_longitude = job.dropoff_longitude ?? null;
     clearValidationState();
     currentStep.value = 0;
+    editInitialSnapshot.value = captureEditSnapshot();
   } catch (error) {
     console.error('Failed to load run for editing', error);
     loadError.value =
@@ -1193,6 +1243,19 @@ watch(
       icon-class="bg-rose-100 text-rose-700"
       @cancel="closeStartOverModal"
       @confirm="confirmStartOver"
+    />
+
+    <ConfirmModal
+      :open="showAbandonModal"
+      title="Abandon this run edit?"
+      description="You have unsaved changes. If you leave now, those changes will be lost. Are you sure you want to abandon this edit?"
+      cancel-text="Keep editing"
+      confirm-text="Abandon edit"
+      confirm-tone="rose"
+      icon-text="!"
+      icon-class="bg-rose-100 text-rose-700"
+      @cancel="cancelAbandonNavigation"
+      @confirm="confirmAbandonNavigation"
     />
   </div>
 </template>

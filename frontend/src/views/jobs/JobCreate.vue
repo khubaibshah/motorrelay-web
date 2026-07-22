@@ -948,6 +948,10 @@ async function submit() {
         await api.patch(`/jobs/${jobId.value}`, requestData);
       }
       await auth.fetchMe().catch(() => null);
+      // A successful save is an intentional navigation. Bypass the
+      // unsaved-changes guard before redirecting so it cannot mistake the
+      // still-mounted edit form for an abandoned edit.
+      allowNavigation.value = true;
       // Navigate before clearing the wizard draft. Clearing it resets the
       // current step, which otherwise races the redirect through the step
       // query watcher and can leave the user on the edit screen.

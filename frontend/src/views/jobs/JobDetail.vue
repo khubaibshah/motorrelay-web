@@ -1351,7 +1351,7 @@ watch(
         <div class="font-semibold text-amber-900 flex items-center justify-between gap-3">
           <span>Scheduled to go live soon</span>
           <RouterLink
-            v-if="isDealerForJob"
+            v-if="isDealerForJob && !job.assigned_to_id"
             :to="{ name: 'job-edit', params: { id: job.id } }"
             class="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
           >

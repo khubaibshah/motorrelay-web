@@ -98,6 +98,12 @@ class JobController extends Controller
             abort(403, 'You cannot update this job.');
         }
 
+        // Once a driver is assigned, the route, price and vehicle details are
+        // locked so both parties work from the same agreed job information.
+        if (! $user->isAdmin() && $job->assigned_to_id !== null) {
+            abort(409, 'This run is locked because a driver has been assigned.');
+        }
+
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'price' => ['sometimes', 'numeric', 'min:0'],

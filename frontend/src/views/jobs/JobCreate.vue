@@ -330,7 +330,7 @@ function toRadians(value) {
 }
 
 function applySuggestedPrice(force = false) {
-  if (!suggestedJobPrice.value || isEdit.value) return;
+  if (!suggestedJobPrice.value) return;
 
   const currentPrice = Number(normalisePrice(form.price) || 0);
   const canApply = force || !currentPrice || currentPrice === lastAppliedSuggestedPrice.value;

@@ -101,7 +101,7 @@ function handlePriceBlur(event) {
         </div>
         <button
           type="button"
-          class="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-700 dark:bg-emerald-400 dark:text-slate-950"
+          class="btn-primary px-4 py-2 text-sm"
           @click="$emit('apply-suggested-price')"
         >
           Use suggested

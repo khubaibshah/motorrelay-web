@@ -104,7 +104,9 @@ class InvoicePdfGenerator
             $rowTop = $rowBottom;
         }
 
-        $totalsY = max(125, $rowTop - 25);
+        // Keep the totals panel below the final line item and well above the
+        // footer so neither the table text nor footer copy is covered.
+        $totalsY = max(145, $rowTop - 48);
         $this->rectFill($ops, $margin, $totalsY - 25, $contentWidth, 58, $ink);
         $this->drawText($ops, 'TOTAL DUE', $margin + 18, $totalsY + 8, 10, true, $mint);
         $this->drawText($ops, $this->formatMoney((float) $invoice->total, $currency), $pageWidth - $margin - 145, $totalsY + 3, 18, true, [1, 1, 1]);
@@ -127,7 +129,10 @@ class InvoicePdfGenerator
     {
         [$r, $g, $b] = $rgb;
         $font = $bold ? 'F2' : 'F1';
-        $escaped = $this->escapeText($text);
+        // The built-in PDF fonts use WinAnsi encoding. Converting UTF-8 here
+        // prevents the UTF-8 pound bytes from rendering as a stray apostrophe.
+        $encoded = iconv('UTF-8', 'Windows-1252//TRANSLIT', $text) ?: $text;
+        $escaped = $this->escapeText($encoded);
         $ops[] = sprintf(
             '%.3f %.3f %.3f rg BT /%s %.2f Tf 1 0 0 1 %.2f %.2f Tm (%s) Tj ET',
             $r,

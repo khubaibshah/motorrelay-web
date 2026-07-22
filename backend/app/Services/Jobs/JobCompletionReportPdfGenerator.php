@@ -295,7 +295,10 @@ class JobCompletionReportPdfGenerator
             3 => sprintf('q -%.2f 0 0 -%.2f %.2f %.2f cm /%s Do Q', $scale, $scale, $x + $w, $y + $h, $image['name']),
             6 => sprintf('q 0 -%.2f %.2f 0 %.2f %.2f cm /%s Do Q', $scale, $scale, $x, $y + $w, $image['name']),
             8 => sprintf('q 0 %.2f -%.2f 0 %.2f %.2f cm /%s Do Q', $scale, $scale, $x + $h, $y, $image['name']),
-            default => sprintf('q %.2f 0 0 %.2f %.2f %.2f cm /%s Do Q', $w, $h, $x, $y, $image['name']),
+            // The image stream uses its native pixel dimensions. Apply the
+            // single calculated scale factor here; using $w/$h would scale
+            // the image a second time and place it outside the page.
+            default => sprintf('q %.2f 0 0 %.2f %.2f %.2f cm /%s Do Q', $scale, $scale, $x, $y, $image['name']),
         };
     }
 

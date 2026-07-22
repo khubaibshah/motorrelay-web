@@ -148,7 +148,7 @@ function resolveInvoiceLink(job) {
 </script>
 
 <template>
-  <section class="flex h-[calc(100dvh-13rem)] min-h-[32rem] flex-col gap-3 overflow-hidden dark:text-white">
+  <section class="flex h-[calc(100dvh-13rem)] min-h-[32rem] flex-col gap-3 overflow-hidden dark:text-white md:h-[calc(100dvh-9rem)]">
     <div class="shrink-0">
       <div class="section-card space-y-3 bg-white opacity-100 dark:border-white/10 dark:bg-slate-950">
       <header class="space-y-2">

@@ -90,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/completion/reject', [JobWorkflowController::class, 'rejectCompletion']);
     Route::post('/jobs/{job}/dealer-complete', [JobWorkflowController::class, 'dealerComplete']);
     Route::post('/jobs/{job}/location-update', [JobTrackingController::class, 'store']);
+    Route::get('/jobs/{job}/location-history', [JobTrackingController::class, 'history']);
     Route::post('/jobs/{job}/location-request', [JobTrackingController::class, 'requestUpdate']);
     Route::post('/jobs/{job}/incidents', [JobIncidentController::class, 'store']);
     Route::post('/jobs/{job}/incidents/{incident}/recovery-sent', [JobIncidentController::class, 'recoverySent']);

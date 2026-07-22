@@ -202,6 +202,11 @@ export async function updateJobLocation(jobId, payload) {
   return data;
 }
 
+export async function fetchJobLocationHistory(jobId) {
+  const { data } = await api.get(`/jobs/${jobId}/location-history`);
+  return data;
+}
+
 export async function requestJobLocationUpdate(jobId) {
   const { data } = await api.post(`/jobs/${jobId}/location-request`);
   return data;

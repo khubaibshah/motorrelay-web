@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 const props = defineProps({
   location: {
     type: Object,
@@ -15,7 +16,82 @@ const props = defineProps({
   trackingActive: {
     type: Boolean,
     default: true
+  },
+  routePoints: {
+    type: Array,
+    default: () => []
   }
+});
+
+const mapElement = ref(null);
+const hasGoogleMapsKey = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
+const googleMapsFailed = ref(false);
+let map;
+let polyline;
+let marker;
+
+function loadGoogleMaps() {
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  if (!key) return Promise.resolve(null);
+  if (window.__motorRelayMapsPromise) return window.__motorRelayMapsPromise;
+  window.__motorRelayMapsPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
+    script.async = true;
+    script.onload = () => resolve(window.google.maps);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return window.__motorRelayMapsPromise;
+}
+
+async function renderMap() {
+  if (!mapElement.value) return;
+  let maps;
+  try {
+    maps = await loadGoogleMaps();
+  } catch (error) {
+    googleMapsFailed.value = true;
+    console.error('Failed to load Google Maps for tracking route', error);
+    return;
+  }
+  if (!maps) return;
+  const points = props.routePoints.length ? props.routePoints : [props.location];
+  const path = points.map((point) => ({ lat: Number(point.lat), lng: Number(point.lng) }));
+  if (!path.length) return;
+  if (!map) {
+    map = new maps.Map(mapElement.value, {
+      center: path[path.length - 1],
+      zoom: 11,
+      mapTypeControl: false,
+      streetViewControl: false
+    });
+    polyline = new maps.Polyline({
+      map,
+      geodesic: true,
+      strokeColor: '#00a878',
+      strokeOpacity: 0.95,
+      strokeWeight: 5
+    });
+    marker = new maps.Marker({ map, title: 'Driver location' });
+  }
+  polyline.setPath(path);
+  marker.setPosition(path[path.length - 1]);
+  map.panTo(path[path.length - 1]);
+  if (path.length > 1) {
+    const bounds = new maps.LatLngBounds();
+    path.forEach((point) => bounds.extend(point));
+    map.fitBounds(bounds, 48);
+  }
+}
+
+onMounted(renderMap);
+watch(() => [props.location, props.routePoints], renderMap, { deep: true });
+onBeforeUnmount(() => {
+  map = null;
+  polyline = null;
+  marker = null;
 });
 </script>
 
@@ -40,8 +116,9 @@ const props = defineProps({
       </span>
     </div>
 
-    <div class="relative h-52 bg-slate-200 dark:bg-slate-900">
+    <div ref="mapElement" class="relative h-52 bg-slate-200 dark:bg-slate-900">
       <iframe
+        v-if="!hasGoogleMapsKey || googleMapsFailed"
         :key="`${props.location?.lat}-${props.location?.lng}`"
         :src="mapSrc"
         class="h-full w-full border-0"

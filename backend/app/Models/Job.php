@@ -105,6 +105,11 @@ class Job extends Model
         return $this->hasMany(Message::class);
     }
 
+    public function locationPoints(): HasMany
+    {
+        return $this->hasMany(JobLocationPoint::class)->orderBy('recorded_at');
+    }
+
     public function applications(): HasMany
     {
         return $this->hasMany(JobApplication::class);

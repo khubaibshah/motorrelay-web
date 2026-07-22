@@ -47,4 +47,9 @@ class JobTrackingController extends Controller
             'message' => 'Location update requested. The driver has been notified.',
         ]);
     }
+
+    public function history(Request $request, Job $job, JobTrackingService $tracking): JsonResponse
+    {
+        return response()->json(['points' => $tracking->locationHistory($job, $request->user())]);
+    }
 }

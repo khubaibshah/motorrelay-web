@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import {
   fetchJobApplications,
+  fetchJobLocationHistory,
   submitJobCompletion,
   uploadJobInspection,
   downloadJobCompletionReport,
@@ -105,6 +106,9 @@ const trackingState = reactive({
   locationServicesOff: false,
   lastUpdate: null
 });
+// Keep a bounded local copy so the open run can draw the route immediately
+// while older points remain available from the history endpoint.
+const trackingPoints = ref([]);
 const checkoutLoading = ref(false);
 const payoutReleaseLoading = ref(false);
 const deliveryApprovalLoading = ref(false);
@@ -723,11 +727,13 @@ async function loadJob({ force = true } = {}) {
     const payload = await jobsStore.fetchDetail(jobId, { force });
     job.value = payload?.data ?? payload ?? null;
     trackingState.lastUpdate = job.value?.last_tracked_at ?? null;
+    trackingPoints.value = [];
   } catch (error) {
     console.error("Failed to load run", error);
     errorMessage.value = "We could not load this run.";
     job.value = null;
     trackingState.lastUpdate = null;
+    trackingPoints.value = [];
   } finally {
     loading.value = false;
   }
@@ -738,6 +744,26 @@ async function loadJob({ force = true } = {}) {
   }
 
   await loadApplicationsIfNeeded();
+  await loadTrackingHistory();
+}
+
+async function loadTrackingHistory(jobId = job.value?.id) {
+  // Public marketplace viewers only need the route summary; history is
+  // restricted to the dealer and the assigned driver.
+  if (!jobId || (!isDealerForJob.value && !isAssignedDriver.value)) {
+    trackingPoints.value = [];
+    return;
+  }
+
+  try {
+    const payload = await fetchJobLocationHistory(jobId);
+    trackingPoints.value = Array.isArray(payload?.points) ? payload.points : [];
+  } catch (error) {
+    // History is supplementary: keep the current marker usable if it cannot
+    // be loaded (for example while a deployment is still rolling out).
+    console.error("Failed to load tracking history", error);
+    trackingPoints.value = [];
+  }
 }
 
 function scheduleRealtimeJobReload() {
@@ -858,6 +884,24 @@ function applyLiveLocationPayload(payload = {}) {
     last_tracked_at: trackedAt
   };
   trackingState.lastUpdate = trackedAt;
+
+  const nextPoint = {
+    id: `${trackedAt}-${latitude}-${longitude}`,
+    lat: latitude,
+    lng: longitude,
+    accuracy: location.accuracy ?? null,
+    heading: location.heading ?? null,
+    speed_kph: location.speed_kph ?? null,
+    source: location.source ?? null,
+    recorded_at: trackedAt
+  };
+  const alreadyTracked = trackingPoints.value.some((point) => (
+    point.id === nextPoint.id
+    || (point.lat === nextPoint.lat && point.lng === nextPoint.lng && point.recorded_at === nextPoint.recorded_at)
+  ));
+  if (!alreadyTracked) {
+    trackingPoints.value = [...trackingPoints.value, nextPoint].slice(-2000);
+  }
 }
 
 function startLiveTrackingListener() {
@@ -1390,6 +1434,7 @@ watch(
       <DealerLiveTrackingCard
         v-if="isDealerForJob && driverLiveLocation"
         :location="driverLiveLocation"
+        :route-points="trackingPoints"
         :map-src="dealerLiveMapSrc"
         :updated-label="`Last update ${lastTrackedDisplay}`"
         :tracking-active="isTrackingActive"

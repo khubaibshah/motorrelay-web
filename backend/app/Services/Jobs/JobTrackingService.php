@@ -5,6 +5,7 @@ namespace App\Services\Jobs;
 use App\Events\JobLocationUpdated;
 use App\Events\JobStatusChanged;
 use App\Models\Job;
+use App\Models\JobLocationPoint;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\User;
@@ -17,6 +18,18 @@ class JobTrackingService
     public function storeLocation(Job $job, User $driver, array $validated): array
     {
         [$messagePayload, $jobPayload, $locationPayload] = DB::transaction(function () use ($validated, $job, $driver) {
+            $recordedAt = now();
+            $point = JobLocationPoint::create([
+                'job_id' => $job->id,
+                'driver_id' => $driver->id,
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'accuracy' => $validated['accuracy'] ?? null,
+                'heading' => $validated['heading'] ?? null,
+                'speed_kph' => $validated['speed_kph'] ?? null,
+                'source' => $validated['source'] ?? null,
+                'recorded_at' => $recordedAt,
+            ]);
             $job->update([
                 'current_latitude' => $validated['latitude'],
                 'current_longitude' => $validated['longitude'],
@@ -34,7 +47,7 @@ class JobTrackingService
                     'speed_kph' => isset($validated['speed_kph']) ? (float) $validated['speed_kph'] : null,
                     'heading' => isset($validated['heading']) ? (float) $validated['heading'] : null,
                     'accuracy' => isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
-                    'recorded_at' => now()->toIso8601String(),
+                    'recorded_at' => $recordedAt->toIso8601String(),
                     'source' => $validated['source'] ?? null,
                 ],
                 'eta_minutes' => $validated['eta_minutes'] ?? null,
@@ -69,6 +82,7 @@ class JobTrackingService
                     'current_latitude' => $job->current_latitude,
                     'current_longitude' => $job->current_longitude,
                     'last_tracked_at' => $job->last_tracked_at,
+                    'location_point' => $point->toArray(),
                 ],
                 $meta['location'],
             ];
@@ -80,6 +94,32 @@ class JobTrackingService
             'message' => $messagePayload,
             'job' => $jobPayload,
         ];
+    }
+
+    public function locationHistory(Job $job, User $viewer): array
+    {
+        $allowedViewerIds = array_filter([
+            (int) $job->posted_by_id,
+            (int) $job->assigned_to_id,
+        ]);
+
+        if (! $viewer->isAdmin() && ! in_array((int) $viewer->id, $allowedViewerIds, true)) {
+            abort(403, 'You are not allowed to view tracking history for this run.');
+        }
+
+        return $job->locationPoints()
+            ->limit(2000)
+            ->get(['id', 'latitude', 'longitude', 'accuracy', 'heading', 'speed_kph', 'source', 'recorded_at'])
+            ->map(fn (JobLocationPoint $point) => [
+                'id' => $point->id,
+                'lat' => (float) $point->latitude,
+                'lng' => (float) $point->longitude,
+                'accuracy' => $point->accuracy,
+                'heading' => $point->heading,
+                'speed_kph' => $point->speed_kph,
+                'source' => $point->source,
+                'recorded_at' => $point->recorded_at?->toIso8601String(),
+            ])->values()->all();
     }
 
     public function requestLocationUpdate(Job $job, User $dealer): void

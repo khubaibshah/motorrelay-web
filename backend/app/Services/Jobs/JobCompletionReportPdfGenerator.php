@@ -3,6 +3,7 @@
 namespace App\Services\Jobs;
 
 use App\Models\Job;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -41,9 +42,10 @@ class JobCompletionReportPdfGenerator
             $this->drawRect($ops, 0, self::HEIGHT - 86, self::WIDTH, 86, [11 / 255, 93 / 255, 71 / 255]);
             $this->text($ops, 'MotorRelay', self::LEFT, self::HEIGHT - 42, 24, true, [1, 1, 1]);
             $this->text($ops, 'COMPLETION REPORT', self::WIDTH - 190, self::HEIGHT - 40, 12, true, [1, 1, 1]);
-            $this->text($ops, sprintf('Job #%d  •  Page %d of %d', $job->id, $index + 2, $totalPages), self::LEFT, self::HEIGHT - 105, 10, true, [11 / 255, 93 / 255, 71 / 255]);
+            // Keep the marker in the header gutter, separate from report data.
+            $this->text($ops, sprintf('Job #%d  •  Page %d of %d', $job->id, $index + 2, $totalPages), self::LEFT, self::HEIGHT - 112, 9.5, true, [11 / 255, 93 / 255, 71 / 255]);
 
-            $y = self::TOP - 30;
+            $y = self::HEIGHT - 146;
             foreach ($pageLines as $line) {
                 $heading = $line !== '' && preg_match('/^[A-Z][A-Z &\\/]+$/', $line);
                 if ($heading) {
@@ -231,15 +233,58 @@ class JobCompletionReportPdfGenerator
     private function loadJpeg($photo): ?array
     {
         try {
-            $storage = Storage::disk($photo->disk ?: config('filesystems.default'));
-            if (! $storage->exists($photo->path)) return null;
+            // Inspection uploads use their own disk (usually S3/receipts),
+            // which can differ from the app's default disk.
+            $disk = $photo->disk ?: config('invoices.proof_disk', config('filesystems.default'));
+            $storage = Storage::disk($disk);
+            if (! $photo->path || ! $storage->exists($photo->path)) {
+                Log::warning('Completion report image not found', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'disk' => $disk, 'path' => $photo->path]);
+                return null;
+            }
             $bytes = $storage->get($photo->path);
             $info = function_exists('getimagesizefromstring') ? @getimagesizefromstring($bytes) : false;
-            if (! $info || ($info[2] ?? null) !== IMAGETYPE_JPEG) return null;
-            return ['name' => 'Im' . $photo->id, 'bytes' => $bytes, 'width' => $info[0], 'height' => $info[1], 'orientation' => $this->jpegOrientation($bytes)];
-        } catch (\Throwable) {
+            if (! $info) {
+                Log::warning('Completion report image is unreadable', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'disk' => $disk, 'path' => $photo->path, 'mime' => $photo->mime_type]);
+                return null;
+            }
+
+            // Embed JPEG streams directly. Convert other browser formats when
+            // GD is available instead of silently producing a blank appendix.
+            if (($info[2] ?? null) !== IMAGETYPE_JPEG) {
+                $converted = $this->convertToJpeg($bytes);
+                if (! $converted) {
+                    Log::warning('Completion report image format is unsupported', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'mime' => $photo->mime_type]);
+                    return null;
+                }
+                $bytes = $converted;
+                $info = @getimagesizefromstring($bytes);
+            }
+
+            $channels = (int) ($info['channels'] ?? 3);
+            return ['name' => 'Im' . $photo->id, 'bytes' => $bytes, 'width' => $info[0], 'height' => $info[1], 'orientation' => $this->jpegOrientation($bytes), 'color_space' => $channels === 4 ? '/DeviceCMYK' : '/DeviceRGB'];
+        } catch (\Throwable $exception) {
+            Log::warning('Completion report image failed to load', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'message' => $exception->getMessage()]);
             return null;
         }
+    }
+
+    private function convertToJpeg(string $bytes): ?string
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagejpeg')) {
+            return null;
+        }
+
+        $image = @imagecreatefromstring($bytes);
+        if (! $image) {
+            return null;
+        }
+
+        ob_start();
+        imagejpeg($image, null, 90);
+        $converted = ob_get_clean();
+        imagedestroy($image);
+
+        return $converted ?: null;
     }
 
     private function imagePlacement(array $image, float $scale, float $x, float $y): string
@@ -359,7 +404,7 @@ class JobCompletionReportPdfGenerator
             $objects[] = sprintf('%d 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj', $fontBold);
             foreach ($images as $image) {
                 $imageId = $imageIds[$image['name']];
-                $objects[] = sprintf("%d 0 obj << /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >> stream\n", $imageId, $image['width'], $image['height'], strlen($image['bytes'])) . $image['bytes'] . "\nendstream endobj";
+                $objects[] = sprintf("%d 0 obj << /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace %s /BitsPerComponent 8 /Filter /DCTDecode /Length %d >> stream\n", $imageId, $image['width'], $image['height'], $image['color_space'] ?? '/DeviceRGB', strlen($image['bytes'])) . $image['bytes'] . "\nendstream endobj";
             }
             $pageIds[] = $pageId;
         }

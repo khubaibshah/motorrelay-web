@@ -235,13 +235,30 @@ class JobCompletionReportPdfGenerator
         try {
             // Inspection uploads use their own disk (usually S3/receipts),
             // which can differ from the app's default disk.
-            $disk = $photo->disk ?: config('invoices.proof_disk', config('filesystems.default'));
-            $storage = Storage::disk($disk);
-            if (! $photo->path || ! $storage->exists($photo->path)) {
-                Log::warning('Completion report image not found', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'disk' => $disk, 'path' => $photo->path]);
+            $path = ltrim((string) $photo->path, '/');
+            $configuredDisk = $photo->disk ?: config('invoices.proof_disk', config('filesystems.default'));
+            $candidateDisks = array_values(array_unique(array_filter([
+                $configuredDisk,
+                config('invoices.proof_disk'),
+                's3',
+                config('filesystems.default'),
+            ])));
+            $storage = null;
+            $disk = null;
+            foreach ($candidateDisks as $candidateDisk) {
+                $candidateStorage = Storage::disk($candidateDisk);
+                if ($path !== '' && $candidateStorage->exists($path)) {
+                    $storage = $candidateStorage;
+                    $disk = $candidateDisk;
+                    break;
+                }
+            }
+
+            if (! $storage || ! $disk) {
+                Log::warning('Completion report image not found', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'disks_checked' => $candidateDisks, 'path' => $path]);
                 return null;
             }
-            $bytes = $storage->get($photo->path);
+            $bytes = $storage->get($path);
             $info = function_exists('getimagesizefromstring') ? @getimagesizefromstring($bytes) : false;
             if (! $info) {
                 Log::warning('Completion report image is unreadable', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'disk' => $disk, 'path' => $photo->path, 'mime' => $photo->mime_type]);

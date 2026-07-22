@@ -46,7 +46,9 @@ const emit = defineEmits([
   'open-job'
 ]);
 
-const runsTab = ref('needs-driver');
+// Assigned runs are the dealer's most time-sensitive work, so make that the
+// first view shown whenever the Runs page is opened.
+const runsTab = ref('assigned');
 const filterOpen = ref(false);
 const jobs = computed(() => props.jobs);
 const loading = computed(() => props.loading);

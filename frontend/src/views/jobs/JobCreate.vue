@@ -205,8 +205,8 @@ async function confirmAbandonNavigation() {
   if (!jobId.value) return;
 
   allowNavigation.value = true;
-  jobDraft.clearDraft();
   await router.push({ name: 'job-detail', params: { id: jobId.value } });
+  jobDraft.clearDraft();
 }
 
 const jobPrice = computed(() => Number(normalisePrice(form.price) || 0));
@@ -249,7 +249,12 @@ function normaliseCoordinates(latitude, longitude) {
   const numericLatitude = Number(latitude);
   const numericLongitude = Number(longitude);
 
-  if (numericLatitude >= -10 && numericLatitude <= 10 && numericLongitude >= 49 && numericLongitude <= 61) {
+  const isUkPair = numericLatitude >= 49 && numericLatitude <= 61
+    && numericLongitude >= -11 && numericLongitude <= 3;
+  const isReversedUkPair = numericLongitude >= 49 && numericLongitude <= 61
+    && numericLatitude >= -11 && numericLatitude <= 3;
+
+  if (!isUkPair && isReversedUkPair) {
     return [numericLongitude, numericLatitude];
   }
 

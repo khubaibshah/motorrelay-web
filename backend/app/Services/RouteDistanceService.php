@@ -100,7 +100,10 @@ class RouteDistanceService
         $latitude = (float) $latitude;
         $longitude = (float) $longitude;
 
-        if ($latitude >= -10 && $latitude <= 10 && $longitude >= 49 && $longitude <= 61) {
+        $isUkPair = $latitude >= 49 && $latitude <= 61 && $longitude >= -11 && $longitude <= 3;
+        $isReversedUkPair = $longitude >= 49 && $longitude <= 61 && $latitude >= -11 && $latitude <= 3;
+
+        if (! $isUkPair && $isReversedUkPair) {
             return [$longitude, $latitude];
         }
 

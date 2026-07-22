@@ -202,6 +202,18 @@ export async function updateJobLocation(jobId, payload) {
   return data;
 }
 
+export async function startJobLocationTracking(jobId) {
+  const { data } = await api.post(`/jobs/${jobId}/location-tracking/start`);
+  return data;
+}
+
+export async function stopJobLocationTracking(jobId, trackingSessionToken) {
+  const { data } = await api.post(`/jobs/${jobId}/location-tracking/stop`, {
+    tracking_session_token: trackingSessionToken
+  });
+  return data;
+}
+
 export async function fetchJobLocationHistory(jobId) {
   const { data } = await api.get(`/jobs/${jobId}/location-history`);
   return data;

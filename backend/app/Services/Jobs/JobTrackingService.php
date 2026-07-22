@@ -6,19 +6,60 @@ use App\Events\JobLocationUpdated;
 use App\Events\JobStatusChanged;
 use App\Models\Job;
 use App\Models\JobLocationPoint;
+use App\Models\JobTrackingSession;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class JobTrackingService
 {
     public const ACTIVE_TRACKING_STATUSES = ['accepted', 'collected', 'in_transit', 'in_progress'];
 
-    public function storeLocation(Job $job, User $driver, array $validated): array
+    public function startSession(Job $job, User $driver): array
     {
-        [$messagePayload, $jobPayload, $locationPayload] = DB::transaction(function () use ($validated, $job, $driver) {
+        $this->ensureTrackingCanBeShared($job);
+
+        return DB::transaction(function () use ($job, $driver) {
+            JobTrackingSession::query()
+                ->where('job_id', $job->id)
+                ->whereNull('ended_at')
+                ->update(['ended_at' => now(), 'updated_at' => now()]);
+
+            $token = Str::random(64);
+            $session = JobTrackingSession::create([
+                'job_id' => $job->id,
+                'driver_id' => $driver->id,
+                'token_hash' => hash('sha256', $token),
+                'started_at' => now(),
+                'last_seen_at' => now(),
+            ]);
+
+            return [
+                'tracking_session_token' => $token,
+                'started_at' => $session->started_at?->toIso8601String(),
+            ];
+        });
+    }
+
+    public function stopSession(Job $job, User $driver, ?string $token): void
+    {
+        if (! $token) {
+            return;
+        }
+
+        $session = $this->resolveActiveSession($job, $driver, $token, false);
+        $session?->update(['ended_at' => now()]);
+    }
+
+    public function storeLocation(Job $job, User $driver, array $validated, string $sessionToken): array
+    {
+        $session = $this->resolveActiveSession($job, $driver, $sessionToken);
+
+        [$messagePayload, $jobPayload, $locationPayload] = DB::transaction(function () use ($validated, $job, $driver, $session) {
             $recordedAt = now();
+            $session->update(['last_seen_at' => $recordedAt]);
             $point = JobLocationPoint::create([
                 'job_id' => $job->id,
                 'driver_id' => $driver->id,
@@ -94,6 +135,22 @@ class JobTrackingService
             'message' => $messagePayload,
             'job' => $jobPayload,
         ];
+    }
+
+    protected function resolveActiveSession(Job $job, User $driver, string $token, bool $required = true): ?JobTrackingSession
+    {
+        $session = JobTrackingSession::query()
+            ->where('job_id', $job->id)
+            ->where('driver_id', $driver->id)
+            ->whereNull('ended_at')
+            ->where('token_hash', hash('sha256', $token))
+            ->first();
+
+        if (! $session && $required) {
+            abort(409, 'This tracking session is no longer active. Start live location again on this device.');
+        }
+
+        return $session;
     }
 
     public function locationHistory(Job $job, User $viewer): array

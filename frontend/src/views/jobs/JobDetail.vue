@@ -255,10 +255,20 @@ const canShareTracking = computed(() => {
   if (!job.value || !auth.user) return false;
   return job.value.assigned_to_id === auth.user.id && isTrackingActive.value;
 });
+// Driver Mode is intentionally limited to phones. Native apps and mobile
+// Safari/Chrome can provide the touch-first workflow and device location;
+// desktop web keeps the regular run details layout.
+const isMobileWeb = computed(() => {
+  if (typeof window === 'undefined') return false;
+  const userAgent = navigator.userAgent || '';
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent)
+    || window.matchMedia?.('(max-width: 768px)').matches === true;
+});
 const {
   shareLiveLocation,
   startLiveTrackingUpdates,
-  stopLiveTrackingUpdates
+  stopLiveTrackingUpdates,
+  endLiveTrackingSession
 } = useLiveTracking({
   job,
   trackingState,
@@ -266,7 +276,7 @@ const {
   hasTrackingEnded
 });
 const canUseDriverMode = computed(() => {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!Capacitor.isNativePlatform() && !isMobileWeb.value) return false;
   // Keep the overlay available whenever its launch button is available. The
   // previous check only considered the individual workflow actions, so a
   // valid "Start driver mode" state could render a button that immediately
@@ -274,9 +284,7 @@ const canUseDriverMode = computed(() => {
   return canStartDriverMode.value || canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value;
 });
 const canStartDriverMode = computed(() => {
-  // Driver Mode is a native-only workflow. Keeping the same platform guard
-  // on the button and overlay prevents a desktop button that cannot open.
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!Capacitor.isNativePlatform() && !isMobileWeb.value) return false;
   if (!isAssignedDriver.value) return false;
   return ['in_transit', 'collected'].includes(String(job.value?.status || '').toLowerCase());
 });
@@ -1029,10 +1037,11 @@ async function handleDriverDelivered() {
   driverActionError.value = "";
   // Stop the polling as soon as the driver confirms delivery. If the request
   // fails, tracking is resumed so the run is not left without updates.
-  stopLiveTrackingUpdates();
+  stopLiveTrackingUpdates({ endSession: false });
 
   try {
     await markJobDelivered(job.value.id);
+    await endLiveTrackingSession();
     trackingState.shared = false;
     await loadJob();
   } catch (error) {

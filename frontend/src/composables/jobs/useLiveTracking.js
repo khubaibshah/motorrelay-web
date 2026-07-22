@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
-import { updateJobLocation } from '@/services/jobs';
+import { startJobLocationTracking, stopJobLocationTracking, updateJobLocation } from '@/services/jobs';
 
 /**
  * Owns driver location permission, periodic updates, and the stop/restart
@@ -8,6 +8,7 @@ import { updateJobLocation } from '@/services/jobs';
  */
 export function useLiveTracking({ job, trackingState, canShareTracking, hasTrackingEnded }) {
   let liveTrackingInterval = null;
+  let trackingSessionToken = null;
 
   function createLocationPermissionError() {
     const error = new Error('Location permission is blocked.');
@@ -57,7 +58,7 @@ export function useLiveTracking({ job, trackingState, canShareTracking, hasTrack
     });
   }
 
-  async function sendLiveLocationUpdate({ silent = false } = {}) {
+  async function sendLiveLocationUpdate({ silent = false, allowSessionStart = false } = {}) {
     if (!job.value) return;
     if (!silent) {
       trackingState.error = '';
@@ -85,7 +86,18 @@ export function useLiveTracking({ job, trackingState, canShareTracking, hasTrack
         throw new Error('Unable to determine your current position.');
       }
 
-      const response = await updateJobLocation(job.value.id, payload);
+      if (!trackingSessionToken && allowSessionStart) {
+        const session = await startJobLocationTracking(job.value.id);
+        trackingSessionToken = session?.tracking_session_token || null;
+      }
+      if (!trackingSessionToken) {
+        throw new Error('Live location is not active on this device. Tap Share live location to start it.');
+      }
+
+      const response = await updateJobLocation(job.value.id, {
+        ...payload,
+        tracking_session_token: trackingSessionToken
+      });
       if (response?.job) {
         job.value = {
           ...job.value,
@@ -100,6 +112,11 @@ export function useLiveTracking({ job, trackingState, canShareTracking, hasTrack
       console.error('Failed to share live location', error);
       trackingState.locationServicesOff = isLocationServicesDisabledError(error);
       trackingState.locationBlocked = !trackingState.locationServicesOff && isLocationPermissionBlockedError(error);
+      if (error?.response?.status === 409) {
+        trackingSessionToken = null;
+        trackingState.shared = false;
+        stopLiveTrackingUpdates({ endSession: false });
+      }
       if (!silent) {
         trackingState.error = error?.response?.data?.message || geolocationErrorMessage(error) || 'We could not determine your current location. Please try again.';
       } else if (trackingState.locationBlocked || trackingState.locationServicesOff) {
@@ -117,19 +134,31 @@ export function useLiveTracking({ job, trackingState, canShareTracking, hasTrack
         stopLiveTrackingUpdates();
         return;
       }
-      sendLiveLocationUpdate({ silent: true }).catch(() => null);
+      sendLiveLocationUpdate({ silent: true, allowSessionStart: false }).catch(() => null);
     }, 25000);
   }
 
-  function stopLiveTrackingUpdates() {
+  function stopLiveTrackingUpdates({ endSession = true } = {}) {
     if (liveTrackingInterval && typeof window !== 'undefined') window.clearInterval(liveTrackingInterval);
     liveTrackingInterval = null;
+    if (endSession && trackingSessionToken && job.value?.id) {
+      const token = trackingSessionToken;
+      trackingSessionToken = null;
+      stopJobLocationTracking(job.value.id, token).catch(() => null);
+    }
   }
 
   async function shareLiveLocation() {
-    await sendLiveLocationUpdate();
+    await sendLiveLocationUpdate({ allowSessionStart: true });
     if (!trackingState.error && trackingState.shared) startLiveTrackingUpdates();
   }
 
-  return { sendLiveLocationUpdate, shareLiveLocation, startLiveTrackingUpdates, stopLiveTrackingUpdates };
+  async function endLiveTrackingSession() {
+    if (!trackingSessionToken || !job.value?.id) return;
+    const token = trackingSessionToken;
+    trackingSessionToken = null;
+    await stopJobLocationTracking(job.value.id, token).catch(() => null);
+  }
+
+  return { sendLiveLocationUpdate, shareLiveLocation, startLiveTrackingUpdates, stopLiveTrackingUpdates, endLiveTrackingSession };
 }

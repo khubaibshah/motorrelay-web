@@ -164,10 +164,22 @@ function resolveInvoiceLink(job) {
             <button
               type="button"
               aria-label="Open run filters"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-black text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-emerald-100"
+              class="btn-secondary h-11 w-11 shrink-0 p-0"
               @click="filterOpen = true"
             >
-              <span aria-hidden="true">☷</span>
+              <svg
+                aria-hidden="true"
+                class="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
+                <path d="M4 6h16" />
+                <path d="M7 12h10" />
+                <path d="M10 18h4" />
+              </svg>
             </button>
           </div>
         </div>

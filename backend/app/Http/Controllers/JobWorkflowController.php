@@ -7,6 +7,7 @@ use App\Models\JobInspectionPhoto;
 use App\Services\Jobs\JobApplicationService;
 use App\Services\Jobs\JobService;
 use App\Services\Jobs\JobWorkflowService;
+use App\Services\Jobs\JobCompletionReportPdfGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,7 @@ class JobWorkflowController extends Controller
         protected JobApplicationService $applications,
         protected JobWorkflowService $workflow,
         protected JobService $jobs,
+        protected JobCompletionReportPdfGenerator $completionReports,
     ) {}
 
     public function accept(Request $request, Job $job): JsonResponse
@@ -218,6 +220,31 @@ class JobWorkflowController extends Controller
         $filename = $photo->original_name ?: sprintf('job-%d-inspection-%d', $job->id, $photo->id);
 
         return $storage->response($photo->path, $filename, [], 'inline');
+    }
+
+    public function completionReport(Request $request, Job $job)
+    {
+        $this->authorizeProofViewer($request, $job);
+
+        if (! in_array($job->status, ['completed', 'closed'], true) || $job->completion_status !== 'approved') {
+            abort(422, 'The completion report is available after the run is completed.');
+        }
+
+        $job->load([
+            'postedBy',
+            'assignedTo',
+            'inspectionPhotos',
+            'incidents.reportedBy',
+            'expenses',
+        ]);
+
+        $filename = sprintf('motorrelay-job-%d-completion-report.pdf', $job->id);
+
+        return response($this->completionReports->render($job), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     protected function authorizeAssignedDriver(Request $request, Job $job, string $message)

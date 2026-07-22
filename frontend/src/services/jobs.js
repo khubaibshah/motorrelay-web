@@ -163,6 +163,13 @@ export async function downloadDeliveryProof(jobId) {
   return response;
 }
 
+export async function downloadJobCompletionReport(jobId) {
+  const response = await api.get(`/jobs/${jobId}/completion-report`, {
+    responseType: 'blob'
+  });
+  return response;
+}
+
 export async function downloadAuctionAssessmentReport(jobId) {
   const response = await api.get(`/jobs/${jobId}/auction-assessment-report`, {
     responseType: 'blob'

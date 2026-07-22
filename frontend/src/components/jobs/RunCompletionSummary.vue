@@ -39,10 +39,18 @@ defineProps({
   invoiceTo: {
     type: [String, Object],
     default: ""
+  },
+  reportAvailable: {
+    type: Boolean,
+    default: false
+  },
+  reportDownloading: {
+    type: Boolean,
+    default: false
   }
 });
 
-defineEmits(["download-proof"]);
+defineEmits(["download-proof", "download-report"]);
 </script>
 
 <template>
@@ -78,6 +86,16 @@ defineEmits(["download-proof"]);
     </p>
 
     <div class="grid gap-2 sm:flex sm:flex-wrap">
+      <button
+        v-if="reportAvailable"
+        type="button"
+        class="btn-primary w-full px-4 py-2 text-sm sm:w-auto"
+        :disabled="reportDownloading"
+        @click="$emit('download-report')"
+      >
+        <span v-if="reportDownloading">Preparing report...</span>
+        <span v-else>Download full report</span>
+      </button>
       <button
         v-if="hasDeliveryProof"
         type="button"

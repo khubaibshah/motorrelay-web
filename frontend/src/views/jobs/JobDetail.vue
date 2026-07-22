@@ -6,6 +6,7 @@ import {
   submitJobCompletion,
   uploadJobInspection,
   downloadDeliveryProof,
+  downloadJobCompletionReport,
   markJobCollected,
   markJobDelivered,
   applyForJob,
@@ -76,6 +77,7 @@ const completionForm = reactive({
 const completionError = ref("");
 const completionSubmitting = ref(false);
 const proofDownloading = ref(false);
+const reportDownloading = ref(false);
 const assessmentReportDownloading = ref(false);
 const driverActionLoading = ref("");
 const driverActionError = ref("");
@@ -1189,6 +1191,29 @@ async function handleDownloadProof() {
   }
 }
 
+async function handleDownloadCompletionReport() {
+  if (!job.value?.id || !isCompletedJob.value) return;
+
+  reportDownloading.value = true;
+  try {
+    const response = await downloadJobCompletionReport(job.value.id);
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `motorrelay-job-${job.value.id}-completion-report.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to download completion report', error);
+    alert('We could not download the completion report.');
+  } finally {
+    reportDownloading.value = false;
+  }
+}
+
 async function handleDownloadAssessmentReport() {
   if (!job.value?.auction_assessment_report_path) return;
 
@@ -1453,7 +1478,10 @@ watch(
         :proof-downloading="proofDownloading"
         :invoice-finalized="invoiceFinalized"
         :invoice-to="jobInvoiceLink"
+        :report-available="isCompletedJob"
+        :report-downloading="reportDownloading"
         @download-proof="handleDownloadProof"
+        @download-report="handleDownloadCompletionReport"
       />
 
 

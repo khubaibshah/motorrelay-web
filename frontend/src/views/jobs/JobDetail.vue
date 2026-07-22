@@ -345,6 +345,9 @@ const isDealerForJob = computed(() => {
   if (!job.value || !auth.user) return false;
   return job.value.posted_by_id === auth.user.id;
 });
+// Dealers can amend their own run until a driver is assigned. The API
+// enforces the same rule so this is only a presentation guard.
+const canEditJob = computed(() => isDealerForJob.value && !job.value?.assigned_to_id);
 
 const isAssignedDriver = computed(() => {
   if (!job.value || !auth.user) return false;
@@ -1314,6 +1317,7 @@ watch(
         :tracking-loading="trackingState.sending"
         :collected-loading="['collected', 'delivered'].includes(driverActionLoading)"
         :can-cancel-job="canCancelJob"
+        :can-edit-job="canEditJob"
         :cancel-loading="cancelSubmitting"
         :cancel-window-label="cancellationWindowLabel"
         :can-withdraw-application="canWithdrawApplication"

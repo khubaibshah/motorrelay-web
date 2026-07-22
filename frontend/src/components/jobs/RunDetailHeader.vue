@@ -70,6 +70,10 @@ defineProps({
     type: Boolean,
     default: false
   },
+  canEditJob: {
+    type: Boolean,
+    default: false
+  },
   cancelLoading: {
     type: Boolean,
     default: false
@@ -141,7 +145,7 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
     </div>
 
     <div
-      v-if="canRequestJob || payoutSetupRequired || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canMarkDelivered || canCancelJob || cancelWindowLabel"
+      v-if="canRequestJob || payoutSetupRequired || (showDriverRequestPanel && myApplication) || canUseDriverMode || showCollectionAction || canMarkCollected || canMarkDelivered || canCancelJob || canEditJob || cancelWindowLabel"
       class="flex flex-col gap-2 border-t border-slate-100 pt-2 dark:border-white/10 sm:flex-row sm:items-center sm:justify-end"
     >
       <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
@@ -195,6 +199,13 @@ defineEmits(['request-job', 'start-driver-mode', 'mark-collected', 'mark-deliver
           <span v-else-if="!canMarkCollected">Share live location</span>
           <span v-else>Mark vehicle collected</span>
         </button>
+        <RouterLink
+          v-if="canEditJob"
+          :to="{ name: 'job-edit', params: { id: job.id } }"
+          class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
+        >
+          Edit run
+        </RouterLink>
         <button
           v-if="canCancelJob"
           type="button"

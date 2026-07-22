@@ -12,7 +12,17 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Runtime containers may not include ignored Laravel storage folders.
+        // Create the folders before any Blade/Markdown view is resolved.
+        foreach ([
+            storage_path('framework/cache'),
+            storage_path('framework/sessions'),
+            storage_path('framework/views'),
+        ] as $directory) {
+            if (! is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+        }
     }
 
     public function boot(): void

@@ -312,10 +312,10 @@ class JobCompletionReportPdfGenerator
             3 => sprintf('q -%.2f 0 0 -%.2f %.2f %.2f cm /%s Do Q', $scale, $scale, $x + $w, $y + $h, $image['name']),
             6 => sprintf('q 0 -%.2f %.2f 0 %.2f %.2f cm /%s Do Q', $scale, $scale, $x, $y + $w, $image['name']),
             8 => sprintf('q 0 %.2f -%.2f 0 %.2f %.2f cm /%s Do Q', $scale, $scale, $x + $h, $y, $image['name']),
-            // The image stream uses its native pixel dimensions. Apply the
-            // single calculated scale factor here; using $w/$h would scale
-            // the image a second time and place it outside the page.
-            default => sprintf('q %.2f 0 0 %.2f %.2f %.2f cm /%s Do Q', $scale, $scale, $x, $y, $image['name']),
+            // Keep the native pixel dimensions in the transform. The PDF
+            // image object is raster data, so the scale is applied to both
+            // dimensions here (this is also compatible with older readers).
+            default => sprintf('q %.2f 0 0 %.2f %.2f %.2f cm /%s Do Q', $w, $h, $x, $y, $image['name']),
         };
     }
 
@@ -424,7 +424,10 @@ class JobCompletionReportPdfGenerator
             $objects[] = sprintf('%d 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj', $fontBold);
             foreach ($images as $image) {
                 $imageId = $imageIds[$image['name']];
-                $objects[] = sprintf("%d 0 obj << /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace %s /BitsPerComponent 8 /Filter /DCTDecode /Length %d >> stream\n", $imageId, $image['width'], $image['height'], $image['color_space'] ?? '/DeviceRGB', strlen($image['bytes'])) . $image['bytes'] . "\nendstream endobj";
+                // Keep the image stream declaration deliberately simple and
+                // broadly compatible with Preview, WebKit and Android PDF
+                // readers. Uploaded inspection photos are RGB JPEGs.
+                $objects[] = sprintf("%d 0 obj << /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >> stream\n", $imageId, $image['width'], $image['height'], strlen($image['bytes'])) . $image['bytes'] . "\nendstream endobj";
             }
             $pageIds[] = $pageId;
         }

@@ -191,7 +191,10 @@ class JobCompletionReportPdfGenerator
             $pageId = $contentId + 1;
             $fontRegular = $pageId + 1;
             $fontBold = $pageId + 2;
-            $objects[] = sprintf('%d 0 obj << /Length %d >> stream\n%sendstream endobj', $contentId, strlen($stream), $stream);
+            // PDF stream delimiters must contain real line breaks; using a
+            // single-quoted PHP string here would emit the literal `\\n` and
+            // make readers treat the page content as an empty stream.
+            $objects[] = sprintf("%d 0 obj << /Length %d >> stream\n%sendstream endobj", $contentId, strlen($stream), $stream);
             $objects[] = sprintf('%d 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] /Contents %d 0 R /Resources << /Font << /F1 %d 0 R /F2 %d 0 R >> >> >> endobj', $pageId, self::WIDTH, self::HEIGHT, $contentId, $fontRegular, $fontBold);
             $objects[] = sprintf('%d 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj', $fontRegular);
             $objects[] = sprintf('%d 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj', $fontBold);

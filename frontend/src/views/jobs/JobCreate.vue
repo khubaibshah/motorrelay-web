@@ -246,6 +246,17 @@ function formatMoney(value) {
   return moneyFormatter.format(Number(rawValue || 0));
 }
 
+function normaliseCoordinates(latitude, longitude) {
+  const numericLatitude = Number(latitude);
+  const numericLongitude = Number(longitude);
+
+  if (numericLatitude >= -10 && numericLatitude <= 10 && numericLongitude >= 49 && numericLongitude <= 61) {
+    return [numericLongitude, numericLatitude];
+  }
+
+  return [latitude, longitude];
+}
+
 function calculateDistanceMiles(pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude) {
   if (
     !Number.isFinite(Number(pickupLatitude)) ||
@@ -255,6 +266,10 @@ function calculateDistanceMiles(pickupLatitude, pickupLongitude, dropoffLatitude
   ) {
     return null;
   }
+
+  // Google place results occasionally arrive with UK lat/lng reversed.
+  [pickupLatitude, pickupLongitude] = normaliseCoordinates(pickupLatitude, pickupLongitude);
+  [dropoffLatitude, dropoffLongitude] = normaliseCoordinates(dropoffLatitude, dropoffLongitude);
 
   const earthRadiusMiles = 3958.7613;
   const pickupLat = toRadians(Number(pickupLatitude));
@@ -293,8 +308,10 @@ async function refreshRouteDistance() {
   routeDistanceLoading.value = true;
   try {
     const { data } = await api.get('/jobs/route-distance', { params: coordinates });
-    if (requestId === routeDistanceRequest && Number.isFinite(Number(data?.distance_mi))) {
-      routeDistanceMiles.value = Number(data.distance_mi);
+    const candidate = Number(data?.distance_mi);
+    const maxReasonableDistance = fallback === null ? Infinity : Math.max(fallback * 3, fallback + 50);
+    if (requestId === routeDistanceRequest && Number.isFinite(candidate) && candidate <= maxReasonableDistance) {
+      routeDistanceMiles.value = candidate;
     }
   } catch (error) {
     // The straight-line value remains visible if routing is temporarily unavailable.
@@ -1034,10 +1051,14 @@ async function loadJobForEditing() {
     hydrateSelectedAddress('dropoff', form.dropoff_label, form.dropoff_postcode);
     // Hydration resets the address picker UI, so restore the saved map
     // coordinates used for distance and suggested-price calculations.
-    form.pickup_latitude = job.pickup_latitude ?? null;
-    form.pickup_longitude = job.pickup_longitude ?? null;
-    form.dropoff_latitude = job.dropoff_latitude ?? null;
-    form.dropoff_longitude = job.dropoff_longitude ?? null;
+    [form.pickup_latitude, form.pickup_longitude] = normaliseCoordinates(
+      job.pickup_latitude,
+      job.pickup_longitude,
+    );
+    [form.dropoff_latitude, form.dropoff_longitude] = normaliseCoordinates(
+      job.dropoff_latitude,
+      job.dropoff_longitude,
+    );
     clearValidationState();
     currentStep.value = 0;
     editInitialSnapshot.value = captureEditSnapshot();

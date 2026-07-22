@@ -110,6 +110,15 @@ class JobService
     {
         $vehicle = $this->vehicles->lookup($data['title']);
 
+        [$data['pickup_latitude'], $data['pickup_longitude']] = $this->routeDistance->normaliseCoordinates(
+            $data['pickup_latitude'] ?? null,
+            $data['pickup_longitude'] ?? null,
+        );
+        [$data['dropoff_latitude'], $data['dropoff_longitude']] = $this->routeDistance->normaliseCoordinates(
+            $data['dropoff_latitude'] ?? null,
+            $data['dropoff_longitude'] ?? null,
+        );
+
         $this->ensureDealerCanPostJob($dealer);
         $this->ensureDeliveryIsAfterPickup($data);
 
@@ -531,6 +540,15 @@ class JobService
     protected function normaliseUpdatePayload(Job $job, array $data): array
     {
         $updates = $data;
+
+        [$updates['pickup_latitude'], $updates['pickup_longitude']] = $this->routeDistance->normaliseCoordinates(
+            $updates['pickup_latitude'] ?? $job->pickup_latitude,
+            $updates['pickup_longitude'] ?? $job->pickup_longitude,
+        );
+        [$updates['dropoff_latitude'], $updates['dropoff_longitude']] = $this->routeDistance->normaliseCoordinates(
+            $updates['dropoff_latitude'] ?? $job->dropoff_latitude,
+            $updates['dropoff_longitude'] ?? $job->dropoff_longitude,
+        );
 
         if (($updates['listing_type'] ?? null) === 'private') {
             $updates['auction_reference'] = null;

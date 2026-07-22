@@ -17,6 +17,9 @@ class RouteDistanceService
         mixed $dropoffLatitude,
         mixed $dropoffLongitude,
     ): ?float {
+        [$pickupLatitude, $pickupLongitude] = $this->normaliseCoordinates($pickupLatitude, $pickupLongitude);
+        [$dropoffLatitude, $dropoffLongitude] = $this->normaliseCoordinates($dropoffLatitude, $dropoffLongitude);
+
         if (! $this->hasCoordinates($pickupLatitude, $pickupLongitude, $dropoffLatitude, $dropoffLongitude)) {
             return null;
         }
@@ -82,6 +85,26 @@ class RouteDistanceService
 
             return null;
         }
+    }
+
+    /**
+     * Correct the common UK latitude/longitude reversal before routing.
+     * UK latitude is roughly 49–61 and longitude roughly -9–2.
+     */
+    public function normaliseCoordinates(mixed $latitude, mixed $longitude): array
+    {
+        if (! is_numeric($latitude) || ! is_numeric($longitude)) {
+            return [$latitude, $longitude];
+        }
+
+        $latitude = (float) $latitude;
+        $longitude = (float) $longitude;
+
+        if ($latitude >= -10 && $latitude <= 10 && $longitude >= 49 && $longitude <= 61) {
+            return [$longitude, $latitude];
+        }
+
+        return [$latitude, $longitude];
     }
 
     protected function hasCoordinates(mixed ...$coordinates): bool

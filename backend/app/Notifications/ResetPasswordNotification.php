@@ -29,9 +29,13 @@ class ResetPasswordNotification extends Notification
 
         return (new MailMessage)
             ->subject('Reset your MotorRelay password')
-            ->greeting('Hello,')
-            ->line('We received a request to reset your MotorRelay password.')
-            ->action('Reset password', $resetUrl)
-            ->line('This link expires in 60 minutes. If you did not request this, you can ignore this email.');
+            ->view('emails.auth.reset-password', [
+                'resetUrl' => $resetUrl,
+                'expiresIn' => '60 minutes',
+            ])
+            ->text('emails.auth.reset-password-text', [
+                'resetUrl' => $resetUrl,
+                'expiresIn' => '60 minutes',
+            ]);
     }
 }

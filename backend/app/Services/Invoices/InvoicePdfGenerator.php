@@ -28,27 +28,6 @@ class InvoicePdfGenerator
             trim(($job->pickup_label ?? '') . ' ' . ($job->pickup_postcode ?? '')),
         ], fn ($line) => $line !== null && $line !== ''));
 
-        $payTo = [
-            'MotorRelay Finance',
-            'Sort Code: 04-00-44',
-            'Account: 12345678',
-            'Reference: ' . $invoice->number,
-        ];
-
-        $invoiceDetails = [
-            'Invoice No: ' . $invoice->number,
-            'Issued: ' . $issuedAt->format('d M Y'),
-            'Due: ' . $dueAt->format('d M Y'),
-            'Status: ' . ucfirst($invoice->status),
-        ];
-
-        $jobSummary = array_values(array_filter([
-            'Job #' . $job->id,
-            $job->title,
-            'Pickup: ' . trim(($job->pickup_label ?? '') . ' ' . ($job->pickup_postcode ?? '')),
-            'Drop-off: ' . trim(($job->dropoff_label ?? '') . ' ' . ($job->dropoff_postcode ?? '')),
-        ], fn ($line) => $line !== null && $line !== ''));
-
         $lineItems = $items->map(function (InvoiceItem $item) use ($currency) {
             $quantity = $item->quantity ?? 1;
             return [
@@ -62,106 +41,86 @@ class InvoicePdfGenerator
         $ops = [];
         $pageWidth = self::PAGE_WIDTH;
         $pageHeight = self::PAGE_HEIGHT;
-
+        $margin = 52;
+        $contentWidth = $pageWidth - ($margin * 2);
         $green = [11 / 255, 93 / 255, 71 / 255];
+        $mint = [94 / 255, 226 / 255, 174 / 255];
+        $ink = [3 / 255, 8 / 255, 22 / 255];
         $darkText = [48 / 255, 51 / 255, 58 / 255];
         $mutedText = [90 / 255, 95 / 255, 105 / 255];
+        $pale = [232 / 255, 248 / 255, 241 / 255];
+        $surface = [248 / 255, 251 / 255, 250 / 255];
 
-        // Header block
-        $this->rectFill($ops, 0, $pageHeight - 130, $pageWidth, 130, $green);
-        $this->drawText($ops, 'MotorRelay', 60, $pageHeight - 60, 28, true, [1, 1, 1]);
-        $this->drawText($ops, 'Move smarter logistics', 60, $pageHeight - 86, 12, false, [1, 1, 1]);
-        $this->drawText($ops, 'INVOICE', $pageWidth - 170, $pageHeight - 58, 26, true, [1, 1, 1]);
-        $this->drawText($ops, '#' . $invoice->number, $pageWidth - 170, $pageHeight - 84, 12, false, [1, 1, 1]);
+        $this->rectFill($ops, 0, 0, $pageWidth, $pageHeight, $surface);
+        $this->rectFill($ops, 0, $pageHeight - 170, $pageWidth, 170, $ink);
+        $this->rectFill($ops, $margin, $pageHeight - 105, 72, 4, $mint);
+        $this->drawText($ops, 'MotorRelay', $margin, $pageHeight - 68, 28, true, [1, 1, 1]);
+        $this->drawText($ops, 'Move smarter logistics', $margin, $pageHeight - 94, 10, false, [225 / 255, 235 / 255, 233 / 255]);
+        $this->drawText($ops, 'INVOICE', $pageWidth - 175, $pageHeight - 65, 17, true, $mint);
+        $this->drawText($ops, '#' . $invoice->number, $pageWidth - 175, $pageHeight - 91, 10, false, [225 / 255, 235 / 255, 233 / 255]);
 
-        $this->drawLine($ops, 60, $pageHeight - 150, $pageWidth - 60, $pageHeight - 150, [0.82, 0.85, 0.87], 0.8);
+        $cardY = 560;
+        $this->rectFill($ops, $margin, $cardY, $contentWidth, 125, [1, 1, 1]);
+        $this->drawText($ops, 'ISSUED TO', $margin + 18, $cardY + 101, 9, true, $green);
+        $this->drawText($ops, $this->shorten($billTo[0] ?? 'MotorRelay customer', 38), $margin + 18, $cardY + 78, 12, true, $ink);
+        $this->drawText($ops, $this->shorten($billTo[1] ?? '', 38), $margin + 18, $cardY + 57, 10, false, $mutedText);
+        $this->drawText($ops, 'PAYMENT DETAILS', $margin + 285, $cardY + 101, 9, true, $green);
+        $this->drawText($ops, 'Status: ' . ucfirst($invoice->status), $margin + 285, $cardY + 78, 10, true, $darkText);
+        $this->drawText($ops, 'Issued ' . $issuedAt->format('d M Y') . '  |  Due ' . $dueAt->format('d M Y'), $margin + 285, $cardY + 57, 9, false, $mutedText);
 
-        // Details sections
-        $detailsTop = $pageHeight - 180;
-        $leftCursor = $this->writeSection($ops, 'Issued to', $billTo, 60, $detailsTop, $green, $darkText);
-        $leftCursor = $this->writeSection($ops, 'Pay to', $payTo, 60, $leftCursor, $green, $darkText);
+        $routeY = 395;
+        $this->rectFill($ops, $margin, $routeY, $contentWidth, 130, [1, 1, 1]);
+        $this->drawText($ops, 'JOB SUMMARY', $margin + 18, $routeY + 105, 9, true, $green);
+        $this->drawText($ops, $this->shorten('Job #' . $job->id . '  |  ' . ($job->title ?: 'Vehicle movement'), 78), $margin + 18, $routeY + 82, 12, true, $ink);
+        $this->drawText($ops, $this->shorten('Pickup: ' . trim(($job->pickup_label ?? '') . ' ' . ($job->pickup_postcode ?? '')), 78), $margin + 18, $routeY + 58, 9.5, false, $darkText);
+        $this->drawText($ops, $this->shorten('Drop-off: ' . trim(($job->dropoff_label ?? '') . ' ' . ($job->dropoff_postcode ?? '')), 78), $margin + 18, $routeY + 38, 9.5, false, $darkText);
+        $this->drawText($ops, 'PAY TO', $margin + 18, $routeY + 16, 8, true, $green);
+        $this->drawText($ops, 'MotorRelay Finance  |  Ref: ' . $invoice->number, $margin + 70, $routeY + 16, 8.5, false, $mutedText);
 
-        $rightColumnX = $pageWidth - 220;
-        $rightCursor = $this->writeSection($ops, 'Invoice details', $invoiceDetails, $rightColumnX, $detailsTop, $green, $darkText);
-        $rightCursor = $this->writeSection($ops, 'Job summary', $jobSummary, $rightColumnX, $rightCursor, $green, $darkText);
-
-        $tableTop = min($leftCursor, $rightCursor) - 20;
-        $tableLeft = 60;
-        $tableWidth = $pageWidth - 120;
-        $headerHeight = 28;
-        $rowHeight = 26;
-
+        $tableLeft = $margin;
+        $tableTop = $routeY - 24;
+        $tableWidth = $contentWidth;
+        $headerHeight = 25;
+        $rowHeight = 23;
         $headerBottom = $tableTop - $headerHeight;
-        $this->rectFill($ops, $tableLeft, $headerBottom, $tableWidth, $headerHeight, [0.90, 0.95, 0.93]);
-
-        $headerTextY = $headerBottom + $headerHeight - 10;
-        $descriptionX = $tableLeft + 8;
-        $unitX = $tableLeft + 260;
-        $qtyX = $tableLeft + 350;
-        $totalX = $tableLeft + $tableWidth - 56;
-
-        $this->drawText($ops, 'DESCRIPTION', $descriptionX, $headerTextY, 10, true, $green);
-        $this->drawText($ops, 'UNIT PRICE', $unitX, $headerTextY, 10, true, $green);
-        $this->drawText($ops, 'QTY', $qtyX, $headerTextY, 10, true, $green);
-        $this->drawText($ops, 'TOTAL', $totalX, $headerTextY, 10, true, $green);
-
+        $this->rectFill($ops, $tableLeft, $headerBottom, $tableWidth, $headerHeight, $pale);
+        $descriptionX = $tableLeft + 10;
+        $unitX = $tableLeft + 280;
+        $qtyX = $tableLeft + 375;
+        $totalX = $tableLeft + $tableWidth - 62;
+        $this->drawText($ops, 'DESCRIPTION', $descriptionX, $headerBottom + 9, 8.5, true, $green);
+        $this->drawText($ops, 'UNIT', $unitX, $headerBottom + 9, 8.5, true, $green);
+        $this->drawText($ops, 'QTY', $qtyX, $headerBottom + 9, 8.5, true, $green);
+        $this->drawText($ops, 'TOTAL', $totalX, $headerBottom + 9, 8.5, true, $green);
         $rowTop = $headerBottom;
         foreach ($lineItems as $index => $line) {
             $rowBottom = $rowTop - $rowHeight;
-
-            if ($index % 2 === 0) {
-                $this->rectFill($ops, $tableLeft, $rowBottom, $tableWidth, $rowHeight, [0.97, 0.98, 0.97]);
-            }
-
-            $textY = $rowBottom + $rowHeight - 9;
-            $this->drawText($ops, $line['description'], $descriptionX, $textY, 10, false, $darkText);
-            $this->drawText($ops, $line['unit'], $unitX, $textY, 10, false, $darkText);
-            $this->drawText($ops, $line['qty'], $qtyX, $textY, 10, false, $darkText);
-            $this->drawText($ops, $line['total'], $totalX, $textY, 10, false, $darkText);
-
+            if ($index % 2 === 0) $this->rectFill($ops, $tableLeft, $rowBottom, $tableWidth, $rowHeight, [0.97, 0.98, 0.97]);
+            $textY = $rowBottom + 8;
+            $this->drawText($ops, $this->shorten($line['description'], 42), $descriptionX, $textY, 9, false, $darkText);
+            $this->drawText($ops, $line['unit'], $unitX, $textY, 9, false, $darkText);
+            $this->drawText($ops, $line['qty'], $qtyX, $textY, 9, false, $darkText);
+            $this->drawText($ops, $line['total'], $totalX, $textY, 9, false, $darkText);
             $rowTop = $rowBottom;
-            $this->drawLine($ops, $tableLeft, $rowBottom, $tableLeft + $tableWidth, $rowBottom, [0.90, 0.92, 0.93], 0.5);
         }
 
-        $totalsY = $rowTop - 18;
-        $this->drawLine($ops, $tableLeft, $rowTop + 6, $tableLeft + $tableWidth, $rowTop + 6, [0.75, 0.78, 0.80], 0.8);
+        $totalsY = max(125, $rowTop - 25);
+        $this->rectFill($ops, $margin, $totalsY - 25, $contentWidth, 58, $ink);
+        $this->drawText($ops, 'TOTAL DUE', $margin + 18, $totalsY + 8, 10, true, $mint);
+        $this->drawText($ops, $this->formatMoney((float) $invoice->total, $currency), $pageWidth - $margin - 145, $totalsY + 3, 18, true, [1, 1, 1]);
 
-        $totalLabelX = $totalX - 140;
-        $totalValueX = $totalX;
-
-        $this->drawText($ops, 'Subtotal', $totalLabelX, $totalsY, 11, true, $darkText);
-        $this->drawText($ops, $this->formatMoney((float) $invoice->subtotal, $currency), $totalValueX, $totalsY, 11, false, $darkText);
-        $totalsY -= 18;
-
-        $this->drawText($ops, 'VAT', $totalLabelX, $totalsY, 11, true, $darkText);
-        $this->drawText($ops, $this->formatMoney((float) $invoice->vat_total, $currency), $totalValueX, $totalsY, 11, false, $darkText);
-        $totalsY -= 24;
-
-        $this->drawText($ops, 'TOTAL DUE', $totalLabelX, $totalsY, 13, true, $green);
-        $this->drawText($ops, $this->formatMoney((float) $invoice->total, $currency), $totalValueX, $totalsY, 13, true, $green);
-
-        $footerY = 150;
-        $this->drawLine($ops, 60, $footerY + 20, $pageWidth - 60, $footerY + 20, [0.90, 0.92, 0.93], 0.5);
-        $this->drawText($ops, 'Payment terms: due within 14 days.', 60, $footerY + 4, 10, false, $mutedText);
-        $this->drawText($ops, 'Thank you for partnering with MotorRelay.', 60, $footerY - 12, 10, false, $mutedText);
-        $this->drawText($ops, 'motorrelay.com', $pageWidth - 160, $footerY - 12, 10, false, $mutedText);
+        $footerY = 58;
+        $this->drawLine($ops, $margin, $footerY + 20, $pageWidth - $margin, $footerY + 20, [0.82, 0.85, 0.87], 0.6);
+        $this->drawText($ops, 'Payment terms: due within 14 days.', $margin, $footerY + 4, 8.5, false, $mutedText);
+        $this->drawText($ops, 'Generated by MotorRelay  |  motorrelay.com', $margin, $footerY - 12, 8.5, false, $mutedText);
 
         return $this->finalizePdf($ops, $pageWidth, $pageHeight);
     }
 
-    private function writeSection(array &$ops, string $title, array $lines, float $x, float $startY, array $titleColor, array $textColor): float
+    private function shorten(?string $value, int $limit): string
     {
-        $this->drawText($ops, strtoupper($title), $x, $startY, 10, true, $titleColor);
-        $y = $startY - 18;
-        foreach ($lines as $line) {
-            if ($line === null || trim((string) $line) === '') {
-                continue;
-            }
-            $this->drawText($ops, (string) $line, $x, $y, 11, false, $textColor);
-            $y -= 16;
-        }
-
-        return $y - 12;
+        $value = trim((string) $value);
+        return $value === '' ? '' : (strlen($value) > $limit ? substr($value, 0, $limit - 3) . '...' : $value);
     }
 
     private function drawText(array &$ops, string $text, float $x, float $y, float $size = 12, bool $bold = false, array $rgb = [0, 0, 0]): void

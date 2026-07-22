@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BackPillButton from '@/components/BackPillButton.vue';
+import InspectionGalleryOverlay from '@/components/jobs/InspectionGalleryOverlay.vue';
 import {
   approveJobInspection,
   downloadInspectionPhoto,
@@ -22,6 +23,8 @@ const photoPreviews = ref({});
 const localPreviews = ref([]);
 const previewLoading = ref(false);
 const selectedPhotoIndex = ref(0);
+const galleryOpen = ref(false);
+const galleryTouchStartX = ref(null);
 const actionLoading = ref('');
 const successNotice = ref('');
 
@@ -42,6 +45,16 @@ const photos = computed(() => {
   return Array.isArray(payload) ? payload : [];
 });
 const selectedPhoto = computed(() => photos.value[selectedPhotoIndex.value] ?? null);
+const galleryPhoto = computed(() => {
+  const photo = selectedPhoto.value;
+  if (!photo) return null;
+
+  return {
+    ...photo,
+    name: photo.original_name || photo.path || 'Inspection photo',
+    previewUrl: photoPreviews.value[photo.id] || ''
+  };
+});
 const selectedPhotoCount = computed(() => photos.value.length + form.files.length);
 const completionStatus = computed(() => job.value?.completion_status ?? 'not_submitted');
 const isAssignedDriver = computed(() => Boolean(job.value && auth.user && job.value.assigned_to_id === auth.user.id));
@@ -143,6 +156,38 @@ function removeLocalFile(index) {
   if (removedFile) fileShots.delete(fileKey(removedFile));
   form.files = form.files.filter((_, fileIndex) => fileIndex !== index);
   syncLocalPreviews();
+}
+
+function openGallery(index = selectedPhotoIndex.value) {
+  selectedPhotoIndex.value = Math.max(0, Math.min(index, photos.value.length - 1));
+  galleryOpen.value = true;
+}
+
+function closeGallery() {
+  galleryOpen.value = false;
+}
+
+function previousGalleryPhoto() {
+  if (photos.value.length < 2) return;
+  selectedPhotoIndex.value = (selectedPhotoIndex.value - 1 + photos.value.length) % photos.value.length;
+}
+
+function nextGalleryPhoto() {
+  if (photos.value.length < 2) return;
+  selectedPhotoIndex.value = (selectedPhotoIndex.value + 1) % photos.value.length;
+}
+
+function onGalleryTouchStart(event) {
+  galleryTouchStartX.value = event.touches?.[0]?.clientX ?? null;
+}
+
+function onGalleryTouchEnd(event) {
+  if (galleryTouchStartX.value === null) return;
+  const endX = event.changedTouches?.[0]?.clientX ?? galleryTouchStartX.value;
+  const delta = endX - galleryTouchStartX.value;
+  galleryTouchStartX.value = null;
+  if (Math.abs(delta) < 40) return;
+  delta > 0 ? previousGalleryPhoto() : nextGalleryPhoto();
 }
 
 function localPreviewFor(shot) {
@@ -338,7 +383,8 @@ onBeforeUnmount(() => {
           v-if="selectedPhoto && photoPreviews[selectedPhoto.id]"
           :src="photoPreviews[selectedPhoto.id]"
           :alt="selectedPhoto.original_name || 'Inspection photo'"
-          class="h-80 w-full object-cover"
+          class="h-80 w-full cursor-zoom-in object-contain"
+          @click="openGallery(selectedPhotoIndex)"
         >
         <div v-else class="flex h-80 items-center justify-center p-6 text-center text-sm font-bold text-slate-500 dark:text-emerald-100">
           {{ previewLoading ? 'Loading preview...' : 'Preview unavailable' }}
@@ -372,5 +418,18 @@ onBeforeUnmount(() => {
     <section v-else-if="!loading" class="tile border-dashed p-4 text-sm font-semibold text-slate-600 dark:text-emerald-100">
       No inspection photos have been uploaded yet.
     </section>
+
+    <InspectionGalleryOverlay
+      :open="galleryOpen"
+      :photo="galleryPhoto"
+      :index="selectedPhotoIndex"
+      :total="photos.length"
+      :allow-remove="false"
+      @close="closeGallery"
+      @previous="previousGalleryPhoto"
+      @next="nextGalleryPhoto"
+      @touch-start="onGalleryTouchStart"
+      @touch-end="onGalleryTouchEnd"
+    />
   </div>
 </template>

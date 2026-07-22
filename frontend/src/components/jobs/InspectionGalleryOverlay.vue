@@ -15,6 +15,10 @@ defineProps({
   total: {
     type: Number,
     default: 0
+  },
+  allowRemove: {
+    type: Boolean,
+    default: true
   }
 });
 
@@ -30,6 +34,7 @@ defineEmits(["close", "previous", "next", "remove", "touch-start", "touch-end"])
           <h3 class="mt-1 text-lg font-black">Photo {{ index + 1 }} of {{ total }}</h3>
         </div>
         <button
+          v-if="allowRemove"
           type="button"
           class="rounded-2xl border border-white/15 px-4 py-2 text-sm font-black text-white"
           @click="$emit('close')"

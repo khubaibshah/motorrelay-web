@@ -34,6 +34,7 @@ const form = reactive({
 
 const minimumPhotoCount = 6;
 const requiredShots = ['Front', 'Rear', 'Left side', 'Right side', 'Interior', 'Mileage'];
+const fileShots = reactive(new Map());
 
 const jobId = computed(() => route.params.id);
 const photos = computed(() => {
@@ -105,16 +106,21 @@ async function loadPage() {
   }
 }
 
-function handleFiles(event) {
+function fileKey(file) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function addFiles(event, shot = 'Damage / additional') {
   form.error = '';
   const incoming = Array.from(event.target?.files ?? []).filter((file) => file.type?.startsWith('image/'));
-  const existingKeys = new Set(form.files.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+  const existingKeys = new Set(form.files.map(fileKey));
   form.files = [
     ...form.files,
     ...incoming.filter((file) => {
-      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      const key = fileKey(file);
       if (existingKeys.has(key)) return false;
       existingKeys.add(key);
+      fileShots.set(key, shot);
       return true;
     })
   ].slice(0, 20);
@@ -125,16 +131,26 @@ function handleFiles(event) {
 function syncLocalPreviews() {
   localPreviews.value.forEach((preview) => URL.revokeObjectURL(preview.url));
   localPreviews.value = form.files.map((file, index) => ({
-    id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+    id: `${fileKey(file)}-${index}`,
     name: file.name,
     url: URL.createObjectURL(file),
-    shot: requiredShots[index] || `Photo ${index + 1}`
+    shot: fileShots.get(fileKey(file)) || `Photo ${index + 1}`
   }));
 }
 
 function removeLocalFile(index) {
+  const removedFile = form.files[index];
+  if (removedFile) fileShots.delete(fileKey(removedFile));
   form.files = form.files.filter((_, fileIndex) => fileIndex !== index);
   syncLocalPreviews();
+}
+
+function localPreviewFor(shot) {
+  return localPreviews.value.find((preview) => preview.shot === shot);
+}
+
+function isShotReady(shot, index) {
+  return Boolean(localPreviewFor(shot)) || photos.value.length > index;
 }
 
 async function submitPhotos() {
@@ -154,6 +170,7 @@ async function submitPhotos() {
       proofs: form.files
     });
     form.notes = '';
+    fileShots.clear();
     form.files = [];
     syncLocalPreviews();
     await loadPage();
@@ -264,22 +281,29 @@ onBeforeUnmount(() => {
         </p>
       </aside>
 
-      <div class="grid grid-cols-3 gap-2">
-        <span
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <label
           v-for="(shot, index) in requiredShots"
           :key="shot"
-          class="rounded-xl px-2 py-2 text-xs font-black"
-          :class="selectedPhotoCount > index ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-slate-950' : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-emerald-100'"
+          class="relative cursor-pointer rounded-xl px-3 py-3 text-xs font-black transition"
+          :class="isShotReady(shot, index) ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-slate-950' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 dark:bg-white/10 dark:text-emerald-100 dark:hover:bg-emerald-400/20'"
         >
           <span class="block">{{ shot }}</span>
-          <span class="mt-0.5 block text-[0.65rem] font-bold opacity-80">{{ selectedPhotoCount > index ? 'Ready' : 'Needed' }}</span>
-        </span>
+          <span class="mt-0.5 block text-[0.65rem] font-bold opacity-80">{{ isShotReady(shot, index) ? 'Uploaded ✓' : 'Tap to add' }}</span>
+          <img
+            v-if="localPreviewFor(shot)"
+            :src="localPreviewFor(shot).url"
+            :alt="`${shot} preview`"
+            class="mt-2 h-16 w-full rounded-lg object-cover"
+          >
+          <input type="file" accept="image/*" class="sr-only" @change="addFiles($event, shot)">
+        </label>
+        <label class="relative cursor-pointer rounded-xl bg-slate-100 px-3 py-3 text-xs font-black text-slate-600 transition hover:bg-amber-50 dark:bg-white/10 dark:text-emerald-100 dark:hover:bg-amber-400/20">
+          <span class="block">Damage / additional</span>
+          <span class="mt-0.5 block text-[0.65rem] font-bold opacity-80">Optional · tap to add</span>
+          <input type="file" accept="image/*" multiple class="sr-only" @change="addFiles($event)">
+        </label>
       </div>
-
-      <label class="flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-4 py-4 text-center text-sm font-black text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-300/30 dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:bg-emerald-400/20">
-        <span>{{ form.files.length ? 'Add more photos' : 'Choose inspection photos' }}</span>
-        <input type="file" accept="image/*" multiple class="sr-only" @change="handleFiles">
-      </label>
 
       <div v-if="localPreviews.length" class="grid grid-cols-3 gap-2">
         <div v-for="(preview, index) in localPreviews" :key="preview.id" class="relative overflow-hidden rounded-2xl border border-emerald-200 bg-slate-100 dark:border-emerald-400/30 dark:bg-white/[0.06]">

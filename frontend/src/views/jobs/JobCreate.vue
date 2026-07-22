@@ -200,14 +200,13 @@ function cancelAbandonNavigation() {
 }
 
 async function confirmAbandonNavigation() {
-  const target = pendingNavigation.value;
   showAbandonModal.value = false;
   pendingNavigation.value = null;
-  if (!target) return;
+  if (!jobId.value) return;
 
   allowNavigation.value = true;
   jobDraft.clearDraft();
-  await router.push(target);
+  await router.push({ name: 'job-detail', params: { id: jobId.value } });
 }
 
 const jobPrice = computed(() => Number(normalisePrice(form.price) || 0));

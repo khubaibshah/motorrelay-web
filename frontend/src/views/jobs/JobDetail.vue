@@ -267,12 +267,24 @@ const {
 });
 const canUseDriverMode = computed(() => {
   if (!Capacitor.isNativePlatform()) return false;
-  return canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value;
+  // Keep the overlay available whenever its launch button is available. The
+  // previous check only considered the individual workflow actions, so a
+  // valid "Start driver mode" state could render a button that immediately
+  // disappeared because the overlay itself was gated off.
+  return canStartDriverMode.value || canShareTracking.value || canMarkCollected.value || canMarkDeliveredFromDetail.value || canReportIncident.value || canUploadInspection.value || canSubmitCompletion.value;
 });
 const canStartDriverMode = computed(() => {
+  // Driver Mode is a native-only workflow. Keeping the same platform guard
+  // on the button and overlay prevents a desktop button that cannot open.
+  if (!Capacitor.isNativePlatform()) return false;
   if (!isAssignedDriver.value) return false;
   return ['in_transit', 'collected'].includes(String(job.value?.status || '').toLowerCase());
 });
+
+function openDriverMode() {
+  if (!canStartDriverMode.value || !canUseDriverMode.value) return;
+  driverModeOpen.value = true;
+}
 
 const runPhotosRoute = computed(() => ({
   name: "job-photos",
@@ -1372,7 +1384,7 @@ watch(
         :assessment-report-available="Boolean(job.auction_assessment_report_path)"
         :assessment-report-downloading="assessmentReportDownloading"
         @request-job="handleRequestJob"
-        @start-driver-mode="driverModeOpen = true"
+        @start-driver-mode="openDriverMode"
         @share-location="shareLiveLocation"
         @mark-collected="openActionConfirmation('collect')"
         @mark-delivered="openActionConfirmation('deliver')"

@@ -176,14 +176,10 @@ const pricingRules = {
   trailerRatePerMile: 2.5
 };
 const lastAppliedSuggestedPrice = ref(null);
+const routeDistanceLoading = ref(false);
+const routeDistanceMiles = ref(null);
 const estimatedPlatformFee = computed(() => Math.max(jobPrice.value * platformCommissionRate, 0));
 const estimatedDriverPayout = computed(() => Math.max(jobPrice.value - estimatedPlatformFee.value, 0));
-const routeDistanceMiles = computed(() => calculateDistanceMiles(
-  form.pickup_latitude,
-  form.pickup_longitude,
-  form.dropoff_latitude,
-  form.dropoff_longitude
-));
 const suggestedJobPrice = computed(() => {
   if (!routeDistanceMiles.value) return 0;
 
@@ -229,6 +225,40 @@ function calculateDistanceMiles(pickupLatitude, pickupLongitude, dropoffLatitude
   const distance = 2 * earthRadiusMiles * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return Math.round(distance * 10) / 10;
+}
+
+let routeDistanceRequest = 0;
+
+async function refreshRouteDistance() {
+  const coordinates = {
+    pickup_latitude: form.pickup_latitude,
+    pickup_longitude: form.pickup_longitude,
+    dropoff_latitude: form.dropoff_latitude,
+    dropoff_longitude: form.dropoff_longitude,
+  };
+  const fallback = calculateDistanceMiles(
+    coordinates.pickup_latitude,
+    coordinates.pickup_longitude,
+    coordinates.dropoff_latitude,
+    coordinates.dropoff_longitude,
+  );
+
+  routeDistanceMiles.value = fallback;
+  if (fallback === null) return;
+
+  const requestId = ++routeDistanceRequest;
+  routeDistanceLoading.value = true;
+  try {
+    const { data } = await api.get('/jobs/route-distance', { params: coordinates });
+    if (requestId === routeDistanceRequest && Number.isFinite(Number(data?.distance_mi))) {
+      routeDistanceMiles.value = Number(data.distance_mi);
+    }
+  } catch (error) {
+    // The straight-line value remains visible if routing is temporarily unavailable.
+    console.warn('Driving distance unavailable; using approximate distance', error);
+  } finally {
+    if (requestId === routeDistanceRequest) routeDistanceLoading.value = false;
+  }
 }
 
 function toRadians(value) {
@@ -572,6 +602,17 @@ watch(
       validationState.dropoff_label = false;
     }
   }
+);
+
+watch(
+  () => [
+    form.pickup_latitude,
+    form.pickup_longitude,
+    form.dropoff_latitude,
+    form.dropoff_longitude,
+  ],
+  refreshRouteDistance,
+  { immediate: true },
 );
 
 watch(

@@ -4,19 +4,42 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use App\Services\Jobs\JobService;
+use App\Services\RouteDistanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class JobController extends Controller
 {
-    public function __construct(protected JobService $jobs)
+    public function __construct(
+        protected JobService $jobs,
+        protected RouteDistanceService $routeDistance,
+    )
     {
     }
 
     public function highlights(): JsonResponse
     {
         return response()->json(['jobs' => $this->jobs->highlights()]);
+    }
+
+    public function routeDistance(Request $request): JsonResponse
+    {
+        $coordinates = $request->validate([
+            'pickup_latitude' => ['required', 'numeric', 'between:-90,90'],
+            'pickup_longitude' => ['required', 'numeric', 'between:-180,180'],
+            'dropoff_latitude' => ['required', 'numeric', 'between:-90,90'],
+            'dropoff_longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        return response()->json([
+            'distance_mi' => $this->routeDistance->drivingMiles(
+                $coordinates['pickup_latitude'],
+                $coordinates['pickup_longitude'],
+                $coordinates['dropoff_latitude'],
+                $coordinates['dropoff_longitude'],
+            ),
+        ]);
     }
 
     public function index(Request $request): JsonResponse

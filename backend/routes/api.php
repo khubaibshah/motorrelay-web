@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/account/change-requests', [AccountChangeRequestController::class, 'store']);
 
     Route::get('/jobs', [JobController::class, 'index']);
+    Route::get('/jobs/route-distance', [JobController::class, 'routeDistance']);
     Route::post('/jobs', [JobController::class, 'store']);
     Route::get('/jobs/{job}', [JobController::class, 'show']);
     Route::patch('/jobs/{job}', [JobController::class, 'update']);

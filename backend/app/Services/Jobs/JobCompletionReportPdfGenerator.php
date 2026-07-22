@@ -265,20 +265,24 @@ class JobCompletionReportPdfGenerator
                 return null;
             }
 
-            // Embed JPEG streams directly. Convert other browser formats when
-            // GD is available instead of silently producing a blank appendix.
-            if (($info[2] ?? null) !== IMAGETYPE_JPEG) {
-                $converted = $this->convertToJpeg($bytes);
-                if (! $converted) {
-                    Log::warning('Completion report image format is unsupported', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'mime' => $photo->mime_type]);
-                    return null;
-                }
-                $bytes = $converted;
+            // Normalize every source through GD when available. Mobile
+            // cameras can upload progressive/CMYK JPEGs or WebP files; those
+            // are valid images but are not consistently rendered by PDF
+            // viewers when copied directly into a DCTDecode stream.
+            $normalized = $this->convertToJpeg($bytes);
+            if ($normalized) {
+                $bytes = $normalized;
                 $info = @getimagesizefromstring($bytes);
+            } elseif (($info[2] ?? null) !== IMAGETYPE_JPEG) {
+                Log::warning('Completion report image format is unsupported', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'mime' => $photo->mime_type]);
+                return null;
             }
 
-            $channels = (int) ($info['channels'] ?? 3);
-            return ['name' => 'Im' . $photo->id, 'bytes' => $bytes, 'width' => $info[0], 'height' => $info[1], 'orientation' => $this->jpegOrientation($bytes), 'color_space' => $channels === 4 ? '/DeviceCMYK' : '/DeviceRGB'];
+            if (! $info || ($info[2] ?? null) !== IMAGETYPE_JPEG) {
+                return null;
+            }
+
+            return ['name' => 'Im' . $photo->id, 'bytes' => $bytes, 'width' => $info[0], 'height' => $info[1], 'orientation' => 1, 'color_space' => '/DeviceRGB'];
         } catch (\Throwable $exception) {
             Log::warning('Completion report image failed to load', ['job_id' => $photo->job_id, 'photo_id' => $photo->id, 'message' => $exception->getMessage()]);
             return null;
@@ -296,10 +300,18 @@ class JobCompletionReportPdfGenerator
             return null;
         }
 
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $rgb = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($rgb, 255, 255, 255);
+        imagefill($rgb, 0, 0, $white);
+        imagecopy($rgb, $image, 0, 0, 0, 0, $width, $height);
+
         ob_start();
-        imagejpeg($image, null, 90);
+        imagejpeg($rgb, null, 90);
         $converted = ob_get_clean();
         imagedestroy($image);
+        imagedestroy($rgb);
 
         return $converted ?: null;
     }

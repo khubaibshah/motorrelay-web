@@ -71,6 +71,17 @@ class JobCompletionReportPdfGenerator
         return $this->finalizePdf($pageOperations);
     }
 
+    /** Persist the completed report once, so downloads do not rebuild it. */
+    public function store(Job $job): string
+    {
+        $disk = config('invoices.completion_report_disk');
+        $path = sprintf('jobs/%d/reports/completion-report.pdf', $job->id);
+
+        Storage::disk($disk)->put($path, $this->render($job));
+
+        return $path;
+    }
+
     private function buildCoverPage(Job $job, int $totalPages): array
     {
         $ops = [];

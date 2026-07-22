@@ -23,6 +23,7 @@ class JobWorkflowService
         protected AwsS3Service $s3,
         protected InvoiceFinalizer $invoiceFinalizer,
         protected StripePaymentService $payments,
+        protected JobCompletionReportPdfGenerator $completionReports,
     ) {}
 
     public function markCollected(Job $job): Job
@@ -206,6 +207,8 @@ class JobWorkflowService
 
         $job->loadMissing(['expenses']);
         $invoice = $this->invoiceFinalizer->finalize($job, $dealer);
+        $job->refresh()->load(['postedBy', 'assignedTo', 'inspectionPhotos', 'incidents.reportedBy', 'expenses']);
+        $this->completionReports->store($job);
 
         $this->notifyAssignedDriver($job->fresh(), 'completion_approved');
 
@@ -342,6 +345,8 @@ class JobWorkflowService
         }
 
         $invoice = $this->invoiceFinalizer->finalize($job->fresh(), $dealer);
+        $job->refresh()->load(['postedBy', 'assignedTo', 'inspectionPhotos', 'incidents.reportedBy', 'expenses']);
+        $this->completionReports->store($job);
 
         $this->notifyAssignedDriver($job->fresh(), 'completion_approved');
 

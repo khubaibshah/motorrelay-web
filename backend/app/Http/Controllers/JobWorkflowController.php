@@ -238,9 +238,17 @@ class JobWorkflowController extends Controller
             'expenses',
         ]);
 
+        $disk = config('invoices.completion_report_disk');
+        $path = sprintf('jobs/%d/reports/completion-report.pdf', $job->id);
+        $storage = Storage::disk($disk);
+
+        if (! $storage->exists($path)) {
+            $this->completionReports->store($job);
+        }
+
         $filename = sprintf('motorrelay-job-%d-completion-report.pdf', $job->id);
 
-        return response($this->completionReports->render($job), 200, [
+        return response($storage->get($path), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'private, no-store',

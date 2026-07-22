@@ -581,7 +581,7 @@ function selectTransport(value) {
 }
 
 function changeVehicle() {
-  if (isEdit.value || vehicleLookupLoading.value) return;
+  if (vehicleLookupLoading.value) return;
 
   verifiedVehicle.value = null;
   vehicleLookupError.value = '';
@@ -711,11 +711,11 @@ async function validateCurrentStep() {
   clearValidationState();
 
   if (currentStep.value === 0) {
-    if (!verifiedVehicle.value && !isEdit.value) {
+    if (!verifiedVehicle.value) {
       await lookupVehicle();
     }
 
-    if (!verifiedVehicle.value && !isEdit.value) {
+    if (!verifiedVehicle.value) {
       setValidationError('vehicle', 'Please verify the registration plate before continuing.');
       throw new Error('Please complete the highlighted field before continuing.');
     }
@@ -905,7 +905,7 @@ async function submit() {
   try {
     await validateCurrentStep();
 
-    if (!verifiedVehicle.value && !isEdit.value) {
+    if (!verifiedVehicle.value) {
       throw new Error('Verify the registration plate before creating this run.');
     }
 

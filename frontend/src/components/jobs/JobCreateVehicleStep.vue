@@ -25,8 +25,8 @@ defineEmits(['lookup-vehicle', 'change-vehicle', 'next']);
           type="text"
           required
           placeholder="e.g. AB12 CDE"
-          :readonly="isEdit || Boolean(verifiedVehicle)"
-          @blur="!isEdit && !verifiedVehicle && $emit('lookup-vehicle')"
+          :readonly="Boolean(verifiedVehicle)"
+          @blur="!verifiedVehicle && $emit('lookup-vehicle')"
           class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-950 dark:text-emerald-100 dark:placeholder:text-emerald-100/40"
           :class="[
             verifiedVehicle ? 'bg-slate-100 font-black text-slate-700 dark:bg-white/10 dark:text-emerald-100' : '',
@@ -36,7 +36,7 @@ defineEmits(['lookup-vehicle', 'change-vehicle', 'next']);
       </label>
 
       <button
-        v-if="!isEdit && !verifiedVehicle"
+        v-if="!verifiedVehicle"
         type="button"
         class="btn-secondary shrink-0 px-5"
         :disabled="vehicleLookupLoading || !form.title"
@@ -46,7 +46,7 @@ defineEmits(['lookup-vehicle', 'change-vehicle', 'next']);
         <span v-else>Check plate</span>
       </button>
       <button
-        v-else-if="!isEdit"
+        v-else
         type="button"
         class="btn-secondary shrink-0 px-5"
         :disabled="vehicleLookupLoading"

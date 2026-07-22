@@ -8,6 +8,7 @@ use App\Models\JobApplication;
 use App\Models\JobDailyMetric;
 use App\Models\User;
 use App\Services\AwsS3Service;
+use App\Services\RouteDistanceService;
 use App\Services\VehicleLookupService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
@@ -19,6 +20,7 @@ class JobService
     public function __construct(
         protected VehicleLookupService $vehicles,
         protected AwsS3Service $s3,
+        protected RouteDistanceService $routeDistance,
     ) {}
 
     public function highlights()
@@ -114,11 +116,16 @@ class JobService
         $pickupReadyAt = ! empty($data['pickup_ready_at']) ? Carbon::parse($data['pickup_ready_at']) : null;
         $deliveryDueAt = ! empty($data['delivery_due_at']) ? Carbon::parse($data['delivery_due_at']) : null;
 
-        $distanceMiles = $this->calculateDistanceMiles(
+        $distanceMiles = $this->routeDistance->drivingMiles(
             $data['pickup_latitude'] ?? null,
             $data['pickup_longitude'] ?? null,
             $data['dropoff_latitude'] ?? null,
             $data['dropoff_longitude'] ?? null
+        ) ?? $this->calculateDistanceMiles(
+            $data['pickup_latitude'] ?? null,
+            $data['pickup_longitude'] ?? null,
+            $data['dropoff_latitude'] ?? null,
+            $data['dropoff_longitude'] ?? null,
         );
 
         $jobPrice = (float) $data['price'];
@@ -554,11 +561,16 @@ class JobService
             $updates['delivery_due_at'] = $updates['delivery_due_at'] ? Carbon::parse($updates['delivery_due_at']) : null;
         }
 
-        $updates['distance_mi'] = $this->calculateDistanceMiles(
+        $updates['distance_mi'] = $this->routeDistance->drivingMiles(
             $updates['pickup_latitude'] ?? $job->pickup_latitude,
             $updates['pickup_longitude'] ?? $job->pickup_longitude,
             $updates['dropoff_latitude'] ?? $job->dropoff_latitude,
             $updates['dropoff_longitude'] ?? $job->dropoff_longitude
+        ) ?? $this->calculateDistanceMiles(
+            $updates['pickup_latitude'] ?? $job->pickup_latitude,
+            $updates['pickup_longitude'] ?? $job->pickup_longitude,
+            $updates['dropoff_latitude'] ?? $job->dropoff_latitude,
+            $updates['dropoff_longitude'] ?? $job->dropoff_longitude,
         );
 
         return $updates;

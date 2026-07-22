@@ -156,13 +156,6 @@ export async function rejectJobCompletion(jobId, payload = {}) {
   return data;
 }
 
-export async function downloadDeliveryProof(jobId) {
-  const response = await api.get(`/jobs/${jobId}/delivery-proof`, {
-    responseType: 'blob'
-  });
-  return response;
-}
-
 export async function downloadJobCompletionReport(jobId) {
   const response = await api.get(`/jobs/${jobId}/completion-report`, {
     responseType: 'blob'

@@ -28,10 +28,6 @@ defineProps({
     type: String,
     default: ""
   },
-  proofDownloading: {
-    type: Boolean,
-    default: false
-  },
   invoiceFinalized: {
     type: Boolean,
     default: false
@@ -50,7 +46,7 @@ defineProps({
   }
 });
 
-defineEmits(["download-proof", "download-report"]);
+defineEmits(["download-report"]);
 </script>
 
 <template>
@@ -95,16 +91,6 @@ defineEmits(["download-proof", "download-report"]);
       >
         <span v-if="reportDownloading">Preparing report...</span>
         <span v-else>Download full report</span>
-      </button>
-      <button
-        v-if="hasDeliveryProof"
-        type="button"
-        class="btn-secondary w-full px-4 py-2 text-sm sm:w-auto"
-        :disabled="proofDownloading"
-        @click="$emit('download-proof')"
-      >
-        <span v-if="proofDownloading">Downloading...</span>
-        <span v-else>Download inspection</span>
       </button>
       <RouterLink
         v-if="invoiceFinalized"

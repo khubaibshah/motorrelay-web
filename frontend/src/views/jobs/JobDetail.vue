@@ -5,7 +5,6 @@ import {
   fetchJobApplications,
   submitJobCompletion,
   uploadJobInspection,
-  downloadDeliveryProof,
   downloadJobCompletionReport,
   markJobCollected,
   markJobDelivered,
@@ -78,7 +77,6 @@ const completionForm = reactive({
 });
 const completionError = ref("");
 const completionSubmitting = ref(false);
-const proofDownloading = ref(false);
 const reportDownloading = ref(false);
 const assessmentReportDownloading = ref(false);
 const driverActionLoading = ref("");
@@ -916,30 +914,6 @@ function scrollToApplicationsSection() {
   });
 }
 
-function safeDownloadName(value) {
-  return (value || "")
-    .toString()
-    .trim()
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase()
-    .slice(0, 80);
-}
-
-function deliveryProofDownloadName() {
-  const baseName = safeDownloadName(
-    job.value?.registration ||
-      job.value?.vehicle_registration ||
-      job.value?.vehicle_reg ||
-      job.value?.vrm ||
-      job.value?.title ||
-      job.value?.vehicle_make ||
-      `job-${job.value?.id}`
-  );
-
-  return baseName || "inspection";
-}
-
 async function onDriverModeInspectionChange(event) {
   appendInspectionFiles(event.target?.files ?? []);
 }
@@ -1159,37 +1133,6 @@ async function handleApproveAndReleaseDelivery() {
     paymentError.value = error.response?.data?.message || error.message || "Could not approve delivery and release payout.";
   } finally {
     deliveryApprovalLoading.value = false;
-  }
-}
-
-async function handleDownloadProof() {
-  if (!job.value) return;
-
-  proofDownloading.value = true;
-  try {
-    const response = await downloadDeliveryProof(job.value.id);
-    const contentType = response.headers?.["content-type"] || "application/octet-stream";
-    const extension = contentType.includes("pdf")
-      ? "pdf"
-      : contentType.includes("png")
-      ? "png"
-      : contentType.includes("jpeg") || contentType.includes("jpg")
-      ? "jpg"
-      : "bin";
-    const blob = new Blob([response.data], { type: contentType });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${deliveryProofDownloadName()}.${extension}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Failed to download inspection", error);
-    alert("We could not download the inspection photos.");
-  } finally {
-    proofDownloading.value = false;
   }
 }
 
@@ -1510,12 +1453,10 @@ watch(
         :approved-at="formatDateTime(job?.completion_approved_at)"
         :has-delivery-proof="hasDeliveryProof"
         :notes="job?.completion_notes"
-        :proof-downloading="proofDownloading"
         :invoice-finalized="invoiceFinalized"
         :invoice-to="jobInvoiceLink"
         :report-available="isCompletedJob"
         :report-downloading="reportDownloading"
-        @download-proof="handleDownloadProof"
         @download-report="handleDownloadCompletionReport"
       />
 

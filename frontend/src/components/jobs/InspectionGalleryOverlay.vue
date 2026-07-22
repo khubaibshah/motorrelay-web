@@ -34,12 +34,12 @@ defineEmits(["close", "previous", "next", "remove", "touch-start", "touch-end"])
           <h3 class="mt-1 text-lg font-black">Photo {{ index + 1 }} of {{ total }}</h3>
         </div>
         <button
-          v-if="allowRemove"
           type="button"
-          class="rounded-2xl border border-white/15 px-4 py-2 text-sm font-black text-white"
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-2xl font-light text-white backdrop-blur transition hover:bg-white/20"
+          aria-label="Close inspection gallery"
           @click="$emit('close')"
         >
-          Close
+          ×
         </button>
       </header>
 
@@ -80,6 +80,7 @@ defineEmits(["close", "previous", "next", "remove", "touch-start", "touch-end"])
       <footer class="grid gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p class="truncate text-center text-sm font-bold text-emerald-100">{{ photo.name }}</p>
         <button
+          v-if="allowRemove"
           type="button"
           class="mx-auto rounded-2xl bg-white/10 px-4 py-2 text-xs font-black text-emerald-100"
           @click="$emit('remove')"

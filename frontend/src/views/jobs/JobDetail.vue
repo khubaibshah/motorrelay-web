@@ -21,6 +21,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useDriverStore } from "@/stores/driver";
 import { useJobsStore } from "@/stores/jobs";
 import { Capacitor } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import BackPillButton from "@/components/BackPillButton.vue";
 import DriverChatModal from "@/components/jobs/DriverChatModal.vue";
 import DriverModeOverlay from "@/components/jobs/DriverModeOverlay.vue";
@@ -1197,11 +1199,35 @@ async function handleDownloadCompletionReport() {
   reportDownloading.value = true;
   try {
     const response = await downloadJobCompletionReport(job.value.id);
+    const filename = `motorrelay-job-${job.value.id}-completion-report.pdf`;
+
+    // iOS cannot hand a blob: URL to its document viewer. Persist the PDF in
+    // the native cache first, then let the system share sheet open/save it.
+    if (Capacitor.isNativePlatform()) {
+      const base64 = await blobToBase64(response.data);
+      const saved = await Filesystem.writeFile({
+        path: filename,
+        data: base64,
+        directory: Directory.Cache,
+        recursive: true
+      });
+      try {
+        await Share.share({ title: 'MotorRelay completion report', url: saved.uri, dialogTitle: 'Save completion report' });
+      } catch (shareError) {
+        // Older native builds may not yet contain the Share pod. Opening the
+        // cached file URI is a useful fallback and avoids the blob: WebView
+        // failure that originally prevented reports from opening on iOS.
+        if (shareError?.code !== 'UNIMPLEMENTED') throw shareError;
+        window.open(saved.uri, '_blank');
+      }
+      return;
+    }
+
     const blob = new Blob([response.data], { type: 'application/pdf' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `motorrelay-job-${job.value.id}-completion-report.pdf`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1212,6 +1238,15 @@ async function handleDownloadCompletionReport() {
   } finally {
     reportDownloading.value = false;
   }
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function handleDownloadAssessmentReport() {

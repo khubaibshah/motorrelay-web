@@ -176,6 +176,18 @@ const routes = [
     }
   },
   {
+    path: '/profile/identity',
+    name: 'profile-identity',
+    component: () => import('../views/profile/DriverIdentityVerification.vue'),
+    meta: {
+      breadcrumb: [
+        { label: 'Profile', to: '/profile' },
+        { label: 'Identity & verification' }
+      ],
+      requiresRole: 'driver'
+    }
+  },
+  {
     path: '/profile/completed',
     name: 'profile-completed',
     component: () => import('../views/profile/ProfileCompletedJobs.vue'),

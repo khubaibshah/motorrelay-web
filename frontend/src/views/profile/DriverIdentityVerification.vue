@@ -8,6 +8,10 @@ import {
   fetchDriverLicenceVerification,
   submitDriverLicenceVerification,
 } from '@/services/driverVerification';
+import {
+  fetchDriverInsuranceVerification,
+  submitDriverInsuranceVerification,
+} from '@/services/driverInsurance';
 
 const auth = useAuthStore();
 const licenceForm = reactive({ licence_number: '', check_code: '' });
@@ -15,6 +19,11 @@ const licenceVerification = ref({ status: 'not_started' });
 const licenceLoading = ref(false);
 const licenceError = ref('');
 const licenceSuccess = ref('');
+const insuranceForm = reactive({ provider: '', policy_number: '', expires_at: '', document: null });
+const insuranceVerification = ref({ status: 'not_started' });
+const insuranceLoading = ref(false);
+const insuranceError = ref('');
+const insuranceSuccess = ref('');
 
 const licenceStatus = computed(() => licenceVerification.value?.status ?? 'not_started');
 const licenceComplete = computed(() => licenceStatus.value === 'verified');
@@ -25,6 +34,11 @@ const licenceStatusLabel = computed(() => ({
   failed: 'Needs attention',
   expired: 'Expired',
 }[licenceStatus.value] ?? 'Not started'));
+const insuranceStatus = computed(() => insuranceVerification.value?.status ?? 'not_started');
+const insuranceComplete = computed(() => insuranceStatus.value === 'verified');
+const insuranceStatusLabel = computed(() => ({
+  not_started: 'Not started', pending: 'Pending review', verified: 'Verified', failed: 'Needs attention', expired: 'Expired',
+}[insuranceStatus.value] ?? 'Not started'));
 
 const payoutComplete = computed(() => Boolean(
   auth.user?.stripe_payouts_enabled || auth.user?.stripe_onboarding_complete,
@@ -46,8 +60,8 @@ const verificationItems = computed(() => [
   {
     label: 'Trader insurance',
     description: 'Keep your current trader insurance information available for review.',
-    complete: false,
-    status: 'Next step',
+    complete: insuranceComplete.value,
+    status: insuranceStatusLabel.value,
   },
   {
     label: 'Trade plates (if applicable)',
@@ -63,8 +77,33 @@ onMounted(() => {
     fetchDriverLicenceVerification()
       .then((verification) => { licenceVerification.value = verification; })
       .catch(() => null);
+    fetchDriverInsuranceVerification()
+      .then((verification) => { insuranceVerification.value = verification; })
+      .catch(() => null);
   }
 });
+
+function onInsuranceDocumentChange(event) {
+  insuranceForm.document = event.target.files?.[0] ?? null;
+}
+
+async function submitInsurance() {
+  insuranceLoading.value = true;
+  insuranceError.value = '';
+  insuranceSuccess.value = '';
+  try {
+    const form = new FormData();
+    Object.entries(insuranceForm).forEach(([key, value]) => { if (value) form.append(key, value); });
+    insuranceVerification.value = await submitDriverInsuranceVerification(form);
+    insuranceSuccess.value = 'Your insurance has been submitted for manual review.';
+  } catch (error) {
+    insuranceError.value = error?.response?.data?.message
+      || Object.values(error?.response?.data?.errors ?? {})?.flat()?.[0]
+      || 'We could not submit your insurance. Please try again.';
+  } finally {
+    insuranceLoading.value = false;
+  }
+}
 
 async function submitLicenceCheck() {
   licenceLoading.value = true;
@@ -98,6 +137,27 @@ async function submitLicenceCheck() {
       <p class="max-w-2xl text-sm leading-6 text-slate-600 dark:text-emerald-100">
         Complete the checks needed to drive on MotorRelay. Stripe handles identity and payout setup securely, while the remaining driver details stay in your MotorRelay profile.
       </p>
+    </section>
+
+    <section class="tile space-y-4 p-5 md:p-7">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p class="eyebrow">Trader insurance</p>
+          <h2 class="mt-1 text-xl font-black text-slate-950 dark:text-white">Insurance for vehicle movements</h2>
+        </div>
+        <span class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-emerald-100">{{ insuranceStatusLabel }}</span>
+      </div>
+      <p class="text-sm leading-6 text-slate-600 dark:text-emerald-100">Upload your current trader motor policy. Our team will review the policy and expiry date before you drive.</p>
+      <form v-if="!insuranceComplete" class="grid gap-3 md:grid-cols-2" @submit.prevent="submitInsurance">
+        <label class="space-y-1 text-sm font-semibold text-slate-700 dark:text-emerald-100">Insurer<input v-model="insuranceForm.provider" class="input" required placeholder="Insurance company" /></label>
+        <label class="space-y-1 text-sm font-semibold text-slate-700 dark:text-emerald-100">Policy number<input v-model="insuranceForm.policy_number" class="input" required placeholder="Policy number" /></label>
+        <label class="space-y-1 text-sm font-semibold text-slate-700 dark:text-emerald-100">Expiry date<input v-model="insuranceForm.expires_at" class="input" type="date" required /></label>
+        <label class="space-y-1 text-sm font-semibold text-slate-700 dark:text-emerald-100">Policy document<input class="input" type="file" accept=".pdf,.jpg,.jpeg,.png" @change="onInsuranceDocumentChange" /></label>
+        <p v-if="insuranceError" class="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700 md:col-span-2 dark:bg-rose-400/10 dark:text-rose-200">{{ insuranceError }}</p>
+        <p v-if="insuranceSuccess" class="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 md:col-span-2 dark:bg-emerald-400/10 dark:text-emerald-200">{{ insuranceSuccess }}</p>
+        <button class="btn-primary md:col-span-2 md:w-fit" type="submit" :disabled="insuranceLoading">{{ insuranceLoading ? 'Submitting…' : 'Submit insurance for review' }}</button>
+      </form>
+      <p v-else class="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">Your insurance has been verified. Keep it renewed before the expiry date.</p>
     </section>
 
     <DriverPayoutConnectCard />

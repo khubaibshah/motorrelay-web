@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use App\Services\DriverVerification\DriverLicenceVerifier;
 use App\Services\DriverVerification\ManualDriverLicenceVerifier;
+use App\Services\DriverVerification\DriverInsuranceVerifier;
+use App\Services\DriverVerification\ManualDriverInsuranceVerifier;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -17,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
         // Keep the verification workflow provider-agnostic. Replace this binding
         // with a DVLA API implementation when accreditation is complete.
         $this->app->bind(DriverLicenceVerifier::class, ManualDriverLicenceVerifier::class);
+        $this->app->bind(DriverInsuranceVerifier::class, ManualDriverInsuranceVerifier::class);
 
         // Runtime containers may not include ignored Laravel storage folders.
         // Create the folders before any Blade/Markdown view is resolved.

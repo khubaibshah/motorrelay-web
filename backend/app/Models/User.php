@@ -59,6 +59,15 @@ class User extends Authenticatable implements CanResetPasswordContract
         'stripe_identity_verification_session_id',
         'stripe_identity_status',
         'stripe_identity_verified_at',
+        'driver_insurance_status',
+        'driver_insurance_provider',
+        'driver_insurance_policy_number',
+        'driver_insurance_expires_at',
+        'driver_insurance_document_path',
+        'driver_insurance_submitted_at',
+        'driver_insurance_verified_at',
+        'driver_insurance_last_checked_at',
+        'driver_insurance_check_result',
     ];
 
     protected $hidden = [
@@ -81,6 +90,12 @@ class User extends Authenticatable implements CanResetPasswordContract
         'driver_dvla_expires_at' => 'datetime',
         'driver_dvla_last_checked_at' => 'datetime',
         'driver_dvla_check_result' => 'array',
+        'driver_insurance_policy_number' => 'encrypted',
+        'driver_insurance_expires_at' => 'date',
+        'driver_insurance_submitted_at' => 'datetime',
+        'driver_insurance_verified_at' => 'datetime',
+        'driver_insurance_last_checked_at' => 'datetime',
+        'driver_insurance_check_result' => 'array',
     ];
 
     protected $appends = [

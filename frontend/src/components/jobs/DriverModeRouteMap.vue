@@ -18,6 +18,24 @@ let directionsRenderer;
 let currentMarker;
 let trackingPolyline;
 
+/**
+ * Keep a lightweight embed fallback for native bundles that were built without
+ * the optional Google Maps JavaScript key. It still renders the complete
+ * pickup-to-drop-off route and avoids leaving the driver with an empty panel.
+ */
+const fallbackMapSrc = () => {
+  if (!props.pickup || !props.dropoff) return "";
+
+  const params = new URLSearchParams({
+    output: "embed",
+    saddr: props.pickup,
+    daddr: props.dropoff,
+    dirflg: "d"
+  });
+
+  return `https://www.google.com/maps?${params.toString()}`;
+};
+
 function loadGoogleMaps() {
   if (window.google?.maps) return Promise.resolve(window.google.maps);
 
@@ -32,6 +50,12 @@ function loadGoogleMaps() {
     script.onload = () => resolve(window.google.maps);
     script.onerror = reject;
     document.head.appendChild(script);
+  });
+
+  // Do not retain a rejected promise: a later route render may have a valid
+  // key (or recover after the network becomes available) and should retry.
+  window.__motorRelayMapsPromise.catch(() => {
+    window.__motorRelayMapsPromise = null;
   });
 
   return window.__motorRelayMapsPromise;
@@ -82,7 +106,7 @@ async function renderMap() {
   try {
     maps = await loadGoogleMaps();
     if (!maps) {
-      mapError.value = "Route map is unavailable.";
+      mapError.value = "";
       return;
     }
 
@@ -115,7 +139,7 @@ async function renderMap() {
     mapReady.value = true;
     mapError.value = "";
   } catch (error) {
-    mapError.value = "Unable to load the route map.";
+    mapError.value = "";
     console.error("Failed to render driver route map", error);
   }
 }
@@ -133,9 +157,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="mapElement" class="relative h-full min-h-64 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.24),transparent_38%),#06120f]">
-    <div v-if="!mapReady" class="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-bold text-emerald-100">
-      {{ mapError || "Loading full pickup-to-drop-off route…" }}
+  <div ref="mapElement" class="relative h-full min-h-64 overflow-hidden bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.24),transparent_38%),#06120f]">
+    <div v-if="!mapReady && fallbackMapSrc()" class="absolute inset-0">
+      <iframe
+        :src="fallbackMapSrc()"
+        class="h-full w-full border-0 opacity-90 grayscale-[25%] contrast-125 saturate-75"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+        title="Driver pickup to drop-off route map"
+      />
+    </div>
+    <div v-if="!mapReady && !fallbackMapSrc()" class="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-bold text-emerald-100">
+      Loading full pickup-to-drop-off route…
     </div>
     <div v-if="mapReady" class="pointer-events-none absolute inset-x-3 bottom-3 flex justify-between gap-2">
       <span class="max-w-[45%] truncate rounded-full bg-slate-950/80 px-3 py-2 text-xs font-black text-white backdrop-blur">

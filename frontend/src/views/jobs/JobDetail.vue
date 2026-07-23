@@ -544,7 +544,6 @@ const {
   driverModeDropoffShort,
   driverModeRouteLabel,
   driverModeStatusLabel,
-  driverModeMapSrc,
   driverModeTrackingLabel,
   driverModeTimelineItems,
   driverModePrimaryAction,
@@ -1569,7 +1568,7 @@ watch(
       :min-inspection-photo-count="minInspectionPhotoCount"
       :required-inspection-shots="requiredInspectionShots"
       :uploaded-photos="driverModeUploadedPhotos"
-      :map-src="driverModeMapSrc"
+      :route-points="trackingPoints"
       :pickup-short="driverModePickupShort"
       :dropoff-short="driverModeDropoffShort"
       :destination-label="driverModeDestinationLabel"

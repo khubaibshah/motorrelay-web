@@ -83,29 +83,6 @@ export function useDriverModeState({
   const driverModeRouteLabel = computed(() => `${driverModePickupShort.value} to ${driverModeDropoffShort.value}`);
   const driverModeStatusLabel = computed(() => formatStatusLabel(job.value?.status, "In progress"));
 
-  const driverModeMapSrc = computed(() => {
-    if (!job.value) return "";
-
-    const start = [
-      job.value.current_latitude && job.value.current_longitude
-        ? `${job.value.current_latitude},${job.value.current_longitude}`
-        : "",
-      driverModePickupLabel.value
-    ].find(Boolean);
-    const destination = driverModeNavigationDestination.value || driverModeDropoffLabel.value;
-
-    if (!start && !destination) return "";
-
-    const params = new URLSearchParams({
-      output: "embed",
-      saddr: start || driverModePickupLabel.value,
-      daddr: destination,
-      dirflg: "d"
-    });
-
-    return `https://www.google.com/maps?${params.toString()}`;
-  });
-
   const driverModeTrackingLabel = computed(() => {
     if (trackingState.shared) return "Live location shared";
     if (lastTrackedDisplay.value) return `Last shared ${lastTrackedDisplay.value}`;
@@ -218,7 +195,6 @@ export function useDriverModeState({
     driverModeDropoffShort,
     driverModeRouteLabel,
     driverModeStatusLabel,
-    driverModeMapSrc,
     driverModeTrackingLabel,
     driverModeTimelineItems,
     driverModePrimaryAction,

@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from "vue";
+import DriverModeRouteMap from "@/components/jobs/DriverModeRouteMap.vue";
 
 defineProps({
   job: {
@@ -58,9 +59,9 @@ defineProps({
     type: Array,
     default: () => []
   },
-  mapSrc: {
-    type: String,
-    default: ""
+  routePoints: {
+    type: Array,
+    default: () => []
   },
   pickupShort: {
     type: String,
@@ -244,20 +245,12 @@ function openInspectionPicker() {
 
           <section class="mt-4 overflow-hidden rounded-[1.75rem] border border-emerald-300/15 bg-emerald-950/30 shadow-2xl">
             <div class="relative h-64 bg-slate-900">
-              <iframe
-                v-if="mapSrc"
-                :src="mapSrc"
-                class="h-full w-full border-0 opacity-90 grayscale-[25%] contrast-125 saturate-75"
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-                title="Driver route map"
+              <DriverModeRouteMap
+                :pickup="[job.pickup_label, job.pickup_postcode].filter(Boolean).join(', ')"
+                :dropoff="[job.dropoff_label, job.dropoff_postcode].filter(Boolean).join(', ')"
+                :current-location="routePoints[routePoints.length - 1] || null"
+                :route-points="routePoints"
               />
-              <div
-                v-else
-                class="flex h-full items-center justify-center bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.24),transparent_38%),#06120f] px-6 text-center text-sm font-bold text-emerald-100"
-              >
-                Route map will appear when pickup and drop-off details are available.
-              </div>
               <div class="pointer-events-none absolute inset-x-3 top-3 flex items-center justify-between gap-3">
                 <span class="max-w-[45%] truncate rounded-full bg-slate-950/75 px-3 py-2 text-xs font-black text-white backdrop-blur">
                   {{ pickupShort }}

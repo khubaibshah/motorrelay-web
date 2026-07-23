@@ -6,7 +6,6 @@ use App\Models\Job;
 use App\Services\Payments\StripePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class StripePaymentController extends Controller
 {
@@ -45,13 +44,6 @@ class StripePaymentController extends Controller
     {
         $this->authorizeDealer($request->user(), $job, 'Only the dealer that posted this job can release payout.');
         return response()->json($this->payments->releasePayout($job));
-    }
-
-    public function webhook(Request $request): Response
-    {
-        try { $this->payments->handleWebhook($request->getContent(), $request->header('Stripe-Signature')); }
-        catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) { return response($e->getMessage(), $e->getStatusCode()); }
-        return response('ok');
     }
 
     private function authorizeDealer($user, Job $job, string $message): void

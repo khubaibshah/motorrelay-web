@@ -16,7 +16,9 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostcodeLookupController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\StripeIdentityController;
 use App\Http\Controllers\StripePaymentController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VehicleLookupController;
 use Illuminate\Support\Facades\Route;
@@ -25,7 +27,7 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
-Route::post('/stripe/webhook', [StripePaymentController::class, 'webhook']);
+Route::post('/stripe/webhook', StripeWebhookController::class);
 
 Route::get('/jobs/highlights', [JobController::class, 'highlights']);
 
@@ -64,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/payment/release-payout', [StripePaymentController::class, 'releaseDriverPayout']);
     Route::post('/stripe/connect/onboard', [StripePaymentController::class, 'onboardDriver']);
     Route::post('/stripe/connect/disconnect', [StripePaymentController::class, 'disconnectDriver']);
+    Route::post('/stripe/identity/session', [StripeIdentityController::class, 'createSession']);
 
     Route::get('/jobs/{job}/expenses', [ExpenseController::class, 'index']);
     Route::post('/jobs/{job}/expenses', [ExpenseController::class, 'store']);

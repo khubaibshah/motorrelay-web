@@ -48,6 +48,9 @@ class User extends Authenticatable implements CanResetPasswordContract
         'stripe_onboarding_complete',
         'stripe_charges_enabled',
         'stripe_payouts_enabled',
+        'stripe_identity_verification_session_id',
+        'stripe_identity_status',
+        'stripe_identity_verified_at',
     ];
 
     protected $hidden = [
@@ -61,6 +64,7 @@ class User extends Authenticatable implements CanResetPasswordContract
         'stripe_onboarding_complete' => 'boolean',
         'stripe_charges_enabled' => 'boolean',
         'stripe_payouts_enabled' => 'boolean',
+        'stripe_identity_verified_at' => 'datetime',
     ];
 
     protected $appends = [

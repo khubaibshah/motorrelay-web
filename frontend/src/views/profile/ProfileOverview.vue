@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/theme';
 import { RouterLink } from 'vue-router';
 import AccountSettingsBlock from '@/components/AccountSettingsBlock.vue';
 import DriverPayoutConnectCard from '@/components/profile/DriverPayoutConnectCard.vue';
+import StripeIdentityCard from '@/components/profile/StripeIdentityCard.vue';
 
 const auth = useAuthStore();
 const theme = useThemeStore();
@@ -60,6 +61,8 @@ async function handleLogout() {
       </section>
 
       <DriverPayoutConnectCard v-if="isDriver" />
+
+      <StripeIdentityCard v-if="auth.user && auth.role !== 'admin'" />
 
       <AccountSettingsBlock />
 

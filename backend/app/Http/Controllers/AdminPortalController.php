@@ -29,7 +29,13 @@ class AdminPortalController extends Controller
             ->get();
 
         $users = User::query()
-            ->select(['id', 'name', 'email', 'role', 'plan', 'email_verified_at', 'created_at'])
+            ->select([
+                'id', 'name', 'email', 'role', 'plan', 'email_verified_at', 'created_at',
+                'driver_insurance_status', 'driver_insurance_provider', 'driver_insurance_policy_number',
+                'driver_insurance_expires_at', 'driver_insurance_document_path',
+                'driver_insurance_submitted_at', 'driver_insurance_verified_at',
+                'driver_insurance_last_checked_at',
+            ])
             ->get();
 
         $applications = JobApplication::query()
@@ -56,7 +62,7 @@ class AdminPortalController extends Controller
 
         return response()->json([
             'overview' => $this->buildOverviewPayload($jobs, $users, $applications),
-            'applications' => $this->buildApplicationsPayload($applications),
+            'applications' => $this->buildApplicationsPayload($applications, $users),
             'conversations' => $this->buildConversationsPayload($threads),
             'plans' => $this->buildPlansPayload($users, $invoices),
             'system_health' => $this->buildSystemHealthPayload($jobs, $threads, $applications, $invoices),
@@ -150,7 +156,7 @@ class AdminPortalController extends Controller
         ];
     }
 
-    private function buildApplicationsPayload(Collection $applications): array
+    private function buildApplicationsPayload(Collection $applications, Collection $users): array
     {
         $driverApplications = $applications->map(function ($application) {
             return [
@@ -162,9 +168,28 @@ class AdminPortalController extends Controller
             ];
         })->values();
 
+        $insuranceReviews = $users
+            ->filter(fn (User $driver) => $driver->role === 'driver'
+                && $driver->driver_insurance_status
+                && $driver->driver_insurance_status !== 'not_started')
+            ->map(fn (User $driver) => [
+                'driver_id' => $driver->id,
+                'driver' => $driver->name,
+                'email' => $driver->email,
+                'status' => $driver->driver_insurance_status,
+                'provider' => $driver->driver_insurance_provider,
+                'policy_number' => $driver->driver_insurance_policy_number,
+                'expires_at' => optional($driver->driver_insurance_expires_at)->toDateString(),
+                'submitted_at' => optional($driver->driver_insurance_submitted_at)->toIso8601String(),
+                'verified_at' => optional($driver->driver_insurance_verified_at)->toIso8601String(),
+                'has_document' => filled($driver->driver_insurance_document_path),
+            ])
+            ->values();
+
         return [
             'dealerships' => [],
             'drivers' => $driverApplications,
+            'insurance' => $insuranceReviews,
         ];
     }
 

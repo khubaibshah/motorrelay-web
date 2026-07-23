@@ -57,6 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/driver/insurance-verification', [DriverInsuranceVerificationController::class, 'status']);
     Route::post('/driver/insurance-verification', [DriverInsuranceVerificationController::class, 'submit']);
     Route::post('/admin/drivers/{driver}/insurance-verification', [DriverInsuranceVerificationController::class, 'verifyByAdmin']);
+    Route::get('/admin/drivers/{driver}/insurance-verification/document', [DriverInsuranceVerificationController::class, 'document']);
     Route::get('/account/change-requests', [AccountChangeRequestController::class, 'index']);
     Route::post('/account/change-requests', [AccountChangeRequestController::class, 'store']);
 

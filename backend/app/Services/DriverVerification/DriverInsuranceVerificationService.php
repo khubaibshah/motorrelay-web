@@ -61,4 +61,33 @@ class DriverInsuranceVerificationService
 
         return $driver->refresh();
     }
+
+    /**
+     * Open a submitted document without exposing its storage path or a public URL.
+     * The caller is responsible for authorisation; this keeps storage concerns in
+     * the service and works with both local and private S3 disks.
+     */
+    public function openDocument(User $driver): ?array
+    {
+        $path = $driver->driver_insurance_document_path;
+        if (! $path) {
+            return null;
+        }
+
+        $disk = Storage::disk(config('filesystems.default', 'local'));
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        $stream = $disk->readStream($path);
+        if (! is_resource($stream)) {
+            return null;
+        }
+
+        return [
+            'stream' => $stream,
+            'mime_type' => $disk->mimeType($path) ?: 'application/octet-stream',
+            'filename' => basename($path),
+        ];
+    }
 }

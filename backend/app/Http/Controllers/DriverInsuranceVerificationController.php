@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\DriverVerification\DriverInsuranceVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class DriverInsuranceVerificationController extends Controller
 {
@@ -39,6 +40,27 @@ class DriverInsuranceVerificationController extends Controller
             ? $this->service->markVerified($driver, $data)
             : $this->service->markFailed($driver, $data);
         return response()->json(['verification' => $this->payload($updated)]);
+    }
+
+    public function document(Request $request, User $driver): Response
+    {
+        abort_unless($request->user()?->isAdmin(), 403, 'Admin access required.');
+        abort_unless($driver->isDriver(), 404);
+
+        $document = $this->service->openDocument($driver);
+        abort_unless($document, 404, 'Insurance document not found.');
+
+        $filename = addcslashes($document['filename'], "\\\"");
+        $stream = $document['stream'];
+
+        return response()->stream(function () use ($stream): void {
+            fpassthru($stream);
+            fclose($stream);
+        }, 200, [
+            'Content-Type' => $document['mime_type'],
+            'Content-Disposition' => "inline; filename=\"{$filename}\"",
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     private function payload(User $driver): array

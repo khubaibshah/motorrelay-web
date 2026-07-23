@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminAccountChangeController;
 use App\Http\Controllers\AdminPortalController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DriverDashboardController;
+use App\Http\Controllers\DriverLicenceVerificationController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\JobApplicationController;
@@ -49,6 +50,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/postcodes/{postcode}/coordinates', [PostcodeLookupController::class, 'coordinates']);
     Route::get('/postcodes/{postcode}/addresses', [PostcodeLookupController::class, 'show']);
     Route::get('/driver/overview', [DriverDashboardController::class, 'show']);
+    Route::get('/driver/licence-verification', [DriverLicenceVerificationController::class, 'status']);
+    Route::post('/driver/licence-verification', [DriverLicenceVerificationController::class, 'submit']);
+    Route::post('/admin/drivers/{driver}/licence-verification', [DriverLicenceVerificationController::class, 'verifyByAdmin']);
     Route::get('/account/change-requests', [AccountChangeRequestController::class, 'index']);
     Route::post('/account/change-requests', [AccountChangeRequestController::class, 'store']);
 

@@ -7,11 +7,17 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
+use App\Services\DriverVerification\DriverLicenceVerifier;
+use App\Services\DriverVerification\ManualDriverLicenceVerifier;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Keep the verification workflow provider-agnostic. Replace this binding
+        // with a DVLA API implementation when accreditation is complete.
+        $this->app->bind(DriverLicenceVerifier::class, ManualDriverLicenceVerifier::class);
+
         // Runtime containers may not include ignored Laravel storage folders.
         // Create the folders before any Blade/Markdown view is resolved.
         foreach ([

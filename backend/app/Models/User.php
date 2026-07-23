@@ -39,6 +39,14 @@ class User extends Authenticatable implements CanResetPasswordContract
         'passport_number',
         'passport_selfie_path',
         'driver_dvla_code',
+        'driver_licence_number',
+        'driver_dvla_check_status',
+        'driver_dvla_check_code_hash',
+        'driver_dvla_check_submitted_at',
+        'driver_dvla_verified_at',
+        'driver_dvla_expires_at',
+        'driver_dvla_last_checked_at',
+        'driver_dvla_check_result',
         'driver_utility_bill_path',
         'driver_license_front_path',
         'driver_license_back_path',
@@ -56,6 +64,8 @@ class User extends Authenticatable implements CanResetPasswordContract
     protected $hidden = [
         'password',
         'remember_token',
+        'driver_licence_number',
+        'driver_dvla_check_code_hash',
     ];
 
     protected $casts = [
@@ -65,6 +75,12 @@ class User extends Authenticatable implements CanResetPasswordContract
         'stripe_charges_enabled' => 'boolean',
         'stripe_payouts_enabled' => 'boolean',
         'stripe_identity_verified_at' => 'datetime',
+        'driver_licence_number' => 'encrypted',
+        'driver_dvla_check_submitted_at' => 'datetime',
+        'driver_dvla_verified_at' => 'datetime',
+        'driver_dvla_expires_at' => 'datetime',
+        'driver_dvla_last_checked_at' => 'datetime',
+        'driver_dvla_check_result' => 'array',
     ];
 
     protected $appends = [

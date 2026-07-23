@@ -7,5 +7,4 @@ return [
     'platform_fee_percent' => (float) env('STRIPE_PLATFORM_FEE_PERCENT', 10),
     'currency' => env('STRIPE_CURRENCY', 'gbp'),
     'frontend_url' => env('FRONTEND_URL', 'http://127.0.0.1:5173'),
-    'identity_return_url' => env('STRIPE_IDENTITY_RETURN_URL', env('FRONTEND_URL', 'http://127.0.0.1:5173').'/profile?identity=return'),
 ];

@@ -6,7 +6,6 @@ import { useThemeStore } from '@/stores/theme';
 import { RouterLink } from 'vue-router';
 import AccountSettingsBlock from '@/components/AccountSettingsBlock.vue';
 import DriverPayoutConnectCard from '@/components/profile/DriverPayoutConnectCard.vue';
-import StripeIdentityCard from '@/components/profile/StripeIdentityCard.vue';
 
 const auth = useAuthStore();
 const theme = useThemeStore();
@@ -59,10 +58,6 @@ async function handleLogout() {
           </div>
         </header>
       </section>
-
-      <!-- Identity verification is a separate requirement from Stripe payouts.
-           Keep it first so drivers can complete it before connecting payouts. -->
-      <StripeIdentityCard v-if="auth.user && isDriver" />
 
       <DriverPayoutConnectCard v-if="isDriver" />
 

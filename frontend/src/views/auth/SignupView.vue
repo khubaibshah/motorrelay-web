@@ -70,14 +70,14 @@ watch(
         <p class="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">MotorRelay</p>
         <h1 class="mt-4 text-4xl font-black tracking-tight">Get moving in just a few details.</h1>
         <p class="mt-4 text-sm leading-6 text-slate-300">
-          Create your account now. We’ll guide you through identity and business verification separately, before you start moving vehicles.
+          Create your account now. After signup, Stripe will guide drivers through secure identity and payout setup.
         </p>
       </div>
 
       <div class="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
         <p class="text-sm font-semibold text-white">Verification comes next</p>
         <p class="mt-1 text-xs leading-5 text-slate-400">
-          You won’t need to find documents or upload identity photos on this screen.
+          Stripe securely handles the checks and payout details after you create your account.
         </p>
       </div>
     </aside>

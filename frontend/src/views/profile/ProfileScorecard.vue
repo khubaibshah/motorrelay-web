@@ -1,12 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
-import { startDriverPayoutOnboarding } from '@/services/payments';
 import { formatStatusLabel } from '@/utils/statusLabels';
 
 const auth = useAuthStore();
-const payoutSetupLoading = ref(false);
-const payoutSetupError = ref('');
 
 const currencyFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -55,19 +52,17 @@ const isLoading = computed(() => auth.loading && Boolean(auth.token));
 const metrics = computed(() => calculateMetrics(dataset.value));
 const formattedRevenue = computed(() => currencyFormatter.format(metrics.value.totalRevenue));
 const formattedAverage = computed(() => currencyFormatter.format(metrics.value.avgPrice));
-const hasDriverDocuments = computed(() => {
-  if (auth.role !== 'driver') return true;
-  return Boolean(auth.user?.driver_license_front_path && auth.user?.driver_license_back_path);
-});
+const stripeAccountReady = computed(() => Boolean(auth.user?.stripe_account_id && auth.user?.stripe_payouts_enabled));
 const verificationLabel = computed(() => {
   if (auth.role === 'admin') return 'Admin account';
   if (auth.role === 'dealer') return auth.user?.trade_policy_path || auth.user?.trade_plate_photo_path ? 'Dealer documents submitted' : 'Dealer documents needed';
-  return hasDriverDocuments.value ? 'Driver documents submitted' : 'Driver documents needed';
+  if (stripeAccountReady.value) return 'Stripe account verified';
+  return auth.user?.stripe_account_id ? 'Stripe verification in progress' : 'Stripe verification and payouts needed';
 });
 const payoutReadiness = computed(() => {
   if (auth.role === 'dealer') return 'Dealer billing ready after plan setup';
   if (auth.role === 'admin') return 'Platform payout controls';
-  return hasDriverDocuments.value ? 'Ready for admin review' : 'Upload licence documents to unlock payouts';
+  return stripeAccountReady.value ? 'Ready to receive payouts' : 'Complete Stripe account setup to unlock payouts';
 });
 const completedList = computed(() => {
   const statuses = new Set(['completed', 'closed']);
@@ -94,9 +89,9 @@ const updates = [
 ];
 const trustChecklist = computed(() => [
   {
-    label: 'Identity and documents',
+    label: 'Stripe verification',
     value: verificationLabel.value,
-    complete: auth.role === 'admin' || verificationLabel.value.includes('submitted')
+    complete: auth.role === 'admin' || stripeAccountReady.value
   },
   {
     label: 'Delivery proof',
@@ -106,7 +101,7 @@ const trustChecklist = computed(() => [
   {
     label: 'Payout status',
     value: payoutReadiness.value,
-    complete: hasDriverDocuments.value
+    complete: auth.role !== 'driver' || stripeAccountReady.value
   }
 ]);
 
@@ -157,24 +152,6 @@ function formatPrice(value) {
   return currencyFormatter.format(Number(value || 0));
 }
 
-async function handlePayoutSetup() {
-  payoutSetupLoading.value = true;
-  payoutSetupError.value = '';
-
-  try {
-    const payload = await startDriverPayoutOnboarding();
-    if (payload?.url) {
-      window.location.href = payload.url;
-      return;
-    }
-    throw new Error('Stripe did not return an onboarding link.');
-  } catch (error) {
-    console.error('Failed to start Stripe onboarding', error);
-    payoutSetupError.value = error.response?.data?.message || error.message || 'Could not start payout setup.';
-  } finally {
-    payoutSetupLoading.value = false;
-  }
-}
 </script>
 
 <template>
@@ -200,22 +177,6 @@ async function handlePayoutSetup() {
         <div class="mt-3 flex flex-wrap gap-2">
           <span class="badge bg-emerald-100 text-emerald-700">{{ verificationLabel }}</span>
           <span class="badge bg-slate-100 text-slate-700">{{ payoutReadiness }}</span>
-        </div>
-        <div v-if="auth.role === 'driver'" class="mt-4">
-          <button
-            type="button"
-            class="btn-primary w-full sm:w-auto"
-            :disabled="payoutSetupLoading"
-            @click="handlePayoutSetup"
-          >
-            <span v-if="payoutSetupLoading">Opening Stripe...</span>
-            <span v-else-if="auth.user?.stripe_payouts_enabled">Update payout setup</span>
-            <span v-else>Set up payouts</span>
-          </button>
-          <p v-if="payoutSetupError" class="mt-2 text-xs text-rose-600">{{ payoutSetupError }}</p>
-          <p v-else class="mt-2 text-xs text-slate-500">
-            Stripe collects bank details securely. MotorRelay never stores driver bank details.
-          </p>
         </div>
       </header>
 

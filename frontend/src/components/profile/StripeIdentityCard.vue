@@ -37,7 +37,7 @@ async function beginVerification() {
 </script>
 
 <template>
-  <section class="tile space-y-3 p-4 md:p-5">
+  <section id="identity-verification" class="tile space-y-3 p-4 md:p-5">
     <div class="flex items-start justify-between gap-3">
       <div>
         <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">ACCOUNT VERIFICATION</p>
@@ -51,7 +51,7 @@ async function beginVerification() {
       </span>
     </div>
     <p class="text-sm text-slate-600 dark:text-emerald-100">
-      Stripe securely checks your photo ID and selfie. MotorRelay only receives the verification result; your identity documents are handled by Stripe.
+      Stripe securely checks your photo ID and selfie. This verification is separate from your Stripe payout account, so you can complete it even before payouts are connected. MotorRelay only receives the verification result; Stripe handles your identity documents.
     </p>
     <p v-if="errorMessage" class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
       {{ errorMessage }}

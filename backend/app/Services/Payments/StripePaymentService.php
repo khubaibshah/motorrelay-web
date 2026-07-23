@@ -12,6 +12,7 @@ use Stripe\Stripe;
 use Stripe\StripeClient;
 use Stripe\Transfer;
 use Stripe\Webhook;
+use Illuminate\Support\Facades\Log;
 
 class StripePaymentService
 {
@@ -43,11 +44,54 @@ class StripePaymentService
 
     public function disconnectDriver(User $user): User
     {
-        if ($user->stripe_account_id) {
-            try { $this->client()->v2->core->accounts->close($user->stripe_account_id, ['applied_configurations' => ['recipient']]); }
-            catch (ApiErrorException $e) { abort(422, 'Stripe could not disconnect this payout account. Try again or contact support.'); }
+        $accountId = $user->stripe_account_id;
+
+        if ($accountId) {
+            try {
+                $this->client()->v2->core->accounts->close($accountId, [
+                    // Accounts v2 requires every configuration on the account.
+                    'applied_configurations' => ['recipient'],
+                ]);
+            } catch (ApiErrorException $e) {
+                $stripeCode = $e->getStripeCode();
+                $stripeMessage = $e->getError()?->message ?: $e->getMessage();
+
+                Log::error('Stripe Connect payout account disconnect failed', [
+                    'user_id' => $user->id,
+                    'stripe_account_id' => $accountId,
+                    'stripe_code' => $stripeCode,
+                    'stripe_message' => $stripeMessage,
+                ]);
+
+                // If the platform Stripe account was changed, this account can no
+                // longer be closed from the new platform. Remove the local link so
+                // the driver can connect a new payout account instead.
+                if ($stripeCode === 'resource_missing') {
+                    return $this->clearDriverStripeAccount($user);
+                }
+
+                $message = match ($stripeCode) {
+                    'balance_not_zero', 'account_has_pending_payout', 'payout_pending' =>
+                        'Stripe cannot disconnect this account while funds or payouts are pending. Try again once they have settled.',
+                    default => 'Stripe could not disconnect this payout account: '.($stripeMessage ?: 'the account is not eligible to close.'),
+                };
+
+                abort(422, $message);
+            }
         }
-        $user->forceFill(['stripe_account_id' => null, 'stripe_onboarding_complete' => false, 'stripe_charges_enabled' => false, 'stripe_payouts_enabled' => false])->save();
+
+        return $this->clearDriverStripeAccount($user);
+    }
+
+    private function clearDriverStripeAccount(User $user): User
+    {
+        $user->forceFill([
+            'stripe_account_id' => null,
+            'stripe_onboarding_complete' => false,
+            'stripe_charges_enabled' => false,
+            'stripe_payouts_enabled' => false,
+        ])->save();
+
         return $user->fresh();
     }
 

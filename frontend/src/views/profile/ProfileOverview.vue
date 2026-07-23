@@ -60,9 +60,11 @@ async function handleLogout() {
         </header>
       </section>
 
-      <DriverPayoutConnectCard v-if="isDriver" />
+      <!-- Identity verification is a separate requirement from Stripe payouts.
+           Keep it first so drivers can complete it before connecting payouts. -->
+      <StripeIdentityCard v-if="auth.user && isDriver" />
 
-      <StripeIdentityCard v-if="auth.user && auth.role !== 'admin'" />
+      <DriverPayoutConnectCard v-if="isDriver" />
 
       <AccountSettingsBlock />
 
